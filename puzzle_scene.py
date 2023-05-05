@@ -49,6 +49,9 @@ class PuzzleScene():
         # initialize simulation
         self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, True)
 
+        # store initial configuration
+        self._X0 = self.C.getFrameState()
+
         # delta t
         self.tau = .1
 
@@ -79,10 +82,10 @@ class PuzzleScene():
         # initialize state (q, \dot q)
         # variable for joint configuration
         self._q = self.C.getJointState()
-        # store initial joint configuration
-        self.q0 = self.C.getJointState()
+        # store initial joint configuration to be able to reset to it later
+        self._q0 = self._q.copy()
         self._v = np.zeros(len(self.q0))
-        self._state = self.q0, self._v, self._sym_state
+        self._state = self._q, self._v, self._sym_state
 
     @property
     def state(self) -> tuple:
@@ -102,8 +105,16 @@ class PuzzleScene():
     def q(self, value: np.ndarray):
         self.C.setJointState(value)
         self.S.setState(self.C.getFrameState())
-        self.S.step(np.zeros(len(self.q)), self.tau, ry.ControlMode.velocity)
+        #self.S.step(np.zeros(len(self.q)), self.tau, ry.ControlMode.velocity)
         self._q = value
+
+    @property
+    def q0(self) -> np.ndarray:
+        return self._q0
+
+    @property
+    def X0(self):
+        return self._X0
 
     @property
     def v(self) -> np.ndarray:
@@ -141,16 +152,19 @@ class PuzzleScene():
         """
         resets whole scene to initial state
         """
-        self._q = self.q0
         self._sym_state = self.sym_state0
         self.v = np.zeros(len(self.q0))
 
         # set robot back to initial configuration
-        self.C.setJointState(np.array([0., 0., 0.3, 0.]))
         # pass state on to simulation
-        self.S.setState(self.C.getFrameState())
-        # set all boxes back to initial configuration
+        self.C.setFrameState(self.X0)
+        self.S.setState(self.X0)
+        self.q = self.C.getJointState()
+        print("===================================")
+        print("setting simulation joints to: ", self.C.getJointState())
+        # set blocks back to original positions
         self.set_to_symbolic_state()
+        print("joint state after resetting: ", self.C.getJointState())
 
     def check_limits(self) -> bool:
         """
@@ -200,10 +214,10 @@ class PuzzleScene():
             # set position and orientation of box in Config
             self.C.getFrame(name).setQuaternion(self.quat0)
             self.C.getFrame(name).setPosition(pos)
-            new_pos = self.C.getFrame(name).getPosition()
+            #new_pos = self.C.getFrame(name).getPosition()
             # pass state on to simulation
-            self.S.setState(self.C.getFrameState())
-            self.S.step(self.v, self.tau, ry.ControlMode.velocity)
+        self.S.setState(self.C.getFrameState())
+        self.S.step(self.v, self.tau, ry.ControlMode.velocity)
 
     def valid_state(self) -> bool:
         """

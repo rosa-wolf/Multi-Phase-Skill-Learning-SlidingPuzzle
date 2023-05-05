@@ -10,21 +10,16 @@ if __name__ == '__main__':
 
     # sanity check of custom env
     env = PuzzleEnv()
-    #check_env(env)
-    env.scene.C.setJointState([-0.5, 0.5, 0.5, 0.])
+    ##check_env(env)
+    env.scene.C.setJointState([-0.1, 0.1, 0.1, 0.])
+    print("================================")
+    print("setting simulation joints to: ", env.scene.C.getJointState())
     env.scene.S.setState(env.scene.C.getFrameState())
     env.scene.S.step( np.zeros(len(env.scene.q0)), env.scene.tau, ry.ControlMode.velocity)
-    time.sleep(2.)
-    #env.scene.reset()
-    env.scene.C.setJointState([0., 0., 0.3, 0.])
-    env.scene.S.setState(env.scene.C.getFrameState())
-    env.scene.S.step(np.zeros(len(env.scene.q0)), env.scene.tau, ry.ControlMode.velocity)
-    print("joint = ", env.scene.C.getJointState())
+    print("joint state after setting State: ", env.scene.C.getJointState())
     time.sleep(5.)
-
-    print("obs_space shape:", env.observation_space.shape[0])
-
-    #myScene = PuzzleScene("slidingPuzzle.g")
+    env.scene.reset()
+    time.sleep(10.)
 
     """
     # go from initial configuration behind left cube

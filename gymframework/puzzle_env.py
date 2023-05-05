@@ -34,6 +34,8 @@ class PuzzleEnv(gym.Env):
         self.episode = 0
 
         self.scene = PuzzleScene(path)
+        #print("===========================\n Initial joint configuration: {}\n =============================".format(
+        #    self.scene.q0))
 
         self.dt = self.scene.tau
 
@@ -41,10 +43,10 @@ class PuzzleEnv(gym.Env):
 
         # range in which robot should be able to move
         # velocities in x-y direction (no change in orientation for now)
-        # Todo: make action space 1d array for sac algorithm
         #self.action_space = Dict({"q_dot": Box(low=-1., high=1., shape=(2,), dtype=np.float64),
         #                          "perform_skill": Discrete(2)})
 
+        # action space as 1D array instead
         # first two is velocity in x-y plane, last decides wether we perform skill (>0) or not (<=0)
         self.action_space = Box(low=-1., high=1., shape=(3,), dtype=np.float64)
 
@@ -93,6 +95,7 @@ class PuzzleEnv(gym.Env):
         if not done:
             self.env_step_counter += 1
 
+
         return self._obs, reward, done, {}
 
     def reset(self,
@@ -109,13 +112,15 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
 
         if self.random_init_pos:
-            # Todo: Set agent to random position
-
-            pass
+            # Set agent to random initial position inside a box
+            pos = Box(low=-2., high=2., shape=(2, ), dtype=np.float64)
+            init_pos = pos.sample()
+            self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
         self._old_obs = self._get_observation()
         self._obs = self._get_observation()
 
+        print("Init pos: {}".format(self.scene.q))
         return self._obs, {}
 
     def seed(self, seed=None):
@@ -130,6 +135,8 @@ class PuzzleEnv(gym.Env):
             True if robot should terminate
         """
         if self.terminated or self.env_step_counter >= self._max_episode_steps:
+            self.reset()
+            print("Termination: Environment reset now")
             self.terminated = False
             self.env_step_counter = 0
             self.episode += 1
@@ -151,19 +158,20 @@ class PuzzleEnv(gym.Env):
         """
         # Todo: implement reading out actual limits from file
         # get joint limits (only of translational joints for now)
-        low_q = -5.
-        high_q = 5.
+        #low_q = -5.
+        #high_q = 5.
 
+        # return Dict({"q": Box(low=low_q, high=high_q, shape=(3,), dtype=np.float64),
+        #             "q_dot": Box(low=0., high=1., shape=(2, ), dtype=np.float64),
+        #             "sym_obs": MultiBinary(n=self.scene.sym_state.shape)})
+
+        # observation space as 1D array instead
         shape = 5 + self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
-        # Todo: make observation spae one single array (such that it works with sac algorithm)
+        # make observation spae one single array (such that it works with sac algorithm)
         # 0-2 joint position in x,y,z
         # 3, 4: velocity in x,y direction
         # 5 - end: symbolic observation (flattened)
         return Box(low=-np.inf, high=np.inf, shape=(shape,), dtype=np.float64)
-
-        #return Dict({"q": Box(low=low_q, high=high_q, shape=(3,), dtype=np.float64),
-        #             "q_dot": Box(low=0., high=1., shape=(2, ), dtype=np.float64),
-        #             "sym_obs": MultiBinary(n=self.scene.sym_state.shape)})
 
     def apply_action(self, action):
         """
@@ -172,6 +180,7 @@ class PuzzleEnv(gym.Env):
         :return:
         """
         # Todo: Maybe it makes more sense to include #steps in action for which to apply the velocities
+        # Todo: Reward shaping
         # read out action (velocities in x-y plane)
         #self.scene.v = np.array([action["q_dot"][0], action["q_dot"][1], 0., 0.])
         self.scene.v = np.array([action[0], action[1], 0., 0.])
@@ -183,11 +192,13 @@ class PuzzleEnv(gym.Env):
 
         if action[2] > 0:
             self.execute_skill()
+            self.terminated = True
 
     def _reward(self) -> float:
         """
         Calculates reward, which is based on symbolic observation change
         """
+        # Todo: Reward shaping
         # Reward if symbolic observation changed
         # if symbolic observation is invalid return negative reward
         # if symbolic observation changed and is valid return positive reward
@@ -200,10 +211,7 @@ class PuzzleEnv(gym.Env):
         #if (self._old_obs["sym_obs"] == self._obs["sym_obs"]).all():
         if not (self._old_obs[5:] == self._obs[5:]).all():
             self.terminated = True
-            if self.env_step_counter != 0:
-                return 10./self.env_step_counter
-            else:
-                return 10.
+            return 10.
 
         return 0
 

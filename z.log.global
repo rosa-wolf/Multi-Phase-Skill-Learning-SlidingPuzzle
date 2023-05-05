@@ -1,9 +1,9 @@
-** compiled at:     Apr  1 2023 08:41:05
-** execution start: 2023-05-02 15:41:44:282828
-graph.cpp:initParameters:1385(3) opening config file 'rai.cfg'
-graph.cpp:initParameters:1392(3)  - failed
-graph.cpp:initParameters:1398(3) opening base config file '/root/local/rai/../local.cfg'
-graph.cpp:initParameters:1404(3)  - failed
+** compiled at:     May  4 2023 14:21:23
+** execution start: 2023-05-05 11:28:57:812085
+graph.cpp:initParameters:1390(3) opening config file 'rai.cfg'
+graph.cpp:initParameters:1397(3)  - failed
+graph.cpp:initParameters:1403(3) opening base config file '/root/local/rai/../local.cfg'
+graph.cpp:initParameters:1409(3)  - failed
 util.cpp:cd_start:1024(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
 util.cpp:getIs:1061(3) opening input file 'slidingPuzzle.g'
 util.cpp:cd_start:1024(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
@@ -17,3 +17,35 @@ util.ipp:getParameterBase:29(3) physx/defaultFriction:   0.1 # user [d]
 util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
 util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
 util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 -0.1
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0.1
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0.1
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 -0.0375394
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0.0374081
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0.0367475
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 0
+kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 0
+simulation.cpp:~Simulation:153(0) shutting down Simulation
+** execution stop: 2023-05-05 11:29:13:636289
+** real time: 15.8243sec
+** CPU time: 3.55898
