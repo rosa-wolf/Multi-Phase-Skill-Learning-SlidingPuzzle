@@ -7,7 +7,7 @@ from gym.core import ObsType, ActType
 from gym.spaces import Box, Dict, Discrete, MultiBinary
 from gym.utils import seeding
 from puzzle_scene import PuzzleScene
-
+from robotic import ry
 
 
 class PuzzleEnv(gym.Env):
@@ -17,7 +17,7 @@ class PuzzleEnv(gym.Env):
 
     def __init__(self,
                  path='slidingPuzzle.g',
-                 max_steps=2000,
+                 max_steps=500,
                  random_init_pos=False,
                  nsubsteps=1):
 
@@ -48,7 +48,7 @@ class PuzzleEnv(gym.Env):
 
         # action space as 1D array instead
         # first two is velocity in x-y plane, last decides wether we perform skill (>0) or not (<=0)
-        self.action_space = Box(low=-1., high=1., shape=(3,), dtype=np.float64)
+        self.action_space = Box(low=-2., high=2., shape=(3,), dtype=np.float64)
 
         # store previous observation and observation
         self._old_obs = self._get_observation()
@@ -72,29 +72,33 @@ class PuzzleEnv(gym.Env):
         """
 
         # apply action
-        #prev_q = self._obs["q"]
         prev_q = self._obs[:3]
         self.apply_action(action)
+
         # check if joints are outside observation_space
+        # if so set back to last valid position
         if not self.scene.check_limits():
             # go back to previous position (orientation cannot change currently)
             self.scene.q = np.concatenate((prev_q, np.array([self.scene.q0[3]])))
 
-        # if so set back to last valid position
-
         # get observation
-        self._old_obs = self._obs
+        self._old_obs = self._obs.copy()
         self._obs = self._get_observation()
+
+        # check if symbolic observation changed
+        if not (self._old_obs[5:] == self._obs[5:]).all():
+            self.terminated = True
 
         # get reward
         reward = self._reward()
-        #print("reward = ", reward)
 
         # look whether conditions for termination are met
         done = self._termination()
         if not done:
             self.env_step_counter += 1
-
+            # set puzzle pieces back to discrete places (in case they were moved just a little bit
+            # but not enough do change symbolic observation)
+            self.scene.set_to_symbolic_state()
 
         return self._obs, reward, done, {}
 
@@ -120,8 +124,8 @@ class PuzzleEnv(gym.Env):
         self._old_obs = self._get_observation()
         self._obs = self._get_observation()
 
-        print("Init pos: {}".format(self.scene.q))
-        return self._obs, {}
+        #print("Init pos: {}".format(self.scene.q))
+        return self._obs#, {}
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -135,8 +139,9 @@ class PuzzleEnv(gym.Env):
             True if robot should terminate
         """
         if self.terminated or self.env_step_counter >= self._max_episode_steps:
-            self.reset()
             print("Termination: Environment reset now")
+            self.reset()
+
             self.terminated = False
             self.env_step_counter = 0
             self.episode += 1
@@ -176,23 +181,21 @@ class PuzzleEnv(gym.Env):
     def apply_action(self, action):
         """
         Applys the action in the scene
-        :param action: 2D velocity, and [-1, 1] indicating whether we want to  execute skill afterwards
+        :param action: 2D velocity, and [-1, 1] indicating whether we want to  execute skill afterward
         :return:
         """
-        # Todo: Maybe it makes more sense to include #steps in action for which to apply the velocities
-        # Todo: Reward shaping
+        #
         # read out action (velocities in x-y plane)
         #self.scene.v = np.array([action["q_dot"][0], action["q_dot"][1], 0., 0.])
         self.scene.v = np.array([action[0], action[1], 0., 0.])
         # apply action (for now always for (just) ten steps)
-        self.scene.velocity_control(1)
+        self.scene.velocity_control(30)
         # execute skill if action says so
         #if action["perform_skill"] == 1:
         #    self.execute_skill()
 
-        if action[2] > 0:
+        if action[2] > 1.5:
             self.execute_skill()
-            self.terminated = True
 
     def _reward(self) -> float:
         """
@@ -204,31 +207,54 @@ class PuzzleEnv(gym.Env):
         # if symbolic observation changed and is valid return positive reward
         # which is dependent on steps needed to reach this state
 
-        if not self.scene.valid_state():
-            self.terminated = True
-            return -1
+        #if not self.scene.valid_state():
+        #    self.terminated = True
+        #    return -1
 
         #if (self._old_obs["sym_obs"] == self._obs["sym_obs"]).all():
-        if not (self._old_obs[5:] == self._obs[5:]).all():
-            self.terminated = True
-            return 10.
+        #if not (self._old_obs[5:] == self._obs[5:]).all():
+        #    self.terminated = True
+        #    return 5.
 
-        return 0
+        # give negative  distance as "reward"
+        loc = np.array([0.11114188, -0.09727765, 0., 0.]) # loc with the highest reward (reward = 0)
+        return - np.linalg.norm(loc - self.scene.C.getJointState())
+
+        ## set reward zero except to last transition in an episode
+        #if self.terminated:
+        #    # make reward dependent on distance to location where skill should be executed
+        #    loc = np.array([0.11114188, -0.09727765, 0.,  0.])
+        #    # lower right corner should have max dist to that position
+        #    max_dist = np.linalg.norm(loc - np.array([-0.2, 0.2, 0., 0.]))
+#
+        #    # current position
+        #    pos = self.scene.C.getJointState()
+        #    dist = np.linalg.norm(loc - pos)
+#
+        #    return 1 - np.log(1 + dist)/np.log(1 + max_dist)
+#
+        #return 0
 
     def execute_skill(self):
         """
         Hard coded skill to move one block forward onto free space
         """
-        # Todo:
-        # check if field we are trying to push onto is free
-        # look at current x-y position of end-effector
-        # estimate which block is going to be pushed
-        # look whether neighboring place is occupied
+        prev_joint_pos = self.scene.q
+        prev_joint_pos[2] = self.scene.q0[2]
 
         # move to right z-position (move down)
-        self.scene.v = np.array([0., 0., -0.05, 0.])
-        self.scene.velocity_control(30)
+        self.scene.v = np.array([0., 0., -0.5, 0.])
+        self.scene.velocity_control(300)
 
         # go forward
-        self.scene.v = np.array([0., 0.04, 0., 0.])
-        self.scene.velocity_control(50)
+        self.scene.v = np.array([0., 0.5, 0., 0.])
+        change = self.scene.velocity_control(300)
+
+        # check whether skill lead to change in symbolic observation
+        if change:
+            self.terminated = True
+        else:
+            # set robot back to position before skill execution
+            self.scene.C.setJointState(prev_joint_pos)
+            self.scene.S.setState(self.scene.C.getFrameState())
+            self.scene.S.step([], self.scene.tau, ry.ControlMode.none)

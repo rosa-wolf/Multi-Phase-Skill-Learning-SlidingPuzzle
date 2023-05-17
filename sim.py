@@ -10,37 +10,49 @@ if __name__ == '__main__':
 
     # sanity check of custom env
     env = PuzzleEnv()
-    ##check_env(env)
-    env.scene.C.setJointState([-0.1, 0.1, 0.1, 0.])
-    print("================================")
-    print("setting simulation joints to: ", env.scene.C.getJointState())
-    env.scene.S.setState(env.scene.C.getFrameState())
-    env.scene.S.step( np.zeros(len(env.scene.q0)), env.scene.tau, ry.ControlMode.velocity)
-    print("joint state after setting State: ", env.scene.C.getJointState())
-    time.sleep(5.)
-    env.scene.reset()
-    time.sleep(10.)
+    # go to correct x-y-position
+    env.scene.v = np.array([0.5, -0.5, 0., 0.])
+    env.scene.velocity_control(250)
+    env.execute_skill()
 
-    """
+    #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
+    #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])
+    #env.scene.sym_state = sym_obs
+    #env.scene.set_to_symbolic_state()
+    #print("Set new state")
+    #time.sleep(10.)
+    #check_env(env)
+    #print("q0 = ", env.scene.q0)
+    #env.scene.q = np.array([-0.2, 0.2, 0., 0.])
+    #time.sleep(5.)
+    #env.scene.v = np.array([-0.5, -0.5, 0., 0.])
+    #env.scene.velocity_control(500)
+    #time.sleep(5.)
+    #env.scene.reset()
+    #time.sleep(10.)
+
     # go from initial configuration behind left cube
     # first move to right x-y-position
     #some good old fashioned IK
-    myScene.v = np.array([0., -0.028, 0., 0])
-    #myScene.v = np.array([0.025, -0.028, 0., 0.])
-    myScene.velocity_control(30)
+    #myScene = PuzzleScene(filename="slidingPuzzle.g")
+    #myScene.v = np.array([0., -0.028, 0., 0])
+    #myScene.v = np.array([0., -0.7, 0., 0.])
+    #myScene.velocity_control(150)
+    #print("joint config = ", myScene.C.getJointState())
 
     # then move to right z-position
-    myScene.v = np.array([0., 0., -0.05, 0.])
-    myScene.velocity_control(30)
+    #myScene.v = np.array([0., 0., -2., 0.])
+    #myScene.velocity_control(300)
 
     # go forward
-    myScene.v = np.array([0., 0.04, 0., 0.])
-    myScene.velocity_control(100)
+    #myScene.v = np.array([0., 0.5, 0., 0.])
+    #myScene.velocity_control(100)
+    #time.sleep(2.)
 
-    myScene.reset()
-    time.sleep(20.)
+    #myScene.reset()
 
-    myScene.C = 0
-    myScene.S = 0
-    """
+    #time.sleep(20.)
+
+    #myScene.C = 0
+    #myScene.S = 0
 

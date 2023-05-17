@@ -2,7 +2,8 @@ from robotic import ry
 import numpy as np
 import time
 
-class PuzzleScene():
+
+class PuzzleScene:
     def __init__(self,
                  filename: str,
                  puzzlesize=None):
@@ -46,14 +47,15 @@ class PuzzleScene():
         #self.X0 = self.C.getFrameState()
         #self.C.setFrameState(self.X0)  # why do we need this? Setting feature with same values it already has?
 
+        # store initial configuration
+        self._X0 = self.C.getFrameState()
+        self.C.setFrameState(self.X0)
+
         # initialize simulation
         self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, True)
 
-        # store initial configuration
-        self._X0 = self.C.getFrameState()
-
         # delta t
-        self.tau = .1
+        self.tau = .01
 
         # get initial orientation of puzzle pieces (assumtion: all pieces have same orientation)
         self.quat0 = self.C.getFrame("box0").getQuaternion()
@@ -73,11 +75,11 @@ class PuzzleScene():
         self.discrete_pos[-1, 1:] = self.discrete_pos[4, 1:]
 
         # store intial symbolic state
-        self.sym_state0 = self._sym_state.copy()
+        self.sym_state0 = self.sym_state.copy()
 
         # radius for "snapping" (just any value for now)
         dist = np.linalg.norm(self.discrete_pos[0] - self.discrete_pos[1])
-        self.snapRad = dist/2.
+        self.snapRad = dist/4. # must be smaller or equal to dist/2.
 
         # initialize state (q, \dot q)
         # variable for joint configuration
@@ -97,15 +99,21 @@ class PuzzleScene():
     def sym_state(self) -> np.ndarray:
         return self._sym_state
 
+    @sym_state.setter
+    def sym_state(self, value: np.ndarray):
+        self._sym_state = value
+
     @property
     def q(self) -> np.ndarray:
+        # update q
+        self._q = self.C.getJointState()
         return self._q
 
     @q.setter
     def q(self, value: np.ndarray):
         self.C.setJointState(value)
         self.S.setState(self.C.getFrameState())
-        #self.S.step(np.zeros(len(self.q)), self.tau, ry.ControlMode.velocity)
+        self.S.step([], self.tau, ry.ControlMode.none)
         self._q = value
 
     @property
@@ -127,44 +135,46 @@ class PuzzleScene():
     def v(self, value: np.ndarray) -> None:
         self._v = value
 
-    def velocity_control(self, n) -> None:
+    def velocity_control(self, n) -> bool:
         """
         Performs IK velocity control for n steps
         :param n: number of steps in velocity control
-        :return: 0
+        :return: true if symbolic state changed
         """
-
+        new_state = False
         for i in range(n):
             time.sleep(self.tau)
             self.S.step(self.v, self.tau, ry.ControlMode.velocity)
             new_state = self.update_symbolic_state()
             # stop movement if symbolic state has changed
             if new_state:
-                print("symbolic state changed")
                 # set new symbolic state in simulation
                 self.set_to_symbolic_state()
                 self.v = np.zeros(len(self.q0))
-                return
+                return new_state
         # set v to zero when movement is finished
         self.v = np.zeros(len(self.q0))
+
+        return new_state
 
     def reset(self) -> None:
         """
         resets whole scene to initial state
         """
-        self._sym_state = self.sym_state0
+        self.sym_state = self.sym_state0.copy()
+        print("sym state after reset = ", self.sym_state)
         self.v = np.zeros(len(self.q0))
 
         # set robot back to initial configuration
         # pass state on to simulation
+        self.C.setJointState(self.q0)
         self.C.setFrameState(self.X0)
-        self.S.setState(self.X0)
-        self.q = self.C.getJointState()
-        print("===================================")
-        print("setting simulation joints to: ", self.C.getJointState())
+        del self.S
+        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, True)
+        #self.S.pushConfigurationToSimulator()
         # set blocks back to original positions
-        self.set_to_symbolic_state()
-        print("joint state after resetting: ", self.C.getJointState())
+        #self.S.step([], self.tau,  ry.ControlMode.none)
+        #self.set_to_symbolic_state()
 
     def check_limits(self) -> bool:
         """
@@ -215,9 +225,9 @@ class PuzzleScene():
             self.C.getFrame(name).setQuaternion(self.quat0)
             self.C.getFrame(name).setPosition(pos)
             #new_pos = self.C.getFrame(name).getPosition()
-            # pass state on to simulation
-        self.S.setState(self.C.getFrameState())
-        self.S.step(self.v, self.tau, ry.ControlMode.velocity)
+        # pass state on to simulation
+        self.S.pushConfigurationToSimulator()
+        self.S.step([], self.tau, ry.ControlMode.none)
 
     def valid_state(self) -> bool:
         """
@@ -243,7 +253,7 @@ class PuzzleScene():
         :return: true if symbolic state changed
         """
         changed = False
-
+        prev_state = self.sym_state.copy()
 
         # check if position ob puzzle piece is in radius of symbolic state position
         positions = self.get_positions()
@@ -260,6 +270,11 @@ class PuzzleScene():
                         changed = True
                         self._sym_state[i, old_state] = 0
                         self._sym_state[i, j] = 1
+        if changed:
+            print("============================\n symbolic state changes")
+            print("old state = ", prev_state)
+            print("new state = ", self.sym_state)
+            print("============================")
 
         return changed
     
