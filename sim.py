@@ -11,8 +11,10 @@ if __name__ == '__main__':
     # sanity check of custom env
     env = PuzzleEnv()
     # go to correct x-y-position
-    env.scene.v = np.array([0.5, -0.5, 0., 0.])
-    env.scene.velocity_control(250)
+    env.scene.q = np.array([0.3, -0.5, 0., 0.])
+    #time.sleep(10.)
+    #env.scene.v = np.array([0.5, -1., 0., 0.])
+    #env.scene.velocity_control(250)
     env.execute_skill()
 
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],

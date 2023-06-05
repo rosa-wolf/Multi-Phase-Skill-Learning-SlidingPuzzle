@@ -181,9 +181,32 @@ class PuzzleScene:
         Returns True if joint values lie within joint limits
         """
         self._q = self.C.getJointState()
-        if ((self._q[:3] >= self.q_lim[:, 0]) & (self._q[:3] <= self.q_lim[:, 1])).all():
-            return True
-        return False
+        new_q = self.q.copy()
+        new_q[2] = self.q0[2]
+        new_q[3] = self.q0[3]
+
+        in_limit = True
+
+        if self._q[0] < self.q_lim[0, 0]:
+            new_q[0] = self.q_lim[0, 0]
+            in_limit = False
+        elif self._q[0] > self.q_lim[0, 1]:
+            new_q[0] = self.q_lim[0, 1]
+            in_limit = False
+
+        if self._q[1] < self.q_lim[1, 0]:
+            new_q[1] = self.q_lim[1, 0]
+            in_limit = False
+        elif self._q[1] > self.q_lim[1, 1]:
+            new_q[1] = self.q_lim[1, 1]
+            in_limit = False
+
+        if not in_limit:
+            self.q = new_q
+
+        #if ((self._q[:3] >= self.q_lim[:, 0]) & (self._q[:3] <= self.q_lim[:, 1])).all():
+        #    return True
+        return in_limit
 
     def set_board_state(self, state) -> None:
         """
@@ -260,7 +283,7 @@ class PuzzleScene:
         # go through all puzzle pieces
         for i in range(self.pieces):
             # check whether old symbolic state changes
-            old_state = np.where(self._sym_state[i] == 1)[0]
+            old_state = np.where(self.sym_state[i] == 1)[0]
             # go through all states but except old one and look if puzzle piece is near enough to invoke change of
             # symbolic state
             for j in range(self.pieces + 1):
@@ -268,8 +291,8 @@ class PuzzleScene:
                     if np.linalg.norm(positions[i] - self.discrete_pos[j]) <= self.snapRad:
                         # symbolic state changes
                         changed = True
-                        self._sym_state[i, old_state] = 0
-                        self._sym_state[i, j] = 1
+                        self.sym_state[i, old_state] = 0
+                        self.sym_state[i, j] = 1
         if changed:
             print("============================\n symbolic state changes")
             print("old state = ", prev_state)

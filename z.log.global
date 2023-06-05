@@ -1,38 +1,9 @@
 ** compiled at:     May  4 2023 14:21:23
-** execution start: 2023-05-14 12:36:07:248279
+** execution start: 2023-06-05 13:37:13:409546
 graph.cpp:initParameters:1390(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1397(3)  - failed
 graph.cpp:initParameters:1403(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1409(3)  - failed
-util.cpp:cd_start:1024(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
-util.cpp:getIs:1061(3) opening input file 'slidingPuzzle.g'
-util.cpp:cd_start:1024(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
-util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
-util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
-util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
-util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
-util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
-util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
-util.ipp:getParameterBase:29(3) physx/defaultFriction:   0.1 # user [d]
-util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
-util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
-util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
-simulation.cpp:~Simulation:153(0) shutting down Simulation
-util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
-util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
-util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
-util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
-util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
-util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
-util.ipp:getParameterBase:29(3) physx/defaultFriction:   0.1 # user [d]
-util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
-util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
-util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
-kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA1 0.115761
-kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA2 -0.0620065
-kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: jointA3 -0.20312
-kin_physx.cpp:setMotorQ:893(0) setting joint pos hard: wedge 2.13188e-05
-simulation.cpp:~Simulation:153(0) shutting down Simulation
-** execution stop: 2023-05-14 12:36:19:105603
-** real time: 11.8574sec
-** CPU time: 9.93198
+** execution stop: 2023-06-05 13:37:19:194540
+** real time: 5.78507sec
+** CPU time: 7.4345
