@@ -9,13 +9,15 @@ from gym.utils.env_checker import check_env
 if __name__ == '__main__':
 
     # sanity check of custom env
-    env = PuzzleEnv()
+    env = PuzzleEnv(skill=2, verbose=1)
     # go to correct x-y-position
-    env.scene.q = np.array([0.3, -0.5, 0., 0.])
+    env.scene.q = np.array([-0.17, -0.2, env.scene.q0[2], env.scene.q0[3]])
+    time.sleep(3)
     #time.sleep(10.)
     #env.scene.v = np.array([0.5, -1., 0., 0.])
     #env.scene.velocity_control(250)
     env.execute_skill()
+    time.sleep(5)
 
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])

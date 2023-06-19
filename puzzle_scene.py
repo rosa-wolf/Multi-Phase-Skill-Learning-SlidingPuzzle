@@ -6,7 +6,8 @@ import time
 class PuzzleScene:
     def __init__(self,
                  filename: str,
-                 puzzlesize=None):
+                 puzzlesize=None,
+                 verbose=0):
         """
 
         field with discrete places
@@ -52,7 +53,8 @@ class PuzzleScene:
         self.C.setFrameState(self.X0)
 
         # initialize simulation
-        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, True)
+        self.verbose = verbose
+        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, self.verbose)
 
         # delta t
         self.tau = .01
@@ -143,7 +145,6 @@ class PuzzleScene:
         """
         new_state = False
         for i in range(n):
-            time.sleep(self.tau)
             self.S.step(self.v, self.tau, ry.ControlMode.velocity)
             new_state = self.update_symbolic_state()
             # stop movement if symbolic state has changed
@@ -162,7 +163,6 @@ class PuzzleScene:
         resets whole scene to initial state
         """
         self.sym_state = self.sym_state0.copy()
-        print("sym state after reset = ", self.sym_state)
         self.v = np.zeros(len(self.q0))
 
         # set robot back to initial configuration
@@ -170,7 +170,7 @@ class PuzzleScene:
         self.C.setJointState(self.q0)
         self.C.setFrameState(self.X0)
         del self.S
-        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, True)
+        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, self.verbose)
         #self.S.pushConfigurationToSimulator()
         # set blocks back to original positions
         #self.S.step([], self.tau,  ry.ControlMode.none)
@@ -293,11 +293,6 @@ class PuzzleScene:
                         changed = True
                         self.sym_state[i, old_state] = 0
                         self.sym_state[i, j] = 1
-        if changed:
-            print("============================\n symbolic state changes")
-            print("old state = ", prev_state)
-            print("new state = ", self.sym_state)
-            print("============================")
 
         return changed
     

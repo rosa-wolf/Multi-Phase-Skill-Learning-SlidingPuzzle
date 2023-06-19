@@ -16,14 +16,17 @@ class PuzzleEnv(gym.Env):
     """
 
     def __init__(self,
+                 skill: int,
                  path='slidingPuzzle.g',
-                 max_steps=5000,
-                 random_init_pos=False,
-                 random_init_config=False,
+                 max_steps=30,
+                 random_init_pos=True,
+                 random_init_config=True,
+                 verbose=0,
                  nsubsteps=1):
 
         """
         Args:
+        :param skill: which skill we want to train (influences reward and field configuration)
         :param max_steps: Maximum number of steps per episode
         :param random_init_pos: whether agent should be placed in random initial position on start of episode
         """
@@ -34,27 +37,17 @@ class PuzzleEnv(gym.Env):
         self._max_episode_steps = max_steps
         self.episode = 0
 
-        self.scene = PuzzleScene(path)
-        #print("===========================\n Initial joint configuration: {}\n =============================".format(
-        #    self.scene.q0))
+        self.scene = PuzzleScene(path, verbose=verbose)
 
         self.dt = self.scene.tau
 
         self.random_init_pos = random_init_pos
         self.random_init_config = random_init_config
 
-        # range in which robot should be able to move
-        # velocities in x-y direction (no change in orientation for now)
-        #self.action_space = Dict({"q_dot": Box(low=-1., high=1., shape=(2,), dtype=np.float64),
-        #                          "perform_skill": Discrete(2)})
+        self.skill = skill
 
-        # action space as 1D array instead
         # first two is velocity in x-y plane, last decides wether we perform skill (>0) or not (<=0)
         self.action_space = Box(low=np.array([-2., -2., 0]), high=np.array([2., 2., 1]), shape=(3,), dtype=np.float64)
-
-        # store previous observation and observation
-        #self._old_obs = self._get_observation()
-        #self._obs = self._get_observation()
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -98,13 +91,15 @@ class PuzzleEnv(gym.Env):
         # copy observation to return it unchanged
         obs = self._obs.copy()
 
-        # check if symbolic observation changed
-        #if not (self._old_obs[5:] == self._obs[5:]).all():
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            self.terminated = True
-
         # get reward
         reward = self._reward()
+
+        # for episode termination on change of symbolic observation
+        # check if symbolic observation changed
+        if not (self._old_sym_obs == self.scene.sym_state).all():
+            #    self.terminated = True
+            self.scene.sym_state = self._old_sym_obs
+            self.scene.set_to_symbolic_state()
 
         # look whether conditions for termination are met
         done = self._termination()
@@ -139,8 +134,22 @@ class PuzzleEnv(gym.Env):
             init_pos = np.random.uniform(-0.3, .3, (2,))
             self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         if self.random_init_config:
+            # assumes that skills are enumerated as in file gather-transitions
             # get random intiial board configuration where skill execution is possible
-            field = np.array([0, 1, 2, 3, 4])
+            if self.skill <= 1:
+                field = np.array([1, 2, 3, 4, 5])
+            elif self.skill <= 4:
+                field = np.array([0, 2, 3, 4, 5])
+            elif self.skill <= 6:
+                field = np.array([0, 1, 3, 4, 5])
+            elif self.skill <= 8:
+                field = np.array([0, 1, 2, 4, 5])
+            elif self.skill <= 11:
+                field = np.array([0, 1, 2, 3, 5])
+            elif self.skill <= 13:
+                field = np.array([0, 1, 2, 3, 4])
+
+            # put blocks in random fields, except the one that has to be free
             order = np.random.permutation(field)
             sym_obs = np.zeros((5, 6))
             for i in range(5):
@@ -149,13 +158,10 @@ class PuzzleEnv(gym.Env):
             self.scene.sym_state = sym_obs
             self.scene.set_to_symbolic_state()
 
-        #self._old_obs = self._get_observation()
         self._old_sym_obs = self.scene.sym_state.copy()
         self._obs = self._get_observation()
 
-
-        #print("Init pos: {}".format(self.scene.q))
-        return self._obs#, {}
+        return self._obs
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -193,14 +199,6 @@ class PuzzleEnv(gym.Env):
         Defines bounds of the observation space (Hard coded for now)
         """
         # Todo: implement reading out actual limits from file
-        # get joint limits (only of translational joints for now)
-        #low_q = -5.
-        #high_q = 5.
-
-        # return Dict({"q": Box(low=low_q, high=high_q, shape=(3,), dtype=np.float64),
-        #             "q_dot": Box(low=0., high=1., shape=(2, ), dtype=np.float64),
-        #             "sym_obs": MultiBinary(n=self.scene.sym_state.shape)})
-
         # observation space as 1D array instead
         shape = 2 #5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
         # make observation spae one single array (such that it works with sac algorithm)
@@ -227,59 +225,39 @@ class PuzzleEnv(gym.Env):
 
         if action[2] >= 0.5:
             # check if executing action can even lead to wanted change in symbolic observation to save time in training
-            lim = np.array([[0.07, -0.4], [0.2, -0.1]]) # format [[xmin, ymin], [xmax, ymax]]
+            # format of limit [[xmin, ymin], [xmax, ymax]]
+            if self.skill == 0:
+                lim = np.array([[0.02, -0.18], [0.15, 0.02]])
+            elif self.skill == 1:
+                lim = np.array([[-0.23, 0.05], [-0.05, 0.2]])
+            elif self.skill == 2:
+                lim = np.array([[-0.5, -0.2], [-0.13, 0.02]])
+            elif self.skill == 3:
+                lim = np.array([[0.13, -0.2], [0.5, 0.02]])
+            elif self.skill == 4:
+                lim = np.array([[-0.17, 0.05], [-0.05, 0.2]])
+            elif self.skill == 5:
+                lim = np.array([[-0.15, -0.18], [-0.02, 0.02]])
+            elif self.skill == 6:
+                lim = np.array([[0.05, 0.05], [0.23, 0.2]])
+            elif self.skill == 7:
+                lim = np.array([[-0.23, -0.2], [-0.05, -0.05]])
+            elif self.skill == 8:
+                lim = np.array([[0.02, -0.02], [0.15, 0.18]])
+            elif self.skill == 9:
+                lim = np.array([[-0.17, -0.2], [-0.05, -0.05]])
+            elif self.skill == 10:
+                lim = np.array([[-0.5, -0.02], [-0.13, 0.2]])
+            elif self.skill == 11:
+                lim = np.array([[0.13, -0.02], [0.5, 0.2]])
+            elif self.skill == 12:
+                lim = np.array([[0.05, -0.2], [0.23, -0.05]])
+            elif self.skill == 13:
+                lim = np.array([[-0.15, -0.02], [-0.02, 0.18]])
+
+
             if (lim[0, :] <= self.scene.q[:2]).all() and (self.scene.q[:2] <= lim[1, :]).all():
                 self.execute_skill()
-
-    def _reward(self) -> float:
-        """
-        Calculates reward, which is based on symbolic observation change
-        """
-        # Todo: Reward shaping
-
-        # consider angle and distance
-        opt = np.array([0.11114188, -0.09727765, 0., 0.])  # loc with the highest reward (reward = 0)
-        loc = self.scene.C.getJointState()  # current location
-
-        # distance to opt
-        reward = - np.linalg.norm(opt - loc)
-
-        # if y smaller than that of location take sin (else take times 1)
-        if loc[1] < opt[1]:
-            h = np.array([opt[0], loc[1], 0., 0.])  # helper point to calculate sin of angle
-            reward *= np.linalg.norm(loc - h)/ np.linalg.norm(loc - opt)
-
-
-
-        # reward = - dist + cos(angle) (dist: distance to optimal point,
-        # angle: angle to line where pushing straight is possible)
-
-        # extra reward if symbolic observation changed
-        #if not (self._old_obs[5:] == self._obs[5:]).all():
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            reward += 10
-
-        ## penalty for trying to go outside boundary (doesn't seem to work)
-        #if self._setback:
-        #    reward -= 0.5
-        #    self._setback = False
-
-        return reward
-
-        ## set reward zero except to last transition in an episode
-        #if self.terminated:
-        #    # make reward dependent on distance to location where skill should be executed
-        #    loc = np.array([0.11114188, -0.09727765, 0.,  0.])
-        #    # lower right corner should have max dist to that position
-        #    max_dist = np.linalg.norm(loc - np.array([-0.2, 0.2, 0., 0.]))
-#
-        #    # current position
-        #    pos = self.scene.C.getJointState()
-        #    dist = np.linalg.norm(loc - pos)
-#
-        #    return 1 - np.log(1 + dist)/np.log(1 + max_dist)
-#
-        #return 0
 
     def execute_skill(self):
         """
@@ -288,19 +266,117 @@ class PuzzleEnv(gym.Env):
         prev_joint_pos = self.scene.q
         prev_joint_pos[2] = self.scene.q0[2]
 
+        prev_board_state = self.scene.sym_state.copy()
+
+        # skills where orientation of end-effector does not has to be changed for
+        no_orient_change = [1, 4, 6, 7, 9, 12]
+
+        if self.skill not in no_orient_change:
+            print("orientation change")
+            # change orientation by pi/2
+            self.scene.v = np.array([0., 0., 0.1, 1.7])
+            self.scene.velocity_control(1000)
+
         # move to right z-position (move down)
-        self.scene.v = np.array([0., 0., -0.5, 0.])
-        self.scene.velocity_control(270)
+        self.scene.v = np.array([0., 0., -0.15, 0.])
+        self.scene.velocity_control(650)
 
-        # go forward
-        self.scene.v = np.array([0., 0.5, 0., 0.])
-        change = self.scene.velocity_control(500)
-
-        # check whether skill lead to change in symbolic observation
-        if change:
-            self.terminated = True
+        if self.skill == 7 or self.skill == 9 or self.skill == 12:
+            # go forward
+            self.scene.v = np.array([0., 0.15, 0., 0.])
+        elif self.skill == 1 or self.skill == 4 or self.skill == 6:
+            # go backward
+            self.scene.v = np.array([0., -0.15, 0., 0.])
+        elif self.skill == 2 or self.skill == 5 or self.skill == 10 or self.skill == 13:
+            # go to left
+            self.scene.v = np.array([0.15, 0., 0., 0.])
         else:
-            # set robot back to position before skill execution
-            self.scene.C.setJointState(prev_joint_pos)
-            self.scene.S.setState(self.scene.C.getFrameState())
-            self.scene.S.step([], self.scene.tau, ry.ControlMode.none)
+            # go to right
+            self.scene.v = np.array([-0.15, 0., 0., 0.])
+
+        change = self.scene.velocity_control(1300)
+
+        # set robot back to position before skill execution (such that reward will be calculated correctly)
+        self.scene.C.setJointState(prev_joint_pos)
+        self.scene.S.setState(self.scene.C.getFrameState())
+        self.scene.S.step([], self.scene.tau, ry.ControlMode.none)
+
+    def _reward(self) -> float:
+        """
+        Calculates reward, which is based on symbolic observation change
+        """
+        # TODO: reward shaping
+        # for sparse reward
+        #reward = 0
+
+        ## reward positive, linear and higher the smaller the distance to optimal point is
+        # use when fixed episode number
+        # define place of highest reward for each skill
+        if self.skill == 0:
+            opt = np.array([0.0559, -0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 1:
+            opt = np.array([-0.11, 0.11, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 2:
+            opt = np.array([-0.17, -0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 3:
+            opt = np.array([0.17, -0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 4:
+            opt = np.array([0., 0.11, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 5:
+            opt = np.array([-0.0559, -0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 6:
+            opt = np.array([0.11, 0.11, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 7:
+            opt = np.array([-0.11, -0.11, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 8:
+            opt = np.array([0.0559, 0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 9:
+            opt = np.array([0., -0.11, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 10:
+            opt = np.array([-0.17, 0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 11:
+            opt = np.array([0.17, 0.07, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 12:
+            opt = np.array([0.11, -0.11, self.scene.q0[2], self.scene.q0[3]])
+        elif self.skill == 13:
+            opt = np.array([-0.0559, 0.07, self.scene.q0[2], self.scene.q0[3]])
+
+        max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
+        loc = self.scene.C.getJointState()  # current location
+
+        # reward: max distance - current distance
+        reward = np.linalg.norm(opt - max) - np.linalg.norm(opt - loc)
+
+        ## negative reward that considers angle and distance
+        #opt = np.array([0.11114188, -0.09727765, self.scene.q0[2], self.scene.q0[3]])  # loc with the highest reward (reward = 0)
+        #loc = self.scene.C.getJointState()  # current location
+        ## distance to opt
+        #reward = - np.linalg.norm(opt - loc)
+        ## if y smaller than that of location take sin (else take times 1)
+        #if loc[1] < opt[1]:
+        #    h = np.array([opt[0], loc[1], self.scene.q0[2], self.scene.q0[3]])  # helper point to calculate sin of angle
+        #    reward *= np.linalg.norm(loc - h) / np.linalg.norm(loc - opt)
+
+
+        # extra reward if symbolic observation changed
+        if not (self._old_sym_obs == self.scene.sym_state).all():
+            reward += 1
+
+
+        return reward
+
+        #######################################################################
+        ## set reward zero except to last transition in an episode
+        # if self.terminated:
+        #    # make reward dependent on distance to location where skill should be executed
+        #    loc = np.array([0.11114188, -0.09727765, 0.,  0.])
+        #    # lower right corner should have max dist to that position
+        #    max_dist = np.linalg.norm(loc - np.array([-0.2, 0.2, 0., 0.]))
+        #
+        #    # current position
+        #    pos = self.scene.C.getJointState()
+        #    dist = np.linalg.norm(loc - pos)
+        #
+        #    return 1 - np.log(1 + dist)/np.log(1 + max_dist)
+        #
+        # return 0

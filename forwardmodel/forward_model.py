@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
+from torch.utils.tensorboard import SummaryWriter
 
 from mlp import MLP
 from nllloss import NLLLoss_customized
@@ -51,13 +52,19 @@ class ForwardModel(nn.Module):
                  num_skills=14,
                  seed=1024,
                  batch_size=70,
-                 learning_rate = 0.001):
+                 learning_rate=0.001,
+                 precision='float32'):
         """
         :param width: width of the game board
         :param height: height of the game board
         """
 
         super().__init__()
+
+        self.precision = precision  # default is float32
+        # set to float64
+        if self.precision == 'float64':
+            torch.set_default_tensor_type(torch.DoubleTensor)
 
         # get random seeds for python, numpy and pytorch (for reproducible results)
         random.seed(seed)
@@ -90,7 +97,7 @@ class ForwardModel(nn.Module):
         # loss: negative log-likelihood - log q(z_T | z_0, k)
         self.criterion = NLLLoss_customized()
         self.criterion.to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)#, weight_decay=0.00005)
 
     def train(self, data):
         """
@@ -100,18 +107,28 @@ class ForwardModel(nn.Module):
         epoch_loss = 0
         epoch_acc = 0
 
-        num_batches = math.floor(data.shape[0]/self.batch_size)
+        num_batches = math.ceil(data.shape[0]/self.batch_size)
 
         self.model.train()
 
         # go through all batches
         for i in range(num_batches):
-            x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
-            y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
+            # if we are in last batch take rest of data
+            if i == num_batches - 1:
+                x = data[i * self.batch_size: , : self.input_size]
+                y = data[i * self.batch_size: , self.input_size:]
+            else:
+                x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
+                y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
             x = x.to(self.device)
-            x = x.to(torch.float32)
             y = y.to(self.device)
-            y = y.to(torch.float32)
+
+            if self.precision == 'float64':
+                x = x.to(torch.float64)
+                y = y.to(torch.float64)
+            else:
+                x = x.to(torch.float32)
+                y = y.to(torch.float64)
 
             if (torch.isnan(x)).any():
                 print("input contains nan values")
@@ -128,13 +145,25 @@ class ForwardModel(nn.Module):
 
             loss = self.criterion(alpha, y)
 
+
+            if torch.isnan(loss).any():
+                print("loss is nan")
+
             loss.backward()
             self.optimizer.step()
 
             acc = self.calculate_accuracy(alpha, y)
 
+
             epoch_loss += loss.item()
             epoch_acc += acc.item()
+
+            # check if weights contain nan of inf values
+            for p in self.model.parameters():
+                if torch.isinf(p).any():
+                    print('weights contain inf values, ', p)
+                if torch.isnan(p).any():
+                    print('weights contain nan values, ', p)
 
         return epoch_loss / num_batches, epoch_acc / num_batches
 
@@ -150,45 +179,79 @@ class ForwardModel(nn.Module):
         num_batches = math.floor(data.shape[0] / self.batch_size)
 
         with torch.no_grad():
-            for i in range(num_batches):
-                x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
-                y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
-                x = x.to(self.device)
+            if num_batches > 0:
+                for i in range(num_batches):
+                    x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
+                    y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
+                    x = x.to(self.device)
+                    y = y.to(self.device)
+
+                    if self.precision == 'float64':
+                        x = x.to(torch.float64)
+                        y = y.to(torch.float64)
+                    else:
+                        x = x.to(torch.float32)
+                        y = y.to(torch.float64)
+
+                    y_pred = self.model(x)
+
+                    # interpret y_pred directly as one-hot encoding of block placements for all blocks
+                    # do multiclass classification
+                    y_pred = y_pred.reshape((y_pred.shape[0], self.pieces, self.width*self.height))
+                    y_pred = torch.softmax(y_pred, axis=2)
+                    y_pred = y_pred.reshape((y_pred.shape[0], self.pieces * self.width * self.height))
+
+                    # get alpha (probability of state being 1) from y_pred
+                    # alpha = self.calculate_alpha(x, y_pred)
+
+                    #loss = self.criterion(alpha, y)
+                    loss = self.criterion(y_pred, y)
+
+                    acc = self.calculate_accuracy(alpha, y)
+
+                    epoch_loss += loss.item()
+                    epoch_acc += acc.item()
+
+                return epoch_loss / num_batches, epoch_acc / num_batches
+
+            x = data[:, : self.input_size]
+            y = data[:, self.input_size: ]
+            x = x.to(self.device)
+            y = y.to(self.device)
+            if self.precision == 'float64':
+                x = x.to(torch.float64)
+                y = y.to(torch.float64)
+            else:
                 x = x.to(torch.float32)
-                y = y.to(self.device)
-                y = y.to(torch.float32)
+                y = y.to(torch.float64)
+            y_pred = self.model(x)
+            # get alpha (probability of state being 1) from y_pred
+            alpha = self.calculate_alpha(x, y_pred)
+            loss = self.criterion(alpha, y)
+            acc = self.calculate_accuracy(alpha, y)
+            epoch_loss += loss.item()
+            epoch_acc += acc.item()
 
-                y_pred = self.model(x)
+            return epoch_loss, epoch_acc
 
-                # get alpha (probability of state being 1) from y_pred
-                alpha = self.calculate_alpha(x, y_pred)
 
-                loss = self.criterion(alpha, y)
-
-                acc = self.calculate_accuracy(alpha, y)
-
-                epoch_loss += loss.item()
-                epoch_acc += acc.item()
-
-        return epoch_loss / num_batches, epoch_acc / num_batches
-
-    def calculate_accuracy(self, alpha, y, verbose=False):
+    def calculate_accuracy(self, alpha, y):
         """
         Calculates how similar the predicted successor state is to the true one
+        Calculates how many predictions are completely correct
         Args:
             :param y: real successor state
             :param alpha: porbability of value being one for each entry of symbolic observation
-            :param verbose: if true the real state and predicted successor state will be printed to console
         """
 
         # calucalate most likely successor state
         y_hat = torch.bernoulli(alpha)
-
         # look how many entries are same as in true successor
-        true = torch.sum(y_hat == y)
+        # only say its correct if complete symbolic observations are equal
+        true = torch.sum((y_hat == y).all(axis=1))
 
         # compute percentage of correctly predicted entries
-        return true / (y.shape[0] * y.shape[1])
+        return true / y.shape[0] # (y.shape[0] * y.shape[1])
 
 
     def epoch_time(self, start_time, end_time):
@@ -228,12 +291,17 @@ class ForwardModel(nn.Module):
         Returns:
             succ: most likely successor when applying skill in state
         """
+        # TODO: change successor calculation according to multimodal classification
+
         # concatenate state and skill to get input to mlp
         state = torch.from_numpy(state)
         skill = torch.from_numpy(skill)
         x = torch.concatenate((state.flatten(), skill))
         x = x.to(self.device)
-        x = x.to(torch.float32)
+        if self.precision == 'float64':
+            x = x.to(torch.float64)
+        else:
+            x = x.to(torch.float32)
 
         # do forward pass
         y_pred = self.model(x)
@@ -298,6 +366,10 @@ class ForwardModel(nn.Module):
         visited.append(start)
         queue.append(start)
 
+        # store parent of start as None to not get key-error
+        key = np.array2string(start).replace('.', '').replace('\n', '')
+        parent[key] = None
+
         while queue:
             # go through queue
             state = queue.pop(0)
@@ -314,28 +386,35 @@ class ForwardModel(nn.Module):
                 if not (state == next_state).all():
                     # look wether next state is a valid symbolic observation
                     if self.valid_state(next_state.reshape((self.pieces, self.width*self.height))):
-                        # look if successor was already visited
+                        # save transition (state, action -> next_state) tuple
+                        # make next state to string to get key for dictionaries
+                        key = np.array2string(next_state).replace('.', '').replace('\n', '')
+
+                        # look if successor was already visited when transitioning from A DIFFERENT state
                         not_visited = True
-                        for node in visited:
-                            if (next_state == node).all():
+                        if np.any(np.all(next_state == visited, axis=1)):
+                            if not (parent[key] == state.astype(int)).all():
                                 not_visited = False
 
                         if not_visited:
                             # record skill used to get to next_state
-                            key = np.array2string(next_state).replace('.', '').replace('\n', '')
-                            skill[key] = k
+                            # allow for model to be imperfect/ for multiple skills to lead from
+                            # same parent state to same successor state
+                            if key not in skill.keys():
+                                skill[key] = [k]
+                            else:
+                                skill[key].append(k)
                             # record parent
                             parent[key] = state.astype(int)
-
                             # if successor state is goal: break
                             if (next_state == goal).all():
                                 # get the state transitions and skills that lead to the goal
                                 state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
                                 return state_sequence, skill_sequence
-
                             # append successor to visited and queue
-                            visited.append(next_state)
-                            queue.append(next_state)
+                            if not np.any(np.all(next_state == visited, axis=1)):
+                                visited.append(next_state)
+                                queue.append(next_state)
 
         print("Goal Not reachable from start configuration")
         return None, None
