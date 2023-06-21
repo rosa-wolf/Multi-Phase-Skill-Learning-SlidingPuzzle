@@ -57,6 +57,9 @@ if __name__ == '__main__':
                 goal_state[box, goal] = 1
 
                 writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+                writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+                writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+                writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
 
             # add some transitions where skill has no effect
             count = 0

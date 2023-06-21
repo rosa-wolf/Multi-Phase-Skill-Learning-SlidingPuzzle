@@ -120,6 +120,7 @@ class ForwardModel(nn.Module):
             else:
                 x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
                 y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
+
             x = x.to(self.device)
             y = y.to(self.device)
 
@@ -134,16 +135,22 @@ class ForwardModel(nn.Module):
                 print("input contains nan values")
 
             self.optimizer.zero_grad()
-            # get y_pred (probability of state flipping)
+            # get y_pred (multiclass classification)
             y_pred = self.model(x)
+
+            # interpret y_pred directly as one-hot encoding of block placements for all blocks
+            # do multiclass classification
+            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces, self.width * self.height))
+            y_pred = torch.softmax(y_pred, axis=2)
+            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces * self.width * self.height))
 
             if (torch.isnan(y_pred)).any():
                 print("y_pred contains nan values")
 
             # get alpha (probability of state being 1) from y_pred
-            alpha = self.calculate_alpha(x, y_pred)
+            #alpha = self.calculate_alpha(x, y_pred)
 
-            loss = self.criterion(alpha, y)
+            loss = self.criterion(y_pred, y)
 
 
             if torch.isnan(loss).any():
@@ -152,8 +159,7 @@ class ForwardModel(nn.Module):
             loss.backward()
             self.optimizer.step()
 
-            acc = self.calculate_accuracy(alpha, y)
-
+            acc = self.calculate_accuracy(y_pred, y)
 
             epoch_loss += loss.item()
             epoch_acc += acc.item()
@@ -207,7 +213,7 @@ class ForwardModel(nn.Module):
                     #loss = self.criterion(alpha, y)
                     loss = self.criterion(y_pred, y)
 
-                    acc = self.calculate_accuracy(alpha, y)
+                    acc = self.calculate_accuracy(y_pred, y)
 
                     epoch_loss += loss.item()
                     epoch_acc += acc.item()
@@ -225,10 +231,15 @@ class ForwardModel(nn.Module):
                 x = x.to(torch.float32)
                 y = y.to(torch.float64)
             y_pred = self.model(x)
+            # interpret y_pred directly as one-hot encoding of block placements for all blocks
+            # do multiclass classification
+            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces, self.width * self.height))
+            y_pred = torch.softmax(y_pred, axis=2)
+            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces * self.width * self.height))
             # get alpha (probability of state being 1) from y_pred
-            alpha = self.calculate_alpha(x, y_pred)
-            loss = self.criterion(alpha, y)
-            acc = self.calculate_accuracy(alpha, y)
+            #alpha = self.calculate_alpha(x, y_pred)
+            loss = self.criterion(y_pred, y)
+            acc = self.calculate_accuracy(y_pred, y)
             epoch_loss += loss.item()
             epoch_acc += acc.item()
 
@@ -305,18 +316,24 @@ class ForwardModel(nn.Module):
 
         # do forward pass
         y_pred = self.model(x)
+        # interpret y_pred directly as one-hot encoding of block placements for all blocks
+        # do multiclass classification
+        old_shape = y_pred.shape
+        y_pred = y_pred.reshape((self.pieces, self.width * self.height))
+        y_pred = torch.softmax(y_pred, dim=1)
+        y_pred = y_pred.reshape(old_shape)
 
-        # get alpha from flip probability and state
-        alpha = (1 - x[: self.sym_obs_size]) * y_pred + x[:self.sym_obs_size] * (1 - y_pred)
-        # make this into probabilities using softmax
-        # (for each box probabilities of being in one field should sum up to 1)
-        old_shape = alpha.shape
-        alpha = alpha.reshape((self.pieces, self.width * self.height))
-        alpha = torch.softmax(alpha, dim=1)
-        alpha = alpha.reshape(old_shape)
+        ## get alpha from flip probability and state
+        #alpha = (1 - x[: self.sym_obs_size]) * y_pred + x[:self.sym_obs_size] * (1 - y_pred)
+        ## make this into probabilities using softmax
+        ## (for each box probabilities of being in one field should sum up to 1)
+        #old_shape = alpha.shape
+        #alpha = alpha.reshape((self.pieces, self.width * self.height))
+        #alpha = torch.softmax(alpha, dim=1)
+        #alpha = alpha.reshape(old_shape)
 
         # calculate successor state
-        return torch.bernoulli(alpha)
+        return torch.bernoulli(y_pred)
 
     def valid_state(self, state) -> bool:
         """

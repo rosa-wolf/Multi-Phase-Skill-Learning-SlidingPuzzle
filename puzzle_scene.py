@@ -44,7 +44,7 @@ class PuzzleScene:
 
         # TODO: don't hardcode joint limits
         # joint limits (x, y, z) limits
-        self.q_lim = np.array([[-.2, .2], [-.2, .2], [-.45, 0.]])
+        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.45, 0.]])
         #self.X0 = self.C.getFrameState()
         #self.C.setFrameState(self.X0)  # why do we need this? Setting feature with same values it already has?
 
@@ -54,7 +54,7 @@ class PuzzleScene:
 
         # initialize simulation
         self.verbose = verbose
-        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, self.verbose)
+        self.S = ry.Simulation(self.C, ry.SimulationEngine.physx, self.verbose)
 
         # delta t
         self.tau = .01
@@ -170,7 +170,7 @@ class PuzzleScene:
         self.C.setJointState(self.q0)
         self.C.setFrameState(self.X0)
         del self.S
-        self.S = ry.Simulation(self.C, ry.SimulatorEngine.physx, self.verbose)
+        self.S = ry.Simulation(self.C, ry.SimulationEngine.physx, self.verbose)
         #self.S.pushConfigurationToSimulator()
         # set blocks back to original positions
         #self.S.step([], self.tau,  ry.ControlMode.none)

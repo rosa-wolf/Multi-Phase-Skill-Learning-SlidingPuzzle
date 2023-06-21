@@ -11,7 +11,7 @@ if __name__ == '__main__':
     # sanity check of custom env
     env = PuzzleEnv(skill=2, verbose=1)
     # go to correct x-y-position
-    env.scene.q = np.array([-0.17, -0.2, env.scene.q0[2], env.scene.q0[3]])
+    env.scene.q = np.array([-0.25, -0.15, env.scene.q0[2], env.scene.q0[3]])
     time.sleep(3)
     #time.sleep(10.)
     #env.scene.v = np.array([0.5, -1., 0., 0.])

@@ -18,9 +18,10 @@ class PuzzleEnv(gym.Env):
     def __init__(self,
                  skill: int,
                  path='slidingPuzzle.g',
-                 max_steps=30,
+                 max_steps=100,
                  random_init_pos=True,
                  random_init_config=True,
+                 penalize=False,
                  verbose=0,
                  nsubsteps=1):
 
@@ -29,8 +30,10 @@ class PuzzleEnv(gym.Env):
         :param skill: which skill we want to train (influences reward and field configuration)
         :param max_steps: Maximum number of steps per episode
         :param random_init_pos: whether agent should be placed in random initial position on start of episode
+        :param penalize: wether to penalize going down in places where this does not lead to change in symbolic observation
         """
 
+        self.penalize = penalize
         # has actor fullfilled criteria of termination
         self.terminated = False
         self.env_step_counter = 0
@@ -235,7 +238,7 @@ class PuzzleEnv(gym.Env):
             elif self.skill == 3:
                 lim = np.array([[0.13, -0.2], [0.5, 0.02]])
             elif self.skill == 4:
-                lim = np.array([[-0.17, 0.05], [-0.05, 0.2]])
+                lim = np.array([[-0.11, 0.05], [0.11, 0.2]])
             elif self.skill == 5:
                 lim = np.array([[-0.15, -0.18], [-0.02, 0.02]])
             elif self.skill == 6:
@@ -245,7 +248,7 @@ class PuzzleEnv(gym.Env):
             elif self.skill == 8:
                 lim = np.array([[0.02, -0.02], [0.15, 0.18]])
             elif self.skill == 9:
-                lim = np.array([[-0.17, -0.2], [-0.05, -0.05]])
+                lim = np.array([[-0.11, -0.2], [0.11, -0.05]])
             elif self.skill == 10:
                 lim = np.array([[-0.5, -0.02], [-0.13, 0.2]])
             elif self.skill == 11:
@@ -313,33 +316,33 @@ class PuzzleEnv(gym.Env):
         # use when fixed episode number
         # define place of highest reward for each skill
         if self.skill == 0:
-            opt = np.array([0.0559, -0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 1:
-            opt = np.array([-0.11, 0.11, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([-0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 2:
-            opt = np.array([-0.17, -0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([-0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 3:
-            opt = np.array([0.17, -0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 4:
             opt = np.array([0., 0.11, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 5:
-            opt = np.array([-0.0559, -0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([-0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 6:
-            opt = np.array([0.11, 0.11, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 7:
-            opt = np.array([-0.11, -0.11, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([-0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 8:
-            opt = np.array([0.0559, 0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 9:
             opt = np.array([0., -0.11, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 10:
-            opt = np.array([-0.17, 0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([-0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 11:
-            opt = np.array([0.17, 0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 12:
-            opt = np.array([0.11, -0.11, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
         elif self.skill == 13:
-            opt = np.array([-0.0559, 0.07, self.scene.q0[2], self.scene.q0[3]])
+            opt = np.array([-0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
 
         max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
         loc = self.scene.C.getJointState()  # current location
@@ -361,6 +364,9 @@ class PuzzleEnv(gym.Env):
         # extra reward if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             reward += 1
+        else:
+            if self.penalize:
+                reward -= 1
 
 
         return reward
