@@ -22,6 +22,7 @@ class PuzzleEnv(gym.Env):
                  random_init_pos=True,
                  random_init_config=True,
                  penalize=False,
+                 give_sym_obs=False,
                  verbose=0,
                  nsubsteps=1):
 
@@ -32,8 +33,10 @@ class PuzzleEnv(gym.Env):
         :param random_init_pos: whether agent should be placed in random initial position on start of episode
         :param penalize: wether to penalize going down in places where this does not lead to change in symbolic observation
         """
-
+        # parameters to control different versions of observation and reward
         self.penalize = penalize
+        self.give_sym_obs = give_sym_obs
+
         # has actor fullfilled criteria of termination
         self.terminated = False
         self.env_step_counter = 0
@@ -193,8 +196,11 @@ class PuzzleEnv(gym.Env):
         Returns the observation: Robot joint states and velocites and symbolic observation
         """
         q, q_dot, sym_obs = self.scene.state
-        return q[:2] # np.concatenate((q[:3]))#, q_dot[:2]))#, sym_obs.flatten()))
-        #return {"q": np.array(q)[:3], "q_dot": np.array(q_dot)[:2], "sym_obs": sym_obs}
+        if self.give_sym_obs:
+            # should agent be informed about symbolic observation?
+            return np.concatenate(((q[:2]), sym_obs.flatten()))
+
+        return q[:2]
 
     @property
     def observation_space(self):
@@ -204,10 +210,13 @@ class PuzzleEnv(gym.Env):
         # Todo: implement reading out actual limits from file
         # observation space as 1D array instead
         shape = 2 #5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
-        # make observation spae one single array (such that it works with sac algorithm)
+        # make observation space one single array (such that it works with sac algorithm)
         # 0-2 joint position in x,y,z
         # 3, 4: velocity in x,y direction
         # 5 - end: symbolic observation (flattened)
+        if self.give_sym_obs:
+            shape = 2 + self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+
         return Box(low=-np.inf, high=np.inf, shape=(shape,), dtype=np.float64)
 
     def apply_action(self, action):
@@ -260,6 +269,7 @@ class PuzzleEnv(gym.Env):
 
 
             if (lim[0, :] <= self.scene.q[:2]).all() and (self.scene.q[:2] <= lim[1, :]).all():
+                print("execute skill")
                 self.execute_skill()
 
     def execute_skill(self):
