@@ -23,6 +23,7 @@ class PuzzleEnv(gym.Env):
                  random_init_config=True,
                  penalize=False,
                  give_sym_obs=False,
+                 sparse_reward=False,
                  verbose=0,
                  nsubsteps=1):
 
@@ -36,6 +37,7 @@ class PuzzleEnv(gym.Env):
         # parameters to control different versions of observation and reward
         self.penalize = penalize
         self.give_sym_obs = give_sym_obs
+        self.sparse_reward = sparse_reward
 
         # has actor fullfilled criteria of termination
         self.terminated = False
@@ -239,7 +241,7 @@ class PuzzleEnv(gym.Env):
             # check if executing action can even lead to wanted change in symbolic observation to save time in training
             # format of limit [[xmin, ymin], [xmax, ymax]]
             if self.skill == 0:
-                lim = np.array([[0.02, -0.18], [0.15, 0.02]])
+                lim = np.array([[0.018, -0.18], [0.15, 0.02]])
             elif self.skill == 1:
                 lim = np.array([[-0.23, 0.05], [-0.05, 0.2]])
             elif self.skill == 2:
@@ -320,55 +322,57 @@ class PuzzleEnv(gym.Env):
         """
         # TODO: reward shaping
         # for sparse reward
-        #reward = 0
+        if self.sparse_reward:
+            # only give reward on change of symbolic observation
+            reward = 0
+        else:
+            ## reward positive, linear and higher the smaller the distance to optimal point is
+            # use when fixed episode number
+            # define place of highest reward for each skill
+            if self.skill == 0:
+                opt = np.array([0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 1:
+                opt = np.array([-0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 2:
+                opt = np.array([-0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 3:
+                opt = np.array([0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 4:
+                opt = np.array([0., 0.11, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 5:
+                opt = np.array([-0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 6:
+                opt = np.array([0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 7:
+                opt = np.array([-0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 8:
+                opt = np.array([0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 9:
+                opt = np.array([0., -0.11, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 10:
+                opt = np.array([-0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 11:
+                opt = np.array([0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 12:
+                opt = np.array([0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
+            elif self.skill == 13:
+                opt = np.array([-0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
 
-        ## reward positive, linear and higher the smaller the distance to optimal point is
-        # use when fixed episode number
-        # define place of highest reward for each skill
-        if self.skill == 0:
-            opt = np.array([0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 1:
-            opt = np.array([-0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 2:
-            opt = np.array([-0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 3:
-            opt = np.array([0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 4:
-            opt = np.array([0., 0.11, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 5:
-            opt = np.array([-0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 6:
-            opt = np.array([0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 7:
-            opt = np.array([-0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 8:
-            opt = np.array([0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 9:
-            opt = np.array([0., -0.11, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 10:
-            opt = np.array([-0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 11:
-            opt = np.array([0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 12:
-            opt = np.array([0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
-        elif self.skill == 13:
-            opt = np.array([-0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
+            max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
+            loc = self.scene.C.getJointState()  # current location
 
-        max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
-        loc = self.scene.C.getJointState()  # current location
+            # reward: max distance - current distance
+            reward = np.linalg.norm(opt - max) - np.linalg.norm(opt - loc)
 
-        # reward: max distance - current distance
-        reward = np.linalg.norm(opt - max) - np.linalg.norm(opt - loc)
-
-        ## negative reward that considers angle and distance
-        #opt = np.array([0.11114188, -0.09727765, self.scene.q0[2], self.scene.q0[3]])  # loc with the highest reward (reward = 0)
-        #loc = self.scene.C.getJointState()  # current location
-        ## distance to opt
-        #reward = - np.linalg.norm(opt - loc)
-        ## if y smaller than that of location take sin (else take times 1)
-        #if loc[1] < opt[1]:
-        #    h = np.array([opt[0], loc[1], self.scene.q0[2], self.scene.q0[3]])  # helper point to calculate sin of angle
-        #    reward *= np.linalg.norm(loc - h) / np.linalg.norm(loc - opt)
+            ## negative reward that considers angle and distance
+            #opt = np.array([0.11114188, -0.09727765, self.scene.q0[2], self.scene.q0[3]])  # loc with the highest reward (reward = 0)
+            #loc = self.scene.C.getJointState()  # current location
+            ## distance to opt
+            #reward = - np.linalg.norm(opt - loc)
+            ## if y smaller than that of location take sin (else take times 1)
+            #if loc[1] < opt[1]:
+            #    h = np.array([opt[0], loc[1], self.scene.q0[2], self.scene.q0[3]])  # helper point to calculate sin of angle
+            #    reward *= np.linalg.norm(loc - h) / np.linalg.norm(loc - opt)
 
 
         # extra reward if symbolic observation changed

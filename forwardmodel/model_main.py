@@ -46,7 +46,7 @@ if __name__ == "__main__":
     best_valid_loss = float('inf')
 
     # split data into train and test sets for all epochs
-    EPOCHS = 1000
+    EPOCHS = 800
     print("Epochs = ", EPOCHS)
 
 
