@@ -13,6 +13,9 @@ import csv
 SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
                    [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
 
+# list of neighbors for each field from 0 to 5
+neighbors = [[1, 3], [0, 2, 4], [1, 5], [0, 4], [1, 3, 5], [2, 4]]
+
 
 if __name__ == '__main__':
     #skill = 1
@@ -41,7 +44,6 @@ if __name__ == '__main__':
             fields_poss = np.delete(fields, SKILLS[skill, 1])
             perms = permutations(fields_poss)
             for order in perms:
-                print("order = ", order)
                 # reset robot position
                 #env.reset()
                 # set board in env to initial state
@@ -57,17 +59,39 @@ if __name__ == '__main__':
                 goal_state[box, goal] = 1
 
                 writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
-                writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
 
-            # add some transitions where skill has no effect
+            # put all possible transitions into training data where initially empty field is the one we want to push from
+            fields_imposs = np.delete(fields, SKILLS[skill, 0])
+            perms = permutations(fields_imposs)
+            for order in perms:
+                # set board in env to initial state
+                init_state = np.zeros((5, 6))
+                for i in range(5):
+                    init_state[i, order[i]] = 1
+                # goal state similar to initial state
+                # write to file
+                writer.writerow(np.concatenate([init_state.flatten(), one_hot, init_state.flatten()]))
+
+
+            # add some additional transitions where skill has no effect
             count = 0
-            while count < 200:
+            fields_poss = np.delete(fields_poss, np.where(fields_poss == SKILLS[skill, 0])[0][0])
+
+            # we want that a neighboring field is empty, but not the one we want to push to
+            poss_neigh = neighbors[SKILLS[skill, 0]]
+            poss_neigh = np.delete(poss_neigh, np.where(poss_neigh == SKILLS[skill, 1])[0][0])
+            print("skill = {}, poss_neigh = {}".format(skill, poss_neigh))
+            while count < 400:
                 count += 1
                 # pick number where no box is initially
-                pick = np.random.choice(fields_poss)
+                if count < 300:
+                    # pick neighboring field
+                    pick = np.random.choice(poss_neigh)
+                else:
+                    pick = np.random.choice(fields_poss)
+
                 fields_imposs = np.delete(fields, pick)
                 np.random.shuffle(fields_imposs)
-
                 # set board in env to initial state
                 # goal state is same as init_state as skill has no effect
                 init_state = np.zeros((5, 6))
@@ -76,6 +100,8 @@ if __name__ == '__main__':
 
                 # write to file
                 writer.writerow(np.concatenate([init_state.flatten(), one_hot, init_state.flatten()]))
+
+
 
 
 

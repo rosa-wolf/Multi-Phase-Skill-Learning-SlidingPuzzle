@@ -46,7 +46,7 @@ if __name__ == "__main__":
     best_valid_loss = float('inf')
 
     # split data into train and test sets for all epochs
-    EPOCHS = 800
+    EPOCHS = 1000
     print("Epochs = ", EPOCHS)
 
 
@@ -88,6 +88,7 @@ if __name__ == "__main__":
     # load best model
     my_forwardmodel.model = torch.load("models/best_model")
     my_forwardmodel.model.eval()
+
     # test whether path-planning works for very simple problem
     init_state = np.array([[1, 0, 0, 0, 0, 0],
                            [0, 1, 0, 0, 0, 0],

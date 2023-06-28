@@ -16,7 +16,6 @@ class PuzzleEnv(gym.Env):
     """
 
     def __init__(self,
-                 skill: int,
                  path='slidingPuzzle.g',
                  max_steps=100,
                  evaluate=False,
@@ -30,7 +29,6 @@ class PuzzleEnv(gym.Env):
 
         """
         Args:
-        :param skill: which skill we want to train (influences reward and field configuration)
         :param max_steps: Maximum number of steps per episode
         :param random_init_pos: whether agent should be placed in random initial position on start of episode
         :param penalize: wether to penalize going down in places where this does not lead to change in symbolic observation
@@ -54,9 +52,10 @@ class PuzzleEnv(gym.Env):
         self.random_init_pos = random_init_pos
         self.random_init_config = random_init_config
 
-        self.skill = skill
+        # skill is part of action
+        self.skill = None
 
-        # first two is velocity in x-y plane, last decides wether we perform skill (>0) or not (<=0)
+        # first two is velocity in x-y plane, third decides whether we perform skill (>0) or not (<=0)
         self.action_space = Box(low=np.array([-2., -2., 0]), high=np.array([2., 2., 1]), shape=(3,), dtype=np.float64)
 
         self._old_sym_obs = self.scene.sym_state.copy()
@@ -66,7 +65,7 @@ class PuzzleEnv(gym.Env):
 
         self.reset()
 
-    def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
+    def step(self, action: Dict, k: int) -> tuple[Dict, float, bool, dict]:
         """
         Run one timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
@@ -74,13 +73,14 @@ class PuzzleEnv(gym.Env):
         Accepts an action and returns a tuple (observation, reward, done, info).
         Args:
             action (object): an action provided by the agent
+            k (object): skill we want to execute
         Returns:
             observation (object): agent's observation of the current environment
             reward (float) : amount of reward returned after previous action
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-
+        self.skill = np.where(k == 1)[0][0]
         # store preivious symbolic observation
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -93,9 +93,6 @@ class PuzzleEnv(gym.Env):
             # go back to previous position (orientation cannot change currently)
             self._setback = True
 
-        # get observation
-        #self._old_obs = self._obs.copy()
-        #self._old_sym_obs = self._sym_obs.copy()
 
         self._obs = self._get_observation()
         # copy observation to return it unchanged
@@ -107,6 +104,7 @@ class PuzzleEnv(gym.Env):
         # for episode termination on change of symbolic observation
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
+            self.terminated = True
             self.scene.sym_state = self._old_sym_obs
             self.scene.set_to_symbolic_state()
 
@@ -143,20 +141,9 @@ class PuzzleEnv(gym.Env):
             init_pos = np.random.uniform(-0.3, .3, (2,))
             self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         if self.random_init_config:
-            # assumes that skills are enumerated as in file gather-transitions
-            # get random intiial board configuration where skill execution is possible
-            if self.skill <= 1:
-                field = np.array([1, 2, 3, 4, 5])
-            elif self.skill <= 4:
-                field = np.array([0, 2, 3, 4, 5])
-            elif self.skill <= 6:
-                field = np.array([0, 1, 3, 4, 5])
-            elif self.skill <= 8:
-                field = np.array([0, 1, 2, 4, 5])
-            elif self.skill <= 11:
-                field = np.array([0, 1, 2, 3, 5])
-            elif self.skill <= 13:
-                field = np.array([0, 1, 2, 3, 4])
+            # TODO: should it be possible to apply skill on initial board configuration?
+            # randomly pick the field where no block is initially
+            field = np.delete(np.arange(0, 6), np.random.choice(np.arange(0, 6)))
 
             # put blocks in random fields, except the one that has to be free
             order = np.random.permutation(field)
@@ -185,7 +172,7 @@ class PuzzleEnv(gym.Env):
         """
         if self.terminated or self.env_step_counter >= self._max_episode_steps:
             #print("Termination: Environment reset now")
-            # no reset yet because then we never get obsrvation that let to termination
+            # no reset yet because then we never get observation that let to termination
             #self.reset()
 
             #self.terminated = False
@@ -196,7 +183,7 @@ class PuzzleEnv(gym.Env):
 
     def _get_observation(self):
         """
-        Returns the observation: Robot joint states and velocites and symbolic observation
+        Returns the observation: Robot joint states and symbolic observation
         """
         q, q_dot, sym_obs = self.scene.state
         if self.give_sym_obs:
@@ -205,6 +192,7 @@ class PuzzleEnv(gym.Env):
 
         return q[:2]
 
+
     @property
     def observation_space(self):
         """
@@ -212,7 +200,7 @@ class PuzzleEnv(gym.Env):
         """
         # Todo: implement reading out actual limits from file
         # observation space as 1D array instead
-        shape = 2 #5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+        shape = 2  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
         # make observation space one single array (such that it works with sac algorithm)
         # 0-2 joint position in x,y,z
         # 3, 4: velocity in x,y direction
@@ -237,6 +225,7 @@ class PuzzleEnv(gym.Env):
         # execute skill if action says so
         #if action["perform_skill"] == 1:
         #    self.execute_skill()
+
 
         if action[2] >= 0.5:
             # check if executing action can even lead to wanted change in symbolic observation to save time in training
@@ -405,3 +394,7 @@ class PuzzleEnv(gym.Env):
         #    return 1 - np.log(1 + dist)/np.log(1 + max_dist)
         #
         # return 0
+
+
+        # caution: dont return resetted values but values that let to reset
+        return obs, reward, done, {}

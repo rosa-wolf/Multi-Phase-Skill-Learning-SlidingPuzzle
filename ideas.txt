@@ -1,0 +1,19 @@
+- the agent decides based on an observation which action to execute
+- given observation (joint positions) and skill the policy should learn to go to correct place and execute push movement at correct position
+
+(1)
+for episode i:
+    - reset environment
+    - uniformly sample skills k
+    - apply skill-conditioned policy until termination (change in sym obs, or step limit)
+        and store state-action tuples
+    - append to buffer
+
+
+- is the training offline?
+for training epoch (16 steps per epoch):
+    - collect 32 episodes as described in (1)
+    - sample set of 256 episodes from long-term buffer and take all 256 most recent episodes
+    - use them to update policy using sac
+        - train for 16 steps with batches of size 128
+        - for conditioning on k concatenate k to state (i.e. to observation)
