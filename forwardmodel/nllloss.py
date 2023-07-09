@@ -17,11 +17,13 @@ class NLLLoss_customized(nn.Module):
         # loss very small even if model output not different from model input
         #l = - torch.nansum(y * torch.log(x) + (1 - y) * torch.log(1 - x))
 
+        # TODO: look which data point has largest loss
 
         l = - torch.nansum(y * torch.log(x))
 
         # average over batches
         num_batches = x.shape[0]
+        #print("non-normalized loss = ", l)
         l /= num_batches
 
         return l

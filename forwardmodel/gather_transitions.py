@@ -41,6 +41,8 @@ if __name__ == '__main__':
             # get one-hot encoding of skill
             one_hot = np.zeros((14,))
             one_hot[skill] = 1
+
+            # go through permutations where skill execution is possible
             fields_poss = np.delete(fields, SKILLS[skill, 1])
             perms = permutations(fields_poss)
             for order in perms:
@@ -60,6 +62,21 @@ if __name__ == '__main__':
 
                 writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
 
+            # only add transitions where neighboring field we do not want to push to is empty
+            for free in neighbors[SKILLS[skill, 0]]:
+                if free is not SKILLS[skill, 1]:
+                    fields_poss = np.delete(fields, free)
+                    perms = permutations(fields_poss)
+                    for order in perms:
+                        # set board in env to initial state
+                        init_state = np.zeros((5, 6))
+                        for i in range(5):
+                            init_state[i, order[i]] = 1
+                        # get goal state
+                        goal_state = init_state.copy()
+
+                        writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+
             # put all possible transitions into training data where initially empty field is the one we want to push from
             fields_imposs = np.delete(fields, SKILLS[skill, 0])
             perms = permutations(fields_imposs)
@@ -75,20 +92,11 @@ if __name__ == '__main__':
 
             # add some additional transitions where skill has no effect
             count = 0
-            fields_poss = np.delete(fields_poss, np.where(fields_poss == SKILLS[skill, 0])[0][0])
-
-            # we want that a neighboring field is empty, but not the one we want to push to
-            poss_neigh = neighbors[SKILLS[skill, 0]]
-            poss_neigh = np.delete(poss_neigh, np.where(poss_neigh == SKILLS[skill, 1])[0][0])
-            print("skill = {}, poss_neigh = {}".format(skill, poss_neigh))
-            while count < 400:
+            # take random initial states where skill execution is not possible
+            while count < 100:
                 count += 1
                 # pick number where no box is initially
-                if count < 300:
-                    # pick neighboring field
-                    pick = np.random.choice(poss_neigh)
-                else:
-                    pick = np.random.choice(fields_poss)
+                pick = np.random.choice(fields_poss)
 
                 fields_imposs = np.delete(fields, pick)
                 np.random.shuffle(fields_imposs)

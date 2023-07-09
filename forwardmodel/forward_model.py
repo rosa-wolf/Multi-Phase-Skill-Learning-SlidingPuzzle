@@ -254,7 +254,7 @@ class ForwardModel(nn.Module):
             :param y: real successor state
             :param alpha: porbability of value being one for each entry of symbolic observation
         """
-
+        # TODO: get successor state over max
         # calucalate most likely successor state
         y_hat = torch.bernoulli(alpha)
         # look how many entries are same as in true successor

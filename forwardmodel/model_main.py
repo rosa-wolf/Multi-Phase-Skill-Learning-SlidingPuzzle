@@ -42,8 +42,11 @@ if __name__ == "__main__":
     data = torch.from_numpy(np.genfromtxt(train_file, delimiter=","))
     # randomly shuffle rows of data
     data = data[torch.randperm(data.size()[0])]
-    test_set_size = 0
     best_valid_loss = float('inf')
+
+    test_file = "../transitions/test_transitions.csv"
+    test_data = torch.from_numpy(np.genfromtxt(test_file, delimiter=","))
+    test_data = test_data[torch.randperm(test_data.size()[0])]
 
     # split data into train and test sets for all epochs
     EPOCHS = 1000
@@ -51,7 +54,7 @@ if __name__ == "__main__":
 
 
     # get forward model
-    my_forwardmodel = ForwardModel(batch_size=60, learning_rate=0.001, precision='float64')
+    my_forwardmodel = ForwardModel(batch_size=200, learning_rate=0.001, precision='float64')
     print(my_forwardmodel.model)
 
     for epoch in range(EPOCHS):
@@ -61,7 +64,7 @@ if __name__ == "__main__":
         start_time = time.monotonic()
 
         train_loss, train_acc = my_forwardmodel.train(data)
-        #valid_loss, valid_acc = my_forwardmodel.evaluate(test_set)
+        valid_loss, valid_acc = my_forwardmodel.evaluate(test_data)
 
         # save best model
         #if valid_loss < best_valid_loss:
@@ -83,7 +86,7 @@ if __name__ == "__main__":
 
         print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
         print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
-        #print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
+        print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
 
     # load best model
     my_forwardmodel.model = torch.load("models/best_model")

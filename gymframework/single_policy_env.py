@@ -9,6 +9,8 @@ from gym.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
 
+SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
+                   [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
 
 class PuzzleEnv(gym.Env):
     """
@@ -52,9 +54,6 @@ class PuzzleEnv(gym.Env):
         self.random_init_pos = random_init_pos
         self.random_init_config = random_init_config
 
-        # skill is part of action
-        self.skill = None
-
         # first two is velocity in x-y plane, third decides whether we perform skill (>0) or not (<=0)
         self.action_space = Box(low=np.array([-2., -2., 0]), high=np.array([2., 2., 1]), shape=(3,), dtype=np.float64)
 
@@ -63,9 +62,19 @@ class PuzzleEnv(gym.Env):
         # variable to remember weather robot was setback because it went outside of boundary
         self._setback = False
 
-        self.reset()
+        # skill is randomly sampled for every episode
+        self._skill = None
 
-    def step(self, action: Dict, k: int) -> tuple[Dict, float, bool, dict]:
+        #self.reset()
+
+    @property
+    def skill(self) -> int:
+        return self._skill
+    @skill.setter
+    def skill(self, value: int):
+        self._skill = value
+
+    def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
         """
         Run one timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
@@ -80,7 +89,6 @@ class PuzzleEnv(gym.Env):
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        self.skill = np.where(k == 1)[0][0]
         # store preivious symbolic observation
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -104,7 +112,7 @@ class PuzzleEnv(gym.Env):
         # for episode termination on change of symbolic observation
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
-            self.terminated = True
+            #self.terminated = True
             self.scene.sym_state = self._old_sym_obs
             self.scene.set_to_symbolic_state()
 
@@ -143,7 +151,11 @@ class PuzzleEnv(gym.Env):
         if self.random_init_config:
             # TODO: should it be possible to apply skill on initial board configuration?
             # randomly pick the field where no block is initially
-            field = np.delete(np.arange(0, 6), np.random.choice(np.arange(0, 6)))
+            #field = np.delete(np.arange(0, 6), np.random.choice(np.arange(0, 6)))
+
+            # take initial empty field such that skill execution is possible
+            field = np.delete(np.arange(0, 6), SKILLS[self.skill, 1])
+            print("skill {}: {}, field {}".format(self.skill, SKILLS[self.skill], field))
 
             # put blocks in random fields, except the one that has to be free
             order = np.random.permutation(field)
