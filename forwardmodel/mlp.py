@@ -8,9 +8,9 @@ class MLP(nn.Module):
                  output_size: int):
         super().__init__()
 
-        self.input = nn.Linear(input_size, 1000)
-        self.hidden = nn.Linear(1000, 1000)
-        self.output = nn.Linear(1000, output_size)
+        self.input = nn.Linear(input_size, 500)
+        self.hidden = nn.Linear(500, 500)
+        self.output = nn.Linear(500, output_size)
 
     def forward(self, x):
         """

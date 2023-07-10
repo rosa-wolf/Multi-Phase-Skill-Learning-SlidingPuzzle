@@ -12,6 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 from mlp import MLP
 from nllloss import NLLLoss_customized
 
+from visualize_transitions import visualize_transition
+
 
 """
 - The forward model is a tree, connecting all skills
@@ -150,8 +152,15 @@ class ForwardModel(nn.Module):
             # get alpha (probability of state being 1) from y_pred
             #alpha = self.calculate_alpha(x, y_pred)
 
-            loss = self.criterion(y_pred, y)
+            loss, max_loss, max_ep = self.criterion(y_pred, y)
 
+            #print("loss = ", loss)
+#
+            #print("=========================================")
+            #print("transition with max loss : ", max_loss)
+            #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
+            #print("prediction ", y_pred[max_ep].reshape((5, 6)))
+            #print("=========================================")
 
             if torch.isnan(loss).any():
                 print("loss is nan")
@@ -211,7 +220,7 @@ class ForwardModel(nn.Module):
                     # alpha = self.calculate_alpha(x, y_pred)
 
                     #loss = self.criterion(alpha, y)
-                    loss = self.criterion(y_pred, y)
+                    loss, _, _ = self.criterion(y_pred, y)
 
                     acc = self.calculate_accuracy(y_pred, y)
 
@@ -256,10 +265,21 @@ class ForwardModel(nn.Module):
         """
         # TODO: get successor state over max
         # calucalate most likely successor state
-        y_hat = torch.bernoulli(alpha)
+        # set value to 0 if prob <= 0.5 and to 1 else
+        y_hat = torch.round(alpha)
         # look how many entries are same as in true successor
         # only say its correct if complete symbolic observations are equal
         true = torch.sum((y_hat == y).all(axis=1))
+        filler = np.zeros((14,))
+        filler[0] = 1
+
+        #print(y_hat[0])
+
+        #for i in range(y_hat.shape[0]):
+        #    visualize_transition(y[i], filler, y_hat[i])
+        #    print("=======================================")
+
+        #print("number of wrong predictions = ", y_hat.shape[0] - true)
 
         # compute percentage of correctly predicted entries
         return true / y.shape[0] # (y.shape[0] * y.shape[1])
@@ -333,7 +353,7 @@ class ForwardModel(nn.Module):
         #alpha = alpha.reshape(old_shape)
 
         # calculate successor state
-        return torch.bernoulli(y_pred)
+        return torch.round(y_pred)
 
     def valid_state(self, state) -> bool:
         """

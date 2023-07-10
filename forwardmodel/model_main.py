@@ -49,7 +49,7 @@ if __name__ == "__main__":
     test_data = test_data[torch.randperm(test_data.size()[0])]
 
     # split data into train and test sets for all epochs
-    EPOCHS = 1000
+    EPOCHS = 100
     print("Epochs = ", EPOCHS)
 
 

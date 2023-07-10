@@ -5,6 +5,8 @@ import argparse
 import time
 import csv
 
+from visualize_transitions import visualize_transition
+
 
 # enumerate skills
 #SKILLS = np.array([[0, 1], [0, 3], [2, 1], [2, 5], [3, 0], [3, 4], [5, 2],
@@ -64,7 +66,8 @@ if __name__ == '__main__':
 
             # only add transitions where neighboring field we do not want to push to is empty
             for free in neighbors[SKILLS[skill, 0]]:
-                if free is not SKILLS[skill, 1]:
+                if free != SKILLS[skill, 1]:
+                    print("free = ", free)
                     fields_poss = np.delete(fields, free)
                     perms = permutations(fields_poss)
                     for order in perms:
@@ -76,6 +79,7 @@ if __name__ == '__main__':
                         goal_state = init_state.copy()
 
                         writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+                        visualize_transition(init_state.flatten(), one_hot, goal_state.flatten())
 
             # put all possible transitions into training data where initially empty field is the one we want to push from
             fields_imposs = np.delete(fields, SKILLS[skill, 0])
@@ -93,7 +97,7 @@ if __name__ == '__main__':
             # add some additional transitions where skill has no effect
             count = 0
             # take random initial states where skill execution is not possible
-            while count < 100:
+            while count < 500:
                 count += 1
                 # pick number where no box is initially
                 pick = np.random.choice(fields_poss)

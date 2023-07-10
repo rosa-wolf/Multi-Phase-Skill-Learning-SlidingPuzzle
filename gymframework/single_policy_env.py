@@ -391,7 +391,7 @@ class PuzzleEnv(gym.Env):
             # if agent tried to execute pushing movement put this had no effect
             if self.penalize:
                 if action[2] > 0.5:
-                    reward -= 1
+                    reward -= 0.1
 
 
         return reward

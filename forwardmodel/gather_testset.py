@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
             # only add transitions where neighboring field we do not want to push to is empty
             for free in neighbors[SKILLS[skill, 0]]:
-                if free is not SKILLS[skill, 1]:
+                if free != SKILLS[skill, 1]:
                     fields_poss = np.delete(fields, free)
                     perms = permutations(fields_poss)
                     for order in perms:

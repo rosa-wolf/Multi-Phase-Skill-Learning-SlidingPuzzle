@@ -24,21 +24,21 @@ my_forwardmodel.model.eval()
 '''
 
 # test single transitions
-skill = 3
+skill = 13
 one_hot = np.zeros((14,))
 one_hot[skill] = 1
 
 # push piece 3 from field 1 to field zero
-sym_obs = np.array([[0, 0, 0, 0, 0, 1],
-                    [0, 0, 1, 0, 0, 0],
+sym_obs = np.array([[0, 1, 0, 0, 0, 0],
                     [0, 0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 0],
-                    [1, 0, 0, 0, 0, 0]])
-goal_obs = np.array([[0, 0, 0, 0, 0, 1],
-                     [0, 0, 1, 0, 0, 0],
-                     [0, 0, 0, 1, 0, 0],
-                     [0, 1, 0, 0, 0, 0],
-                     [1, 0, 0, 0, 0, 0]])
+                    [0, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 1]])
+goal_obs = np.array([[0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 1]])
 
 y = torch.from_numpy(goal_obs.flatten())[None, :]
 
@@ -64,7 +64,7 @@ print("loss = ", loss)
 
 print("===================================")
 
-succ = torch.bernoulli(y_pred.reshape((5, 6)))
+succ = torch.round(y_pred.reshape((5, 6)))
 
 print(succ)
 
