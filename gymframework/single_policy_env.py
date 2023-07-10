@@ -40,6 +40,8 @@ class PuzzleEnv(gym.Env):
         self.give_sym_obs = give_sym_obs
         self.sparse_reward = sparse_reward
         self.evaluate = evaluate
+        # should iniital board be random or should skill execution be possible
+        self.random_init_board = False
 
         # has actor fullfilled criteria of termination
         self.terminated = False
@@ -107,7 +109,7 @@ class PuzzleEnv(gym.Env):
         obs = self._obs.copy()
 
         # get reward
-        reward = self._reward()
+        reward = self._reward(action)
 
         # for episode termination on change of symbolic observation
         # check if symbolic observation changed
@@ -125,7 +127,8 @@ class PuzzleEnv(gym.Env):
             self.scene.set_to_symbolic_state()
         else:
             # reset env
-            self.reset()
+            pass
+            # self.reset()
 
         # caution: dont return resetted values but values that let to reset
         return obs, reward, done, {}
@@ -150,12 +153,12 @@ class PuzzleEnv(gym.Env):
             self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         if self.random_init_config:
             # TODO: should it be possible to apply skill on initial board configuration?
-            # randomly pick the field where no block is initially
-            #field = np.delete(np.arange(0, 6), np.random.choice(np.arange(0, 6)))
-
-            # take initial empty field such that skill execution is possible
-            field = np.delete(np.arange(0, 6), SKILLS[self.skill, 1])
-            print("skill {}: {}, field {}".format(self.skill, SKILLS[self.skill], field))
+            if self.random_init_board:
+                # randomly pick the field where no block is initially
+                field = np.delete(np.arange(0, 6), np.random.choice(np.arange(0, 6)))
+            else:
+                # take initial empty field such that skill execution is possible
+                field = np.delete(np.arange(0, 6), SKILLS[self.skill, 1])
 
             # put blocks in random fields, except the one that has to be free
             order = np.random.permutation(field)
@@ -322,7 +325,7 @@ class PuzzleEnv(gym.Env):
         self.scene.S.setState(self.scene.C.getFrameState())
         self.scene.S.step([], self.scene.tau, ry.ControlMode.none)
 
-    def _reward(self) -> float:
+    def _reward(self, action) -> float:
         """
         Calculates reward, which is based on symbolic observation change
         """
@@ -385,8 +388,10 @@ class PuzzleEnv(gym.Env):
         if not (self._old_sym_obs == self.scene.sym_state).all():
             reward += 1
         else:
+            # if agent tried to execute pushing movement put this had no effect
             if self.penalize:
-                reward -= 1
+                if action[2] > 0.5:
+                    reward -= 1
 
 
         return reward
