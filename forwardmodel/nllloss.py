@@ -19,25 +19,25 @@ class NLLLoss_customized(nn.Module):
         #l = - torch.nansum(y * torch.log(x) + (1 - y) * torch.log(1 - x))
 
         # TODO: look which data point has largest loss
-        sum_loss = 0
-        max_loss = -torch.inf
-        max_ep = 0
-        for ep in range(x.shape[0]):
-            l = - torch.nansum(y[ep] * torch.log(x[ep]))
-            if l > max_loss:
-                max_loss = l
-                max_ep = ep
-
-            sum_loss += l
+        #sum_loss = 0
+        #max_loss = -torch.inf
+        #max_ep = 0
+        #for ep in range(x.shape[0]):
+        #    l = - torch.nansum(y[ep] * torch.log(x[ep]))
+        #    if l > max_loss:
+        #        max_loss = l
+        #        max_ep = ep
+#
+        #    sum_loss += l
 
 
         # one-line
-        #l = - torch.nansum(y * torch.log(x))
+        l = - torch.nansum(y * torch.log(x))
 
         # average over batches
         num_batches = x.shape[0]
         #print("non-normalized loss = ", l)
-        #l /= num_batches
-        sum_loss /= num_batches
+        l /= num_batches
+        #sum_loss /= num_batches
 
-        return sum_loss, max_loss, max_ep
+        return l # sum_loss, max_loss, max_ep

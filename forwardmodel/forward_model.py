@@ -15,6 +15,10 @@ from nllloss import NLLLoss_customized
 from visualize_transitions import visualize_transition
 
 
+
+SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
+                   [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
+
 """
 - The forward model is a tree, connecting all skills
 - Probability of symbolic state being reached, when performing a skill in particular symbolic state 
@@ -84,9 +88,8 @@ class ForwardModel(nn.Module):
         # number of puzzle pieces
         self.pieces = self.width * self.height - 1
         self.num_skills = num_skills
-        self.sym_obs_size = width * height * self.pieces
-        #self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.device = 'cpu'
+        self.sym_obs_size = self.width * self.height * self.pieces
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.input_size = self.sym_obs_size + num_skills
         self.output_size = self.sym_obs_size
@@ -94,11 +97,11 @@ class ForwardModel(nn.Module):
         self.batch_size = batch_size
 
         # define model loss and optimizer
-        self.model = MLP(self.input_size, self.output_size)
-        self.model.to(self.device)
+        self.model = MLP(self.width, self.height, self.num_skills)
+        self.model = self.model.to(self.device)
         # loss: negative log-likelihood - log q(z_T | z_0, k)
         self.criterion = NLLLoss_customized()
-        self.criterion.to(self.device)
+        self.criterion = self.criterion.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)#, weight_decay=0.00005)
 
     def train(self, data):
@@ -115,13 +118,14 @@ class ForwardModel(nn.Module):
 
         # go through all batches
         for i in range(num_batches):
-            # if we are in last batch take rest of data
             if i == num_batches - 1:
+                # if we are in last batch take rest of data
                 x = data[i * self.batch_size: , : self.input_size]
                 y = data[i * self.batch_size: , self.input_size:]
             else:
-                x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
-                y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
+                # take one batch of data
+                x = data[i * self.batch_size: (i + 1) * self.batch_size, : self.input_size]
+                y = data[i * self.batch_size: (i + 1) * self.batch_size, self.input_size:]
 
             x = x.to(self.device)
             y = y.to(self.device)
@@ -136,32 +140,26 @@ class ForwardModel(nn.Module):
             if (torch.isnan(x)).any():
                 print("input contains nan values")
 
+            # set all gradients to zero
             self.optimizer.zero_grad()
             # get y_pred (multiclass classification)
             y_pred = self.model(x)
 
-            # interpret y_pred directly as one-hot encoding of block placements for all blocks
-            # do multiclass classification
-            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces, self.width * self.height))
-            y_pred = torch.softmax(y_pred, axis=2)
-            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces * self.width * self.height))
-
-            if (torch.isnan(y_pred)).any():
-                print("y_pred contains nan values")
 
             # get alpha (probability of state being 1) from y_pred
             #alpha = self.calculate_alpha(x, y_pred)
 
-            loss, max_loss, max_ep = self.criterion(y_pred, y)
+            #loss, max_loss, max_ep = self.criterion(y_pred, y)
+            loss = self.criterion(y_pred, y)
 
             #print("loss = ", loss)
-#
+
             #print("=========================================")
             #print("transition with max loss : ", max_loss)
             #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
             #print("prediction ", y_pred[max_ep].reshape((5, 6)))
             #print("=========================================")
-
+#
             if torch.isnan(loss).any():
                 print("loss is nan")
 
@@ -210,17 +208,12 @@ class ForwardModel(nn.Module):
 
                     y_pred = self.model(x)
 
-                    # interpret y_pred directly as one-hot encoding of block placements for all blocks
-                    # do multiclass classification
-                    y_pred = y_pred.reshape((y_pred.shape[0], self.pieces, self.width*self.height))
-                    y_pred = torch.softmax(y_pred, axis=2)
-                    y_pred = y_pred.reshape((y_pred.shape[0], self.pieces * self.width * self.height))
-
                     # get alpha (probability of state being 1) from y_pred
                     # alpha = self.calculate_alpha(x, y_pred)
 
                     #loss = self.criterion(alpha, y)
-                    loss, _, _ = self.criterion(y_pred, y)
+                    #loss, _, _ = self.criterion(y_pred, y)
+                    loss = self.criterion(y_pred, y)
 
                     acc = self.calculate_accuracy(y_pred, y)
 
@@ -240,11 +233,6 @@ class ForwardModel(nn.Module):
                 x = x.to(torch.float32)
                 y = y.to(torch.float64)
             y_pred = self.model(x)
-            # interpret y_pred directly as one-hot encoding of block placements for all blocks
-            # do multiclass classification
-            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces, self.width * self.height))
-            y_pred = torch.softmax(y_pred, axis=2)
-            y_pred = y_pred.reshape((y_pred.shape[0], self.pieces * self.width * self.height))
             # get alpha (probability of state being 1) from y_pred
             #alpha = self.calculate_alpha(x, y_pred)
             loss = self.criterion(y_pred, y)
@@ -255,7 +243,7 @@ class ForwardModel(nn.Module):
             return epoch_loss, epoch_acc
 
 
-    def calculate_accuracy(self, alpha, y):
+    def calculate_accuracy(self, y_hat, y):
         """
         Calculates how similar the predicted successor state is to the true one
         Calculates how many predictions are completely correct
@@ -263,13 +251,19 @@ class ForwardModel(nn.Module):
             :param y: real successor state
             :param alpha: porbability of value being one for each entry of symbolic observation
         """
-        # TODO: get successor state over max
         # calucalate most likely successor state
-        # set value to 0 if prob <= 0.5 and to 1 else
-        y_hat = torch.round(alpha)
+        y_pred = y_hat.clone().reshape((y_hat.shape[0], self.pieces, self.width * self.height))
+
+        pred = torch.zeros(y_pred.shape)
+        pred = pred.reshape((pred.shape[0] * pred.shape[1], pred.shape[2]))
+
+        pred[torch.arange(pred.shape[0]), torch.argmax(y_pred, axis=2).flatten()] = 1
+        pred = pred.reshape((y_hat.shape[0], y_hat.shape[1]))
+
+        pred = pred.to(self.device)
         # look how many entries are same as in true successor
         # only say its correct if complete symbolic observations are equal
-        true = torch.sum((y_hat == y).all(axis=1))
+        true = torch.sum((pred == y).all(axis=1))
         filler = np.zeros((14,))
         filler[0] = 1
 
@@ -291,69 +285,86 @@ class ForwardModel(nn.Module):
         elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
         return elapsed_mins, elapsed_secs
 
-    def calculate_alpha(self, x, y_pred):
-        """
-        Calculates the probabiliy of a value in the symbolic observation to be one given the input and output of the
-        mlp
-        Args:
-            :param x: input to the mlp (symbolic_observation (flattened), one_hot encoding of skill)
-            :param y_pred: output of the mlp (shape of flattened symbolic observation)
-        Returns:
-            alpha: probability of value of each symbolic observation to be 1
+    #def calculate_alpha(self, x, y_pred):
+    #    """
+    #    Calculates the probabiliy of a value in the symbolic observation to be one given the input and output of the
+    #    mlp
+    #    Args:
+    #        :param x: input to the mlp (symbolic_observation (flattened), one_hot encoding of skill)
+    #        :param y_pred: output of the mlp (shape of flattened symbolic observation)
+    #    Returns:
+    #        alpha: probability of value of each symbolic observation to be 1
+#
+    #    """
+    #    # get alpha (probability of state being 1) from y_pred
+    #    alpha = (1 - x[:, :self.sym_obs_size]) * y_pred + x[:, :self.sym_obs_size] * (1 - y_pred)
+    #    # make this into probabilities using softmax
+    #    # (for each box probabilities of being in one field should sum up to 1)
+    #    old_shape = alpha.shape
+    #    alpha = alpha.reshape((alpha.shape[0], self.width * self.height - 1, self.width * self.height))
+    #    alpha = torch.softmax(alpha, dim=2)
+    #    alpha = alpha.reshape(old_shape)
+#
+    #    return alpha
 
-        """
-        # get alpha (probability of state being 1) from y_pred
-        alpha = (1 - x[:, :self.sym_obs_size]) * y_pred + x[:, :self.sym_obs_size] * (1 - y_pred)
-        # make this into probabilities using softmax
-        # (for each box probabilities of being in one field should sum up to 1)
-        old_shape = alpha.shape
-        alpha = alpha.reshape((alpha.shape[0], self.width * self.height - 1, self.width * self.height))
-        alpha = torch.softmax(alpha, dim=2)
-        alpha = alpha.reshape(old_shape)
-
-        return alpha
-
-    def successor(self, state, skill):
+    def successor(self, state: np.array, skill: np.array) -> np.array:
         """
         Returns successor nodes of a given node
         Args:
-            :param state: node to find successor to (symbolic observation)
+            :param state: node to find successor to (symbolic observation, falttened)
             :param skill: skill to apply
         Returns:
             succ: most likely successor when applying skill in state
         """
-        # TODO: change successor calculation according to multimodal classification
+
+        """
+        ####################################################################
+        ## For testing of BFS: take correct successor without using model ##
+        ####################################################################
+        state = state.copy().reshape((5, 6))
+        
+        k = np.where(skill == 1)[0][0]
+        print("skill to apply = ", k)
+        
+        # check if skill has effect
+        # get empty filed
+        print("state shape = ", state.shape)
+        empty = np.where(np.sum(state, axis=0) == 0)[0][0]
+        if empty == SKILLS[k, 1]:
+            # get box we are pushing
+            box = np.where(state[:, SKILLS[k, 0]] == 1)[0][0]
+            state[box, SKILLS[k, 0]] = 0
+            state[box, SKILLS[k, 1]] = 1
+
+        return state.flatten()
+        ######################################################################
+        """
 
         # concatenate state and skill to get input to mlp
         state = torch.from_numpy(state)
         skill = torch.from_numpy(skill)
-        x = torch.concatenate((state.flatten(), skill))
+        x = torch.concatenate((state, skill))
         x = x.to(self.device)
         if self.precision == 'float64':
             x = x.to(torch.float64)
         else:
             x = x.to(torch.float32)
-
         # do forward pass
+        # pad array to be of shape (1, old_shape) instead of shape old_shape
+        x = x[None, :]
         y_pred = self.model(x)
         # interpret y_pred directly as one-hot encoding of block placements for all blocks
         # do multiclass classification
         old_shape = y_pred.shape
         y_pred = y_pred.reshape((self.pieces, self.width * self.height))
         y_pred = torch.softmax(y_pred, dim=1)
-        y_pred = y_pred.reshape(old_shape)
-
-        ## get alpha from flip probability and state
-        #alpha = (1 - x[: self.sym_obs_size]) * y_pred + x[:self.sym_obs_size] * (1 - y_pred)
-        ## make this into probabilities using softmax
-        ## (for each box probabilities of being in one field should sum up to 1)
-        #old_shape = alpha.shape
-        #alpha = alpha.reshape((self.pieces, self.width * self.height))
-        #alpha = torch.softmax(alpha, dim=1)
-        #alpha = alpha.reshape(old_shape)
 
         # calculate successor state
-        return torch.round(y_pred)
+        # block is on that field with the highest probability
+        succ = torch.zeros(y_pred.shape)
+        succ[torch.arange(succ.shape[0]), torch.argmax(y_pred, axis=1)] = 1
+
+        return succ.reshape(state.shape)
 
     def valid_state(self, state) -> bool:
         """
@@ -384,11 +395,23 @@ class ForwardModel(nn.Module):
 
     def breadth_first_search(self, start, goal):
         """
+
+
+
+
+
+
+
+
+
+        TESTED BY TAKING CORRECT SUCCESSOR INSTEAD BY MODEL PREDICTION: BFS WORKS!!!
+        SOLUTION ALSO COMPARED TO ONLINE SOLVER: IT GIVES THE SAME SOLUTION!!!
+
         Returns sequence of skills to go from start to goal configuration
         as predicted by current forward_model
         Args:
-            :param start: start configuration (symbolic state)
-            :param goal: goal configuration (symbolic state)
+            :param start: start configuration (symbolic state, fLattened)
+            :param goal: goal configuration (symbolic state, flattened)
         Returns:
             state_sequence: sequence of symbolic states the forward model predicts it be visited when executing the predicted skills
             skill_sequence: sequence of skills to be executed to go from start to goal configuration
@@ -419,6 +442,10 @@ class ForwardModel(nn.Module):
                 # find successor state
                 next_state = self.successor(state, one_hot)
                 next_state = next_state.cpu().detach().numpy()
+
+                # for devugging visualize every state transition prediction
+                # visualize_transition(state, one_hot, next_state)
+
                 # only append next_state if it is not the same as current state
                 if not (state == next_state).all():
                     # look wether next state is a valid symbolic observation
@@ -429,6 +456,7 @@ class ForwardModel(nn.Module):
 
                         # look if successor was already visited when transitioning from A DIFFERENT state
                         not_visited = True
+
                         if np.any(np.all(next_state == visited, axis=1)):
                             if not (parent[key] == state.astype(int)).all():
                                 not_visited = False

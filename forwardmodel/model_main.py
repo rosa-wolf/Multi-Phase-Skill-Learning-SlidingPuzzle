@@ -3,7 +3,7 @@ import time
 import numpy as np
 import math
 import os
-
+from visualize_transitions import visualize_transition
 
 from forward_model import ForwardModel
 
@@ -49,12 +49,14 @@ if __name__ == "__main__":
     test_data = test_data[torch.randperm(test_data.size()[0])]
 
     # split data into train and test sets for all epochs
-    EPOCHS = 100
+    EPOCHS = 20
     print("Epochs = ", EPOCHS)
+
+    num_data = 1000
 
 
     # get forward model
-    my_forwardmodel = ForwardModel(batch_size=200, learning_rate=0.001, precision='float64')
+    my_forwardmodel = ForwardModel(batch_size=50, learning_rate=0.001, precision='float64')
     print(my_forwardmodel.model)
 
     for epoch in range(EPOCHS):
@@ -63,34 +65,85 @@ if __name__ == "__main__":
         #train_set = torch.concatenate((data[: epoch * test_set_size], data[epoch * test_set_size + test_set_size:]))
         start_time = time.monotonic()
 
-        train_loss, train_acc = my_forwardmodel.train(data)
-        valid_loss, valid_acc = my_forwardmodel.evaluate(test_data)
+        data = []
+        for i in range(num_data):
+            # gather data
+            # sample skill
+            k = np.zeros((14,))
+            skill = np.random.choice(np.arange(14))
+            k[skill] = 1
+            # sample board
+            # sample empty field
+            # sample whether we want to make sure that skill execution is possible
+            poss = np.random.uniform()
+            if poss > 0.7:
+                # field we want to push to is empty
+                empty = SKILLS[skill, 1]
+            else:
+                # random field is empty
+                empty = np.random.choice(np.arange(6))
 
-        # save best model
-        #if valid_loss < best_valid_loss:
-        #    best_valid_loss = valid_loss
-        #    if not os.path.exists('models/'):
-        #        os.makedirs('models/')
-        #    path = "models/best_model"
-        #    # print("Saving model to ", path)
-        #    torch.save(my_forwardmodel.model, path)
+            # occupied fields
+            non_empty = np.delete(np.arange(6), empty)
+            # randomly order puzzle pieces onto fields
+            order = np.random.permutation(non_empty)
 
-        # save model
-        if not os.path.exists('models/'):
-            os.makedirs('models/')
+            # get initial symbolic state
+            init_state = np.zeros((5, 6))
+            for j in range(5):
+                init_state[j, order[j]] = 1
+
+            goal_state = init_state.copy()
+            # if skill has effect, get correct state transition
+            if empty == SKILLS[skill, 1]:
+                # get goal state
+                start = SKILLS[skill, 0]
+                goal = SKILLS[skill, 1]
+                box = np.where(init_state[:, start] == 1)[0][0]
+                goal_state[box, start] = 0
+                goal_state[box, goal] = 1
+
+            data.append(np.concatenate((init_state.flatten(), k, goal_state.flatten())))
+            # visualize_transition(init_state.flatten(), k, goal_state.flatten())
+
+        data = np.array(data)
+        data = torch.from_numpy(data)
+
+        # train with this data for 4 steps
+        for _ in range(4):
+
+            train_loss, train_acc = my_forwardmodel.train(data)
+            valid_loss, valid_acc = my_forwardmodel.evaluate(test_data)
+
+            # save best model
+            #if valid_loss < best_valid_loss:
+            #    best_valid_loss = valid_loss
+            #    if not os.path.exists('models/'):
+            #        os.makedirs('models/')
+            #    path = "models/best_model"
+            #    # print("Saving model to ", path)
+            #    torch.save(my_forwardmodel.model, path)
+
+            # save model
+            if not os.path.exists('models/'):
+
+                os.makedirs('models/')
             path = "models/best_model"
-            torch.save(my_forwardmodel.model, path)
+            print("saving model now")
+            # dont save whole model, but only parameters
+            torch.save(my_forwardmodel.model.state_dict(), path)
 
-        end_time = time.monotonic()
-        epoch_mins, epoch_secs = my_forwardmodel.epoch_time(start_time, end_time)
+            end_time = time.monotonic()
+            epoch_mins, epoch_secs = my_forwardmodel.epoch_time(start_time, end_time)
 
-        print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
-        print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
-        print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
+            print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
+            print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
+            print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc*100:.2f}%')
 
     # load best model
-    my_forwardmodel.model = torch.load("models/best_model")
+    my_forwardmodel.model.load_state_dict(torch.load("models/best_model"))
     my_forwardmodel.model.eval()
+
 
     # test whether path-planning works for very simple problem
     init_state = np.array([[1, 0, 0, 0, 0, 0],

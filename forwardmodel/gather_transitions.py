@@ -39,6 +39,7 @@ if __name__ == '__main__':
     with open('../transitions/transitions.csv', mode='w') as file:
         writer = csv.writer(file, delimiter=',')
         for skill in range(14):
+            print("skill = ", skill)
             fields = np.array([0, 1, 2, 3, 4, 5])
             # get one-hot encoding of skill
             one_hot = np.zeros((14,))
@@ -63,6 +64,8 @@ if __name__ == '__main__':
                 goal_state[box, goal] = 1
 
                 writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+                writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
+
 
             # only add transitions where neighboring field we do not want to push to is empty
             for free in neighbors[SKILLS[skill, 0]]:
@@ -79,7 +82,6 @@ if __name__ == '__main__':
                         goal_state = init_state.copy()
 
                         writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
-                        visualize_transition(init_state.flatten(), one_hot, goal_state.flatten())
 
             # put all possible transitions into training data where initially empty field is the one we want to push from
             fields_imposs = np.delete(fields, SKILLS[skill, 0])
@@ -97,10 +99,13 @@ if __name__ == '__main__':
             # add some additional transitions where skill has no effect
             count = 0
             # take random initial states where skill execution is not possible
-            while count < 500:
+            # empty field cannot be the one we want to push from
+            choice = np.delete(fields, SKILLS[skill, 1])
+            while count < 200:
                 count += 1
                 # pick number where no box is initially
-                pick = np.random.choice(fields_poss)
+                pick = np.random.choice(choice)
+                print("pick = ", pick)
 
                 fields_imposs = np.delete(fields, pick)
                 np.random.shuffle(fields_imposs)
@@ -112,6 +117,7 @@ if __name__ == '__main__':
 
                 # write to file
                 writer.writerow(np.concatenate([init_state.flatten(), one_hot, init_state.flatten()]))
+                #visualize_transition(init_state.flatten(), one_hot, init_state.flatten())
 
 
 
