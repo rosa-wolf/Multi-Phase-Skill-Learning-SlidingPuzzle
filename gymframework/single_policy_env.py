@@ -243,41 +243,43 @@ class PuzzleEnv(gym.Env):
 
 
         if action[2] >= 0.5:
-            # check if executing action can even lead to wanted change in symbolic observation to save time in training
-            # format of limit [[xmin, ymin], [xmax, ymax]]
-            if self.skill == 0:
-                lim = np.array([[0.018, -0.18], [0.15, 0.02]])
-            elif self.skill == 1:
-                lim = np.array([[-0.23, 0.05], [-0.05, 0.2]])
-            elif self.skill == 2:
-                lim = np.array([[-0.5, -0.2], [-0.13, 0.02]])
-            elif self.skill == 3:
-                lim = np.array([[0.13, -0.2], [0.5, 0.02]])
-            elif self.skill == 4:
-                lim = np.array([[-0.11, 0.05], [0.11, 0.2]])
-            elif self.skill == 5:
-                lim = np.array([[-0.15, -0.18], [-0.02, 0.02]])
-            elif self.skill == 6:
-                lim = np.array([[0.05, 0.05], [0.23, 0.2]])
-            elif self.skill == 7:
-                lim = np.array([[-0.23, -0.2], [-0.05, -0.05]])
-            elif self.skill == 8:
-                lim = np.array([[0.02, -0.02], [0.15, 0.18]])
-            elif self.skill == 9:
-                lim = np.array([[-0.11, -0.2], [0.11, -0.05]])
-            elif self.skill == 10:
-                lim = np.array([[-0.5, -0.02], [-0.13, 0.2]])
-            elif self.skill == 11:
-                lim = np.array([[0.13, -0.02], [0.5, 0.2]])
-            elif self.skill == 12:
-                lim = np.array([[0.05, -0.2], [0.23, -0.05]])
-            elif self.skill == 13:
-                lim = np.array([[-0.15, -0.02], [-0.02, 0.18]])
-
-
-            if (lim[0, :] <= self.scene.q[:2]).all() and (self.scene.q[:2] <= lim[1, :]).all():
-                print("execute skill")
-                self.execute_skill()
+            # execute skill independent of where current position of actor
+            self.execute_skill()
+            ## check if executing action can even lead to wanted change in symbolic observation to save time in training
+            ## format of limit [[xmin, ymin], [xmax, ymax]]
+            #if self.skill == 0:
+            #    lim = np.array([[0.018, -0.18], [0.15, 0.02]])
+            #elif self.skill == 1:
+            #    lim = np.array([[-0.23, 0.05], [-0.05, 0.2]])
+            #elif self.skill == 2:
+            #    lim = np.array([[-0.5, -0.2], [-0.13, 0.02]])
+            #elif self.skill == 3:
+            #    lim = np.array([[0.13, -0.2], [0.5, 0.02]])
+            #elif self.skill == 4:
+            #    lim = np.array([[-0.11, 0.05], [0.11, 0.2]])
+            #elif self.skill == 5:
+            #    lim = np.array([[-0.15, -0.18], [-0.02, 0.02]])
+            #elif self.skill == 6:
+            #    lim = np.array([[0.05, 0.05], [0.23, 0.2]])
+            #elif self.skill == 7:
+            #    lim = np.array([[-0.23, -0.2], [-0.05, -0.05]])
+            #elif self.skill == 8:
+            #    lim = np.array([[0.02, -0.02], [0.15, 0.18]])
+            #elif self.skill == 9:
+            #    lim = np.array([[-0.11, -0.2], [0.11, -0.05]])
+            #elif self.skill == 10:
+            #    lim = np.array([[-0.5, -0.02], [-0.13, 0.2]])
+            #elif self.skill == 11:
+            #    lim = np.array([[0.13, -0.02], [0.5, 0.2]])
+            #elif self.skill == 12:
+            #    lim = np.array([[0.05, -0.2], [0.23, -0.05]])
+            #elif self.skill == 13:
+            #    lim = np.array([[-0.15, -0.02], [-0.02, 0.18]])
+#
+#
+            #if (lim[0, :] <= self.scene.q[:2]).all() and (self.scene.q[:2] <= lim[1, :]).all():
+            #    print("execute skill")
+            #    self.execute_skill()
 
     def execute_skill(self):
         """
@@ -340,34 +342,62 @@ class PuzzleEnv(gym.Env):
             # define place of highest reward for each skill
             if self.skill == 0:
                 opt = np.array([0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower right corner)
+                max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 1:
                 opt = np.array([-0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper left corner)
+                max = np.array([0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 2:
                 opt = np.array([-0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower left corner)
+                max = np.array([0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 3:
                 opt = np.array([0.195, -0.065, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower right corner)
+                max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 4:
                 opt = np.array([0., 0.11, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper left corner)
+                max = np.array([0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 5:
                 opt = np.array([-0.057, -0.07, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower left corner)
+                max = np.array([0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 6:
                 opt = np.array([0.13, 0.115, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper right corner)
+                max = np.array([-0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 7:
                 opt = np.array([-0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower left corner)
+                max = np.array([0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 8:
                 opt = np.array([0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper right corner)
+                max = np.array([-0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 9:
                 opt = np.array([0., -0.11, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower left corner)
+                max = np.array([0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 10:
                 opt = np.array([-0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper left corner)
+                max = np.array([0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 11:
                 opt = np.array([0.195, 0.065, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper right corner)
+                max = np.array([-0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 12:
                 opt = np.array([0.13, -0.115, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (lower right corner)
+                max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 13:
                 opt = np.array([-0.057, 0.07, self.scene.q0[2], self.scene.q0[3]])
+                # loc with max distance to optimum (upper left corner)
+                max = np.array([0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
 
-            max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
+            #max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
             loc = self.scene.C.getJointState()  # current location
 
             # reward: max distance - current distance

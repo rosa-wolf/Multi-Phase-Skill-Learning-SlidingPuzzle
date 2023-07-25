@@ -395,15 +395,6 @@ class ForwardModel(nn.Module):
 
     def breadth_first_search(self, start, goal):
         """
-
-
-
-
-
-
-
-
-
         TESTED BY TAKING CORRECT SUCCESSOR INSTEAD BY MODEL PREDICTION: BFS WORKS!!!
         SOLUTION ALSO COMPARED TO ONLINE SOLVER: IT GIVES THE SAME SOLUTION!!!
 
@@ -483,3 +474,44 @@ class ForwardModel(nn.Module):
 
         print("Goal Not reachable from start configuration")
         return None, None
+
+    def calculate_reward(self, start, end, k):
+        """
+        Calculate the reward, that the skill-conditioned policy optimization gets when it does a successful transition
+        from state start to state end using skill k
+
+        R(k) = log q(z_T | z_0, k) / sum_k' q(z_T | z_0, k') + log K
+
+        K: number of states
+
+        Args:
+            :param start (z_0) : symbolic state agent starts in
+            :param end (z_T): symbolic state agent should end
+            :param k: skill agent executes
+        Returns:
+            reward: R(k)
+        """
+        ####################################################
+        # go through all skills and get sum of likelihoods #
+        ####################################################
+        # get model prediction of transitioning from z_0 with each skill
+        # formulate input to model
+
+        # get one_hot encoding for all skills
+        one_hot = torch.eye(self.num_skills)
+        # concatenate with input state z_0
+        input = state.repeat(self.num_skills, 1)
+        input = torch.concatenate((input, one_hot), axis=1)
+
+        y_pred = self.model(input)
+
+        # calculate probability to transition to state z_T for each skill
+        # probability is product of probabilities for each block to be in exactly the right field
+        masked = y_pred * end
+        sum = torch.sum(torch.prod(torch.sum(masked, axis=2), axis=1))
+
+        # get likelihood for skill k
+        qk = masked[k]
+        prob = torch.prod(torch.sum(qk, axis=1))
+
+        return torch.log(prob / sum) + torch.log(self.num_skills)
