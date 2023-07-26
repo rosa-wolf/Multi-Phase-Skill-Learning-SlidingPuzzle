@@ -8,6 +8,10 @@ from gym.spaces import Box, Dict, Discrete, MultiBinary
 from gym.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
+import torch
+
+from forwardmodel.forward_model import ForwardModel
+
 
 SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
                    [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
@@ -66,6 +70,20 @@ class PuzzleEnv(gym.Env):
 
         # skill is randomly sampled for every episode
         self._skill = None
+
+
+
+        # reward we give when symbolic observation changes as predicted by forward model
+        # has to be calculated for each episode dependent on sampled skill and initial state
+        self.reward_on_change = 0
+
+        # remember initial board configuration to calculate skill on change of symbolic observation
+        self.init_sym_state = self.scene.sym_state.copy()
+
+        # load best model
+        self.fm = ForwardModel(batch_size=60, learning_rate=0.001)
+        self.fm.model.load_state_dict(torch.load("../SEADS_SlidingPuzzle/forwardmodel/models/best_model"))
+        self.fm.model.eval()
 
         #self.reset()
 
@@ -171,6 +189,9 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
         self._obs = self._get_observation()
+
+        # store initial symbolic observation to calculate reward later
+        self.init_sym_state = self.scene.sym_state.copy()
 
         return self._obs
 
@@ -414,14 +435,20 @@ class PuzzleEnv(gym.Env):
             #    reward *= np.linalg.norm(loc - h) / np.linalg.norm(loc - opt)
 
 
-        # extra reward if symbolic observation changed
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            reward += 1
-        else:
-            # if agent tried to execute pushing movement put this had no effect
-            if self.penalize:
-                if action[2] > 0.5:
-                    reward -= 0.1
+            # give forward model reward every time agent tries to execute skill
+            if action[2] > 0.5:
+                reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
+                                                   self.scene.sym_state.flatten(),
+                                                   self.skill)
+
+            ## extra reward if symbolic observation changed
+            #if not (self._old_sym_obs == self.scene.sym_state).all():
+            #     reward += 1
+            #else:
+            #     # if agent tried to execute pushing movement put this had no effect
+            #     if self.penalize:
+            #         if action[2] > 0.5:
+            #             reward -= 0.1
 
 
         return reward

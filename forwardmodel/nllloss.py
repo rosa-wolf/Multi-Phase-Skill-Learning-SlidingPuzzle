@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from visualize_transitions import visualize_transition
+from forwardmodel.visualize_transitions import visualize_transition
 
 
 class NLLLoss_customized(nn.Module):

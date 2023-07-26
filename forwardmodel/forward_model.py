@@ -9,10 +9,10 @@ import torch.optim as optim
 import torch.utils.data as data
 from torch.utils.tensorboard import SummaryWriter
 
-from mlp import MLP
-from nllloss import NLLLoss_customized
+from forwardmodel.mlp import MLP
+from forwardmodel.nllloss import NLLLoss_customized
 
-from visualize_transitions import visualize_transition
+from forwardmodel.visualize_transitions import visualize_transition
 
 
 
@@ -497,21 +497,33 @@ class ForwardModel(nn.Module):
         # get model prediction of transitioning from z_0 with each skill
         # formulate input to model
 
+        start = torch.from_numpy(start)
+        end = torch.from_numpy(end)
+        end = end.to(self.device)
+
         # get one_hot encoding for all skills
         one_hot = torch.eye(self.num_skills)
         # concatenate with input state z_0
-        input = state.repeat(self.num_skills, 1)
+        input = start.repeat(self.num_skills, 1)
         input = torch.concatenate((input, one_hot), axis=1)
+
+        input = input.to(self.device)
+        if self.precision == 'float64':
+            input = input.to(torch.float64)
+        else:
+            input = input.to(torch.float32)
 
         y_pred = self.model(input)
 
         # calculate probability to transition to state z_T for each skill
         # probability is product of probabilities for each block to be in exactly the right field
         masked = y_pred * end
+
+        masked = masked.reshape((masked.shape[0], self.pieces, self.width*self.height))
         sum = torch.sum(torch.prod(torch.sum(masked, axis=2), axis=1))
 
         # get likelihood for skill k
         qk = masked[k]
         prob = torch.prod(torch.sum(qk, axis=1))
 
-        return torch.log(prob / sum) + torch.log(self.num_skills)
+        return np.log(prob.item() / sum.item()) + np.log(self.num_skills)
