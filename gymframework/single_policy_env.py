@@ -435,15 +435,19 @@ class PuzzleEnv(gym.Env):
             #    reward *= np.linalg.norm(loc - h) / np.linalg.norm(loc - opt)
 
 
-            # give forward model reward every time agent tries to execute skill
-            if action[2] > 0.5:
+            ## give forward model reward every time agent tries to execute skill
+            #if action[2] > 0.5:
+            #    reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
+            #                                       self.scene.sym_state.flatten(),
+            #                                       self.skill)
+
+            # extra reward if symbolic observation changed
+            if not (self._old_sym_obs == self.scene.sym_state).all():
+                # reward += 1
+                # reward based on forward model
                 reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
                                                    self.scene.sym_state.flatten(),
                                                    self.skill)
-
-            ## extra reward if symbolic observation changed
-            #if not (self._old_sym_obs == self.scene.sym_state).all():
-            #     reward += 1
             #else:
             #     # if agent tried to execute pushing movement put this had no effect
             #     if self.penalize:
