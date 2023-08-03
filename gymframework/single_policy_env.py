@@ -126,15 +126,17 @@ class PuzzleEnv(gym.Env):
         # copy observation to return it unchanged
         obs = self._obs.copy()
 
-        # get reward
-        reward = self._reward(action)
-
         # for episode termination on change of symbolic observation
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
-            #self.terminated = True
-            self.scene.sym_state = self._old_sym_obs
-            self.scene.set_to_symbolic_state()
+            self.terminated = True
+            #self.scene.sym_state = self._old_sym_obs
+            #self.scene.set_to_symbolic_state()
+        elif self.env_step_counter > self._max_episode_steps:
+            self.terminated = True
+
+        # get reward
+        reward = self._reward(action)
 
         # look whether conditions for termination are met
         done = self._termination()
@@ -352,7 +354,7 @@ class PuzzleEnv(gym.Env):
         """
         Calculates reward, which is based on symbolic observation change
         """
-        # TODO: reward shaping
+        """
         # for sparse reward
         if self.sparse_reward:
             # only give reward on change of symbolic observation
@@ -447,20 +449,27 @@ class PuzzleEnv(gym.Env):
                     reward += 0.001 * self.fm.calculate_reward(self.init_sym_state.flatten(),
                                                        self.scene.sym_state.flatten(),
                                                        self.skill)
-
-            ## extra reward if symbolic observation changed
-            #if not (self._old_sym_obs == self.scene.sym_state).all():
-            #    # reward += 1
-            #    # reward based on forward model
-            #    reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
-            #                                       self.scene.sym_state.flatten(),
-            #                                       self.skill)
-            #else:
-            #     # if agent tried to execute pushing movement put this had no effect
-            #     if self.penalize:
-            #         if action[2] > 0.5:
-            #             reward -= 0.1
-
+                    
+            """
+        # only give reward based on forward model on episode end
+        if self.terminated:
+            reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
+                                               self.scene.sym_state.flatten(),
+                                               self.skill)
+        else:
+            reward = 0
+        ## extra reward if symbolic observation changed
+        #if not (self._old_sym_obs == self.scene.sym_state).all():
+        #    # reward += 1
+        #    # reward based on forward model
+        #    reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
+        #                                       self.scene.sym_state.flatten(),
+        #                                       self.skill)
+        #else:
+        #     # if agent tried to execute pushing movement put this had no effect
+        #     if self.penalize:
+        #         if action[2] > 0.5:
+        #             reward -= 0.1
 
         return reward
 
