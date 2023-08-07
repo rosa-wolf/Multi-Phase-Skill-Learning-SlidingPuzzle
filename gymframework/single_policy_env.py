@@ -132,8 +132,10 @@ class PuzzleEnv(gym.Env):
             self.terminated = True
             #self.scene.sym_state = self._old_sym_obs
             #self.scene.set_to_symbolic_state()
-        elif self.env_step_counter > self._max_episode_steps:
-            self.terminated = True
+
+        # if we want to terminate episode on change of symbolic observation
+        #elif self.env_step_counter > self._max_episode_steps:
+        #    self.terminated = True
 
         # get reward
         reward = self._reward(action)
@@ -354,7 +356,6 @@ class PuzzleEnv(gym.Env):
         """
         Calculates reward, which is based on symbolic observation change
         """
-        """
         # for sparse reward
         if self.sparse_reward:
             # only give reward on change of symbolic observation
@@ -446,18 +447,18 @@ class PuzzleEnv(gym.Env):
                                                        self.skill)
                 else:
                     # if that had no effect, only give small amount of reward/penalty
-                    reward += 0.001 * self.fm.calculate_reward(self.init_sym_state.flatten(),
+                    reward += 0.0001 * self.fm.calculate_reward(self.init_sym_state.flatten(),
                                                        self.scene.sym_state.flatten(),
                                                        self.skill)
                     
-            """
-        # only give reward based on forward model on episode end
-        if self.terminated:
-            reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
-                                               self.scene.sym_state.flatten(),
-                                               self.skill)
-        else:
-            reward = 0
+
+        ## only give reward based on forward model on episode end
+        #if self.terminated:
+        #    reward += self.fm.calculate_reward(self.init_sym_state.flatten(),
+        #                                       self.scene.sym_state.flatten(),
+        #                                       self.skill)
+        #else:
+        #    reward = 0
         ## extra reward if symbolic observation changed
         #if not (self._old_sym_obs == self.scene.sym_state).all():
         #    # reward += 1
