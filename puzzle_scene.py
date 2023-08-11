@@ -178,7 +178,9 @@ class PuzzleScene:
 
     def check_limits(self) -> bool:
         """
+        Sets joints to limits if current joint  values exceed limits
         Returns True if joint values lie within joint limits
+
         """
         self._q = self.C.getJointState()
         new_q = self.q.copy()

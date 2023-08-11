@@ -1,3 +1,12 @@
+"""
+discrete version of single_policy_env to improve RL
+- currently training of single_policy_env is not successful
+- thus we discretize the actions for now
+- to this end we do eef-position control and have only a finite number of positions on the board the actor can choose from
+- to make it even simpler we start by setting the joint position (without any form of realistic control)
+- the goal is to gradually decrease the distance between those positions to converge to the continuous setting again
+"""
+
 from typing import Optional, Tuple, Dict, Any
 
 import gym
@@ -83,8 +92,9 @@ class PuzzleEnv(gym.Env):
         self.scene = PuzzleScene(path, verbose=verbose)
 
         # initialize action_space
-        # first two is velocity in x-y plane, third decides whether we perform skill (>0.5) or not (<=0.5)
-        self.action_space = Box(low=np.array([-2., -2., 0]), high=np.array([2., 2., 1]), shape=(3,), dtype=np.float64)
+        # discrete action space: first parameter chooses between one of 14 optimal positions where one skill can be
+        # executed, second is 0 if push movement should not be executed and 1 if it should
+        self.action_space = Box(low=np.array([0, 0]), high=np.array([14, 1]), shape=(2,), dtype=np.float64)
 
         # store symbolic observation from previous step to check for change in symbolic observation
         # and for calculating reward based on forward model
@@ -97,6 +107,31 @@ class PuzzleEnv(gym.Env):
         # store which skill actor is executing, to give reward accordingly
         # (as we have a skill-conditioned policy)
         self._skill = None
+
+        # opt push position for all 14 skills
+        self.opt_pos = np.array([[0.059, -0.09],
+                                 [-0.13, 0.14],
+                                 [-0.195, -0.09],
+                                 [0.195, -0.09],
+                                 [0, 0.14],
+                                 [-0.059, -0.09],
+                                 [0.13, 0.14],
+                                 [-0.13, -0.14],
+                                 [0.057, 0.09],
+                                 [0., -0.14],
+                                 [-0.195, 0.09],
+                                 [0.195, 0.09],
+                                 [0.13, -0.14],
+                                 [-0.057, 0.09]])
+        self.opt_pos = np.concatenate((self.opt_pos,
+                                       np.repeat(np.array([[self.scene.q0[2], self.scene.q0[3]]]),
+                                                 self.opt_pos.shape[0], axis=0)),
+                                      axis=1)
+
+        # sanity check
+        print(self.opt_pos.shape)
+
+
 
         # load fully trained forward model
         self.fm = ForwardModel(batch_size=60, learning_rate=0.001)
@@ -258,55 +293,18 @@ class PuzzleEnv(gym.Env):
         :param action: 2D velocity, and [-1, 1] indicating whether we want to  execute skill afterward
         :return:
         """
-        #
-        # read out action (velocities in x-y plane)
-        #self.scene.v = np.array([action["q_dot"][0], action["q_dot"][1], 0., 0.])
-        self.scene.v = np.array([action[0], action[1], 0., 0.])
-        # apply action (for now always for (just) ten steps)
-        self.scene.velocity_control(15)
-        # execute skill if action says so
-        #if action["perform_skill"] == 1:
-        #    self.execute_skill()
+        # get position actor chose to go to
+        # set this joint pos hard
+        pos = int(action[0])
+        if pos == 14:
+            pos = 13
 
+        self.scene.q = self.opt_pos[pos]
 
-        if action[2] >= 0.5:
+        if action[1] >= 0.5:
             # execute skill independent of where current position of actor
             self.execute_skill()
-            ## check if executing action can even lead to wanted change in symbolic observation to save time in training
-            ## format of limit [[xmin, ymin], [xmax, ymax]]
-            #if self.skill == 0:
-            #    lim = np.array([[0.018, -0.18], [0.15, 0.02]])
-            #elif self.skill == 1:
-            #    lim = np.array([[-0.23, 0.05], [-0.05, 0.2]])
-            #elif self.skill == 2:
-            #    lim = np.array([[-0.5, -0.2], [-0.13, 0.02]])
-            #elif self.skill == 3:
-            #    lim = np.array([[0.13, -0.2], [0.5, 0.02]])
-            #elif self.skill == 4:
-            #    lim = np.array([[-0.11, 0.05], [0.11, 0.2]])
-            #elif self.skill == 5:
-            #    lim = np.array([[-0.15, -0.18], [-0.02, 0.02]])
-            #elif self.skill == 6:
-            #    lim = np.array([[0.05, 0.05], [0.23, 0.2]])
-            #elif self.skill == 7:
-            #    lim = np.array([[-0.23, -0.2], [-0.05, -0.05]])
-            #elif self.skill == 8:
-            #    lim = np.array([[0.02, -0.02], [0.15, 0.18]])
-            #elif self.skill == 9:
-            #    lim = np.array([[-0.11, -0.2], [0.11, -0.05]])
-            #elif self.skill == 10:
-            #    lim = np.array([[-0.5, -0.02], [-0.13, 0.2]])
-            #elif self.skill == 11:
-            #    lim = np.array([[0.13, -0.02], [0.5, 0.2]])
-            #elif self.skill == 12:
-            #    lim = np.array([[0.05, -0.2], [0.23, -0.05]])
-            #elif self.skill == 13:
-            #    lim = np.array([[-0.15, -0.02], [-0.02, 0.18]])
-#
-#
-            #if (lim[0, :] <= self.scene.q[:2]).all() and (self.scene.q[:2] <= lim[1, :]).all():
-            #    print("execute skill")
-            #    self.execute_skill()
+
 
     def execute_skill(self):
         """
@@ -452,7 +450,7 @@ class PuzzleEnv(gym.Env):
         elif self.penalize:
             # if we penalize also give reward when no change of symbolic obervation occured
             # but agent tried to execute push movement
-            if action[2] > 0.5:
+            if action[1] >= 0.5:
                 reward += 0.0001 * self.fm.calculate_reward(self._old_sym_obs.flatten(),
                                                             self.scene.sym_state.flatten(),
                                                             self.skill)
