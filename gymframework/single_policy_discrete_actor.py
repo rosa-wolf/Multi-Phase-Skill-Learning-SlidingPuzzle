@@ -294,15 +294,20 @@ class PuzzleEnv(gym.Env):
         :return:
         """
         # get position actor chose to go to
+        # go in the direction of that position
         # set this joint pos hard
         pos = int(action[0])
         if pos == 14:
             pos = 13
 
-        self.scene.q = self.opt_pos[pos]
+        # get current position
+        act = self.scene.q
 
+        # go 0.2 in direction that actor chose
+        self.scene.q = act + 0.2 * (self.opt_pos[pos] - act)
+
+        # execute skill, if action says so
         if action[1] >= 0.5:
-            # execute skill independent of where current position of actor
             self.execute_skill()
 
 
@@ -441,6 +446,10 @@ class PuzzleEnv(gym.Env):
             #if loc[1] < opt[1]:
             #    h = np.array([opt[0], loc[1], self.scene.q0[2], self.scene.q0[3]])  # helper point to calculate sin of angle
             #    reward *= np.linalg.norm(loc - h) / np.linalg.norm(loc - opt)
+
+
+            # in addition give positive reward if position actor chose was the correct one
+            reward += 0.5
 
         # give reward on every change of symbolic observation according to forward model
         if not (self._old_sym_obs == self.scene.sym_state).all():
