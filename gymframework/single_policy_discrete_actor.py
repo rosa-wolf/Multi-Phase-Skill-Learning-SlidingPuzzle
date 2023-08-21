@@ -449,7 +449,11 @@ class PuzzleEnv(gym.Env):
 
 
             # in addition give positive reward if position actor chose was the correct one
-            reward += 0.5
+            pos = int(action[0])
+            if pos == 14:
+                pos = 13
+            if self.skill == pos:
+                reward += 0.5
 
         # give reward on every change of symbolic observation according to forward model
         if not (self._old_sym_obs == self.scene.sym_state).all():
