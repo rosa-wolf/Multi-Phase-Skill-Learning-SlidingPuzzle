@@ -312,8 +312,6 @@ class PuzzleEnv(gym.Env):
             diff = self.opt_pos[pos] - act
 
             self.scene.v = 5 * np.array([diff[0], diff[1], 0., 0.])
-
-            print("self.scene.v = ", self.scene.v)
             self.scene.velocity_control(1)
 
 
@@ -324,7 +322,6 @@ class PuzzleEnv(gym.Env):
         if action[1] >= 0.5:
             self.execute_skill()
 
-        print("action applied")
 
 
     def execute_skill(self):
