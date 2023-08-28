@@ -2,21 +2,27 @@ import numpy as np
 import time
 from puzzle_scene import PuzzleScene
 from robotic import ry
-from gymframework.puzzle_env import PuzzleEnv
+from gymframework.single_policy_discrete_actor import PuzzleEnv
 from gym.utils.env_checker import check_env
 
 
 if __name__ == '__main__':
 
     # sanity check of custom env
-    env = PuzzleEnv(skill=2, verbose=1)
+    env = PuzzleEnv(verbose=1)
+    env.skill = 0
+    env.reset()
     # go to correct x-y-position
-    env.scene.q = np.array([0.018, -0.17, env.scene.q0[2], env.scene.q0[3]])
-    time.sleep(3)
+    #env.scene.q = np.array([0.018, -0.17, env.scene.q0[2], env.scene.q0[3]])
+    time.sleep(1)
+    env.step(action=[0, 0.2])
+    env.step(action=[0, 0.2])
+    env.step(action=[0, 0.2])
+    env.step(action=[0, 0.2])
+    env.step(action=[0, 0.6])
     #time.sleep(10.)
     #env.scene.v = np.array([0.5, -1., 0., 0.])
     #env.scene.velocity_control(250)
-    env.execute_skill()
     time.sleep(5)
 
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],

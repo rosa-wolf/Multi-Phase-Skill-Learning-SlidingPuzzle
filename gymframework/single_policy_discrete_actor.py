@@ -300,15 +300,31 @@ class PuzzleEnv(gym.Env):
         if pos == 14:
             pos = 13
 
-        # get current position
-        act = self.scene.q
+
+        # do velocity control for 100 steps
+        # set velocity to go in that direction
+        # (vel[0] - velocity in x-direction, vel[1] - velocity in y-direction)
+        # vel[2] - velocity in z-direction (set to zero)
+        # vel[3] - orientation, set to zero
+        for _ in range(100):
+            # get current position
+            act = self.scene.q
+            diff = self.opt_pos[pos] - act
+
+            self.scene.v = 5 * np.array([diff[0], diff[1], 0., 0.])
+
+            print("self.scene.v = ", self.scene.v)
+            self.scene.velocity_control(1)
+
 
         # go 0.2 in direction that actor chose
-        self.scene.q = act + 0.2 * (self.opt_pos[pos] - act)
+        #self.scene.q = act + 0.2 * (self.opt_pos[pos] - act)
 
         # execute skill, if action says so
         if action[1] >= 0.5:
             self.execute_skill()
+
+        print("action applied")
 
 
     def execute_skill(self):
@@ -453,7 +469,7 @@ class PuzzleEnv(gym.Env):
             if pos == 14:
                 pos = 13
             if self.skill == pos:
-                reward += 0.5
+                reward += 0.5 
 
         # give reward on every change of symbolic observation according to forward model
         if not (self._old_sym_obs == self.scene.sym_state).all():
