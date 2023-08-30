@@ -10,20 +10,24 @@ if __name__ == '__main__':
 
     # sanity check of custom env
     env = PuzzleEnv(verbose=1)
-    env.skill = 0
+    skill = 13
+    env.skill = skill
     env.reset()
     # go to correct x-y-position
     #env.scene.q = np.array([0.018, -0.17, env.scene.q0[2], env.scene.q0[3]])
-    time.sleep(1)
-    env.step(action=[0, 0.2])
-    env.step(action=[0, 0.2])
-    env.step(action=[0, 0.2])
-    env.step(action=[0, 0.2])
-    env.step(action=[0, 0.6])
+    _, r, _, _ = env.step(action=[skill, 0.2])
+    print("reward = ", r)
+    _, r, _, _ = env.step(action=[skill, 0.2])
+    print("reward = ", r)
+    _, r, _, _ = env.step(action=[skill, 0.2])
+    print("reward = ", r)
+    _, r, _, _ = env.step(action=[skill, 0.2])
+    print("reward = ", r)
+    _, r, _, _ = env.step(action=[skill, 0.6])
+    print("reward = ", r)
     #time.sleep(10.)
     #env.scene.v = np.array([0.5, -1., 0., 0.])
     #env.scene.velocity_control(250)
-    time.sleep(5)
 
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])

@@ -109,20 +109,20 @@ class PuzzleEnv(gym.Env):
         self._skill = None
 
         # opt push position for all 14 skills
-        self.opt_pos = np.array([[0.059, -0.09],
+        self.opt_pos = np.array([[0.06, -0.09],
                                  [-0.13, 0.14],
                                  [-0.195, -0.09],
                                  [0.195, -0.09],
                                  [0, 0.14],
-                                 [-0.059, -0.09],
+                                 [-0.06, -0.09],
                                  [0.13, 0.14],
                                  [-0.13, -0.14],
-                                 [0.057, 0.09],
+                                 [0.06, 0.09],
                                  [0., -0.14],
                                  [-0.195, 0.09],
                                  [0.195, 0.09],
                                  [0.13, -0.14],
-                                 [-0.057, 0.09]])
+                                 [-0.06, 0.09]])
         self.opt_pos = np.concatenate((self.opt_pos,
                                        np.repeat(np.array([[self.scene.q0[2], self.scene.q0[3]]]),
                                                  self.opt_pos.shape[0], axis=0)),
@@ -293,6 +293,12 @@ class PuzzleEnv(gym.Env):
         :param action: 2D velocity, and [-1, 1] indicating whether we want to  execute skill afterward
         :return:
         """
+        # Either execute skill, or make movement in x-y-plane
+        # execute skill, if action says so
+        if action[1] >= 0.5:
+            self.execute_skill()
+            return
+
         # get position actor chose to go to
         # go in the direction of that position
         # set this joint pos hard
@@ -317,10 +323,6 @@ class PuzzleEnv(gym.Env):
 
         # go 0.2 in direction that actor chose
         #self.scene.q = act + 0.2 * (self.opt_pos[pos] - act)
-
-        # execute skill, if action says so
-        if action[1] >= 0.5:
-            self.execute_skill()
 
 
 
@@ -387,7 +389,7 @@ class PuzzleEnv(gym.Env):
 
             # define place of highest reward for each skill
             if self.skill == 0:
-                opt = np.array([0.059, -0.09, self.scene.q0[2], self.scene.q0[3]])
+                opt = np.array([0.06, -0.09, self.scene.q0[2], self.scene.q0[3]])
                 # loc with max distance to optimum (lower right corner)
                 max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 1:
@@ -407,7 +409,7 @@ class PuzzleEnv(gym.Env):
                 # loc with max distance to optimum (upper left corner)
                 max = np.array([0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 5:
-                opt = np.array([-0.059, -0.09, self.scene.q0[2], self.scene.q0[3]])
+                opt = np.array([-0.06, -0.09, self.scene.q0[2], self.scene.q0[3]])
                 # loc with max distance to optimum (lower left corner)
                 max = np.array([0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 6:
@@ -419,7 +421,7 @@ class PuzzleEnv(gym.Env):
                 # loc with max distance to optimum (lower left corner)
                 max = np.array([0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 8:
-                opt = np.array([0.057, 0.09, self.scene.q0[2], self.scene.q0[3]])
+                opt = np.array([0.06, 0.09, self.scene.q0[2], self.scene.q0[3]])
                 # loc with max distance to optimum (upper right corner)
                 max = np.array([-0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 9:
@@ -439,7 +441,7 @@ class PuzzleEnv(gym.Env):
                 # loc with max distance to optimum (lower right corner)
                 max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])
             elif self.skill == 13:
-                opt = np.array([-0.057, 0.09, self.scene.q0[2], self.scene.q0[3]])
+                opt = np.array([-0.06, 0.09, self.scene.q0[2], self.scene.q0[3]])
                 # loc with max distance to optimum (upper left corner)
                 max = np.array([0.2, -0.2, self.scene.q0[2], self.scene.q0[3]])
 
@@ -469,6 +471,7 @@ class PuzzleEnv(gym.Env):
                 reward += 0.5 
 
         # give reward on every change of symbolic observation according to forward model
+        # TODO: implement reward improvements from paper
         if not (self._old_sym_obs == self.scene.sym_state).all():
             reward += self.fm.calculate_reward(self._old_sym_obs.flatten(),
                                                self.scene.sym_state.flatten(),
