@@ -44,7 +44,7 @@ class PuzzleScene:
 
         # TODO: don't hardcode joint limits
         # joint limits (x, y, z) limits
-        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.45, 0.]])
+        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.25, .25]])
         #self.X0 = self.C.getFrameState()
         #self.C.setFrameState(self.X0)  # why do we need this? Setting feature with same values it already has?
 
@@ -184,7 +184,6 @@ class PuzzleScene:
         """
         self._q = self.C.getJointState()
         new_q = self.q.copy()
-        new_q[2] = self.q0[2]
         new_q[3] = self.q0[3]
 
         in_limit = True
@@ -201,6 +200,13 @@ class PuzzleScene:
             in_limit = False
         elif self._q[1] > self.q_lim[1, 1]:
             new_q[1] = self.q_lim[1, 1]
+            in_limit = False
+
+        if self._q[2] < self.q_lim[2, 0]:
+            new_q[2] = self.q_lim[2, 0]
+            in_limit = False
+        elif self._q[2] > self.q_lim[2, 1]:
+            new_q[2] = self.q_lim[2, 1]
             in_limit = False
 
         if not in_limit:
@@ -252,7 +258,7 @@ class PuzzleScene:
             #new_pos = self.C.getFrame(name).getPosition()
         # pass state on to simulation
         self.S.pushConfigurationToSimulator()
-        self.S.step([], self.tau, ry.ControlMode.none)
+        #self.S.step([], self.tau, ry.ControlMode.none)
 
     def valid_state(self) -> bool:
         """
