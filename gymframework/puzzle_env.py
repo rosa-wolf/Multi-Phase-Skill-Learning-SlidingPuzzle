@@ -32,6 +32,7 @@ class PuzzleEnv(gym.Env):
                  sparse_reward=False,
                  reward_on_end=False,
                  term_on_change=False,
+                 z_cov=12,
                  verbose=0):
 
         """
@@ -48,6 +49,8 @@ class PuzzleEnv(gym.Env):
         :param reward_on_end:       whether to only give reward on episode termination (default false)
                                     - only use in combination with term_on_change=True
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
+        :param z_cov                inverse cov of gaussian like function, for calculating optimal z position dependent on
+                                    current x-and y-position
         :param verbose:             whether to render scene (default false)
         """
         # ground truth skills
@@ -73,6 +76,7 @@ class PuzzleEnv(gym.Env):
                                  [0.13, -0.14],
                                  [-0.06, 0.09]])
 
+        self.z_cov = z_cov
         # parameters to control initial env configuration
         self.random_init_pos = random_init_pos
         self.random_init_config = random_init_config
@@ -335,7 +339,7 @@ class PuzzleEnv(gym.Env):
             # add reward dependent on z-coordinate
             # optimal z is dependent on current x and y (super-gaussian shape)
             # for now lets say the final z should be -0.2
-            cov_inv = np.array([[10, 0], [0, 10]])
+            cov_inv = np.array([[self.z_cov, 0], [0, self.z_cov]])
             z_opt_fct = lambda x: -0.2 * np.exp(- (x - opt).T @ cov_inv @ (x - opt))
 
             # the optimal z has its peak at z = 0 (thus negative and shifted)
@@ -346,7 +350,7 @@ class PuzzleEnv(gym.Env):
             reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
 
         ## extra reward if symbolic observation changed
-        #if not (self._old_sym_obs == self.scene.sym_state).all():
-        #    reward += 1
+        if not (self._old_sym_obs == self.scene.sym_state).all():
+            reward += 1
 
         return reward
