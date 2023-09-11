@@ -20,7 +20,6 @@ class PuzzleEnv(gym.Env):
     """
 
     def __init__(self,
-                 skill: int,
                  path='slidingPuzzle.g',
                  max_steps=100,
                  evaluate=False,
@@ -57,8 +56,10 @@ class PuzzleEnv(gym.Env):
         self.skills = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
                                 [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
 
+        # eventually we want a skill-conditioned policy for all skills, but right now we only take two first skills
         # which policy are we currently training? (Influences reward)
-        self.skill = skill
+        self.skill = np.random.randint(0, 2, 1)[0]
+        print(self.skill)
 
         # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
@@ -188,6 +189,9 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
+        # sample new random skill to train
+        self.skill = np.random.randint(0, 2, 1)[0]
+
         # ensure that orientation of actor is such that skill execution is possible
         # skills where orientation of end-effector does not have to be changed for
         no_orient_change = [1, 4, 6, 7, 9, 12]
@@ -237,12 +241,18 @@ class PuzzleEnv(gym.Env):
 
     def _get_observation(self):
         """
-        Returns the observation: Robot joint states and velocites and symbolic observation
+        Returns the observation:    Robot joint states and velocites and symbolic observation
+                                    Executed Skill is also encoded in observation/state
         """
+
         q, q_dot, sym_obs = self.scene.state
+        obs = q[:3]
         if self.give_sym_obs:
             # should agent be informed about symbolic observation?
-            return np.concatenate(((q[:3]), sym_obs.flatten()))
+            obs = np.concatenate((obs, sym_obs.flatten()))
+
+        # add executed skill to obervation/state
+        obs = np.concatenate((obs, np.array([self.skill])))
 
         return q[:3]
 
@@ -253,13 +263,14 @@ class PuzzleEnv(gym.Env):
         """
         # Todo: implement reading out actual limits from file
         # observation space as 1D array instead
-        shape = 3  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+        # joint configuration (3) + skill (1)
+        shape = 4  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
         # make observation space one single array (such that it works with sac algorithm)
         # 0-2 joint position in x,y,z
         # 3, 4: velocity in x,y direction
         # 5 - end: symbolic observation (flattened)
         if self.give_sym_obs:
-            shape = 3 + self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+            shape += self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
 
         return Box(low=-np.inf, high=np.inf, shape=(shape,), dtype=np.float64)
 
@@ -285,7 +296,6 @@ class PuzzleEnv(gym.Env):
         """
         Calculates reward, which is based on symbolic observation change
         """
-        # TODO: reward shaping
         # for sparse reward
         if self.sparse_reward:
             # only give reward on change of symbolic observation
