@@ -254,7 +254,7 @@ class PuzzleEnv(gym.Env):
         # add executed skill to obervation/state
         obs = np.concatenate((obs, np.array([self.skill])))
 
-        return q[:3]
+        return obs
 
     @property
     def observation_space(self):
