@@ -285,7 +285,7 @@ class PuzzleEnv(gym.Env):
         """
         Calculates reward, which is based on symbolic observation change
         """
-        # TODO: reward shaping
+        # TODO: less reward shaping
         # for sparse reward
         if self.sparse_reward:
             # only give reward on change of symbolic observation
@@ -347,7 +347,8 @@ class PuzzleEnv(gym.Env):
 
             # give reward dependent on distance of current z to optimal z
             # only positive reward
-            reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
+            # TODO: try out leaving away reward for right z-position
+            # reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
 
         ## extra reward if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():

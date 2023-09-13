@@ -58,8 +58,8 @@ class PuzzleEnv(gym.Env):
 
         # eventually we want a skill-conditioned policy for all skills, but right now we only take two first skills
         # which policy are we currently training? (Influences reward)
-        self.skill = np.random.randint(0, 2, 1)[0]
-        print(self.skill)
+        self.num_skills = 3
+        self.skill = np.random.randint(0, self.num_skills, 1)[0]
 
         # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
@@ -190,12 +190,14 @@ class PuzzleEnv(gym.Env):
         self.episode += 1
 
         # sample new random skill to train
-        self.skill = np.random.randint(0, 2, 1)[0]
+        self.skill = np.random.randint(0, self.num_skills, 1)[0]
 
         # ensure that orientation of actor is such that skill execution is possible
         # skills where orientation of end-effector does not have to be changed for
         no_orient_change = [1, 4, 6, 7, 9, 12]
-        if self.skill not in no_orient_change:
+        if self.skill in no_orient_change:
+            self.scene.q0[3] = 0.
+        else:
             self.scene.q0[3] = np.pi / 2.
 
         if self.random_init_pos:
