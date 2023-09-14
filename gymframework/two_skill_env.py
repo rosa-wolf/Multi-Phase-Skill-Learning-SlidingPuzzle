@@ -58,7 +58,7 @@ class PuzzleEnv(gym.Env):
 
         # eventually we want a skill-conditioned policy for all skills, but right now we only take two first skills
         # which policy are we currently training? (Influences reward)
-        self.num_skills = 3
+        self.num_skills = 2
         self.skill = np.random.randint(0, self.num_skills, 1)[0]
 
         # opt push position for all 14 skills (for calculating reward)
