@@ -171,7 +171,12 @@ class PuzzleScene:
         self.C.setFrameState(self.X0)
         del self.S
         self.S = ry.Simulation(self.C, ry.SimulationEngine.physx, self.verbose)
-        #self.S.pushConfigurationToSimulator()
+        # TODO: try setting velocity of objects to zero
+        # TODO: is this viewed as a movement? Are collisions simulated
+        # TODO: does push-state function has arguments for e.g the velocity
+        # TODO: give nx2x3 array of zeros, where n is number of frames
+        # I can get number of frames via get-state
+        #self.S.pushConfigurationToSimulator(argument: frame-velocities)
         # set blocks back to original positions
         #self.S.step([], self.tau,  ry.ControlMode.none)
         #self.set_to_symbolic_state()

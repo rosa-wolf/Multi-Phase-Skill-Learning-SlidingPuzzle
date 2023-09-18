@@ -9,6 +9,8 @@ from gym.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
 
+from forwardmodel.forward_model import ForwardModel
+
 
 class PuzzleEnv(gym.Env):
     """
@@ -114,6 +116,11 @@ class PuzzleEnv(gym.Env):
         # store symbolic observation from previous step to check for change in symbolic observation
         # and for calculating reward based on forward model
         self._old_sym_obs = self.scene.sym_state.copy()
+
+        # load fully trained forward model
+        self.fm = ForwardModel(batch_size=60, learning_rate=0.001)
+        self.fm.model.load_state_dict(torch.load("../SEADS_SlidingPuzzle/forwardmodel/models/best_model"))
+        self.fm.model.eval()
 
         # reset to make sure that skill execution is possible after env initialization
         self.reset()
@@ -363,6 +370,11 @@ class PuzzleEnv(gym.Env):
 
         ## extra reward if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
-            reward += 1
+            # give reward according to forward model
+            # TODO: calculate q_k in a different way (which may be more numerically stable)
+            q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
+                                           self.scene.sym_state.flatten(),
+                                           self.skill)
+            reward += q_k
 
         return reward
