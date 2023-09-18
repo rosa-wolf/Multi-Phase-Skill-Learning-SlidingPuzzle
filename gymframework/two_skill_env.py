@@ -8,6 +8,7 @@ from gym.spaces import Box, Dict, Discrete, MultiBinary
 from gym.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
+import torch
 
 from forwardmodel.forward_model import ForwardModel
 
