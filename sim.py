@@ -2,19 +2,19 @@ import numpy as np
 import time
 from puzzle_scene import PuzzleScene
 from robotic import ry
-from gymframework.single_policy_discrete_actor import PuzzleEnv
+from gymframework.puzzle_env import PuzzleEnv
 from gym.utils.env_checker import check_env
 
 
 if __name__ == '__main__':
 
     # sanity check of custom env
-    env = PuzzleEnv(verbose=1, penalize=True)
-    skill = 12
+    env = PuzzleEnv(verbose=1, skill=1, penalize=True)
+    skill = 1
     env.skill = skill
     env.reset()
     # go to correct x-y-position
-    env.scene.q = np.array([0.12, 0., -0.25, np.pi/2])
+    env.scene.q = np.array([env.opt_pos[skill][0], env.opt_pos[skill][1], -0.15, env.scene.q[3]])
     time.sleep(10)
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])

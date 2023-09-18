@@ -65,7 +65,7 @@ class PuzzleEnv(gym.Env):
 
         # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
-                                 [-0.13, 0.14],
+                                 [-0.1, 0.12],
                                  [-0.195, -0.09],
                                  [0.195, -0.09],
                                  [0, 0.14],
@@ -356,15 +356,15 @@ class PuzzleEnv(gym.Env):
             # give reward dependent on distance of current z to optimal z
             # only positive reward
             # TODO: try out leaving away reward for right z-position
-            # reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
+            reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
 
         ## extra reward if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # give reward according to forward model
             # TODO: calculate q_k in a different way (which may be more numerically stable)
-            q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
-                                           self.scene.sym_state.flatten(),
-                                           self.skill)
-            reward += q_k
-
+            #q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
+            #                               self.scene.sym_state.flatten(),
+            #                               self.skill)
+            #reward += q_k
+            reward += 1
         return reward
