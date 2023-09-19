@@ -65,7 +65,7 @@ class PuzzleEnv(gym.Env):
 
         # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
-                                 [-0.1, 0.12],
+                                 [-0.1, 0.11],
                                  [-0.195, -0.09],
                                  [0.195, -0.09],
                                  [0, 0.14],

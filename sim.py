@@ -14,7 +14,7 @@ if __name__ == '__main__':
     env.skill = skill
     env.reset()
     # go to correct x-y-position
-    env.scene.q = np.array([env.opt_pos[skill][0], env.opt_pos[skill][1], -0.15, env.scene.q[3]])
+    env.scene.q = np.array([env.opt_pos[skill][0], env.opt_pos[skill][1], -0.17, env.scene.q[3]])
     time.sleep(10)
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])
