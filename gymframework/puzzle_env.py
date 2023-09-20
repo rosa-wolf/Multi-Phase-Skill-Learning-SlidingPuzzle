@@ -267,7 +267,7 @@ class PuzzleEnv(gym.Env):
         # 3, 4: velocity in x,y direction
         # 5 - end: symbolic observation (flattened)
         if self.give_sym_obs:
-            shape = 3 + self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+            shape += self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
 
         return Box(low=-np.inf, high=np.inf, shape=(shape,), dtype=np.float64)
 

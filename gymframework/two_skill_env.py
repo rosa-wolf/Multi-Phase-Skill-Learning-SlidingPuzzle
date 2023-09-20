@@ -261,8 +261,10 @@ class PuzzleEnv(gym.Env):
             # should agent be informed about symbolic observation?
             obs = np.concatenate((obs, sym_obs.flatten()))
 
-        # add executed skill to obervation/state
-        obs = np.concatenate((obs, np.array([self.skill])))
+        # add executed skill to obervation/state (as one-hot encoding)
+        one_hot = np.zeros(shape=self.num_skills)
+        one_hot[self.skill] = 1
+        obs = np.concatenate((obs, one_hot))
 
         return obs
 
@@ -274,7 +276,11 @@ class PuzzleEnv(gym.Env):
         # Todo: implement reading out actual limits from file
         # observation space as 1D array instead
         # joint configuration (3) + skill (1)
-        shape = 4  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+        shape = 3  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+
+        # add space needed for one-hot encoding of skills
+        shape += self.num_skills
+
         # make observation space one single array (such that it works with sac algorithm)
         # 0-2 joint position in x,y,z
         # 3, 4: velocity in x,y direction

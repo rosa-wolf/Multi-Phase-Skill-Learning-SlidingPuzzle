@@ -15,7 +15,6 @@ if __name__ == '__main__':
     env.reset()
     # go to correct x-y-position
     env.scene.q = np.array([env.opt_pos[skill][0], env.opt_pos[skill][1], -0.17, env.scene.q[3]])
-    time.sleep(10)
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])
     #env.scene.sym_state = sym_obs
@@ -29,7 +28,7 @@ if __name__ == '__main__':
     #env.scene.v = np.array([-0.5, -0.5, 0., 0.])
     #env.scene.velocity_control(500)
     #time.sleep(5.)
-    #env.scene.reset()
+    env.scene.reset()
     #time.sleep(10.)
 
     # go from initial configuration behind left cube
