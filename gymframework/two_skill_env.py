@@ -61,24 +61,24 @@ class PuzzleEnv(gym.Env):
 
         # eventually we want a skill-conditioned policy for all skills, but right now we only take two first skills
         # which policy are we currently training? (Influences reward)
-        self.num_skills = 2
+        self.num_skills = 1
         self.skill = np.random.randint(0, self.num_skills, 1)[0]
 
         # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
-                                 [-0.13, 0.14],
-                                 [-0.195, -0.09],
-                                 [0.195, -0.09],
-                                 [0, 0.14],
-                                 [-0.06, -0.09],
-                                 [0.13, 0.14],
-                                 [-0.13, -0.14],
-                                 [0.06, 0.09],
-                                 [0., -0.14],
-                                 [-0.195, 0.09],
-                                 [0.195, 0.09],
-                                 [0.13, -0.14],
-                                 [-0.06, 0.09]])
+                                 [-0.1, 0.11],
+                                 [-0.155, -0.06],
+                                 [0.18, -0.06],
+                                 [0.01, 0.11],
+                                 [-0.06, -0.06],
+                                 [0.13, 0.11],
+                                 [-0.12, -0.11],
+                                 [0.06, 0.06],
+                                 [0., -0.12],
+                                 [-0.155, 0.05],
+                                 [0.175, 0.05],
+                                 [0.115, -0.12],
+                                 [-0.05, 0.06]])
 
         self.z_cov = z_cov
         # parameters to control initial env configuration
