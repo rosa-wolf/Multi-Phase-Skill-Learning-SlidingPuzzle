@@ -182,7 +182,7 @@ class PuzzleScene:
         # TODO: give nx2x3 array of zeros, where n is number of frames
         # I can get number of frames via get-state
         #print("push simulation now")
-        #self.S.pushConfigurationToSimulator(frameVelocities=np.zeros(shape=vels.shape))
+        #self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape), np.zeros(self.q0.shape[0]))
         #print("finished updating simulation")
         # set blocks back to original positions
         #self.S.step([], self.tau,  ry.ControlMode.none)
@@ -249,9 +249,10 @@ class PuzzleScene:
 
         return np.array(pos)
 
-    def set_to_symbolic_state(self) -> None:
+    def set_to_symbolic_state(self, zero_vel=False) -> None:
         """
          (Snapping) Sets position of all puzzle pieces to the current symbolic state
+        :param zero_vel: whether to set the velocities of the actor to zero
         :return: None
         """
         # if new state is invalid don't set to the new state
@@ -268,9 +269,16 @@ class PuzzleScene:
             self.C.getFrame(name).setQuaternion(self.quat0)
             self.C.getFrame(name).setPosition(pos)
             #new_pos = self.C.getFrame(name).getPosition()
-        # pass state on to simulation
+
+        # read out state to get shape of it
+        #_, vels = self.S.getState()
+        ## pass state on to simulation
+        #if zero_vel:
+        #    self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape), np.zeros(self.q0.shape[0]))
+        #else:
+        #    self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape))
         self.S.pushConfigurationToSimulator()
-        #self.S.step([], self.tau, ry.ControlMode.none)
+        self.S.step([], self.tau, ry.ControlMode.none)
 
     def valid_state(self) -> bool:
         """

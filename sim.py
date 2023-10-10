@@ -12,11 +12,29 @@ if __name__ == '__main__':
     skill = 13
     env = PuzzleEnv(verbose=1, skill=skill, penalize=False)
     env.skill = skill
-    env.reset()
-    # go to correct x-y-position
-    env.scene.q = np.array([env.opt_pos[skill][0], env.opt_pos[skill][1], -0.19, env.scene.q[3]])
 
-    time.sleep(5)
+    field = env.skills[env.skill][0]
+    # get box that is currently on that field
+    box = np.where(env.scene.sym_state[:, field] == 1)[0][0]
+    # read out position of box that should be pushed
+    opt = (env.scene.C.getFrame("box" + str(box)).getPosition()).copy()
+    print(opt[0])
+    print(opt[1])
+    print(opt[2])
+    # offset in x-direction and y-direction
+    print(box)
+    print(env.offset)
+    print(env.opt_pos_dir[env.skill, 0])
+    # always z-offset of -0.3
+    opt[2] -= 0.3
+    # always y-offset
+    opt[1] -= env.offset/2
+    opt[0] += env.offset * env.opt_pos_dir[env.skill, 0]
+    opt[1] += env.offset * env.opt_pos_dir[env.skill, 1]
+    # go to correct x-y-position
+    env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
+
+    time.sleep(10)
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])
     #env.scene.sym_state = sym_obs
@@ -30,7 +48,7 @@ if __name__ == '__main__':
     #env.scene.v = np.array([-0.5, -0.5, 0., 0.])
     #env.scene.velocity_control(500)
     #time.sleep(5.)
-    env.scene.reset()
+    #env.scene.reset()
     #time.sleep(10.)
 
     # go from initial configuration behind left cube
