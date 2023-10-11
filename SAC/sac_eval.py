@@ -2,10 +2,9 @@ import gymnasium as gym
 from stable_baselines3 import SAC, HerReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 import argparse
+
 import torch
 import numpy as np
-
-from stable_baselines3.common.env_checker import check_env
 
 import os
 import sys
@@ -72,17 +71,12 @@ args = parser.parse_args()
 
 # Environment
 env = PuzzleEnv(path='../slidingPuzzle.g', skill=args.skill, max_steps=args.num_steps, random_init_pos=True,
-                random_init_config=True, verbose=0, give_sym_obs=False, sparse_reward=args.sparse, z_cov=args.z_cov, vel_steps=args.vel_steps)
+                random_init_config=True, verbose=1, give_sym_obs=False, sparse_reward=args.sparse, z_cov=args.z_cov, vel_steps=args.vel_steps)
 env.seed(args.seed)
 env.action_space.seed(args.seed)
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
-
-env.reset()
-
-check_env(env)
-
 
 if args.cuda:
     device = 'cuda'
@@ -92,26 +86,15 @@ else:
 checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" + str(args.sparse) + "_seed" + str(
         args.seed) + "_vel_steps" + str(args.vel_steps)
 
-# initialize SAC
-model = SAC("MlpPolicy",
-            env,
-            learning_rate=args.lr,
-            buffer_size=args.replay_size,
-            learning_starts=args.batch_size,
-            batch_size=args.batch_size,
-            tau=args.tau,
-            gamma=args.gamma,
-            train_freq=(args.updates_per_step, "step"),
-            ent_coef='auto' + str(args.alpha),
-            target_update_interval=args.target_update_interval,
-            stats_window_size=args.batch_size,
-            device=device,
-            verbose=0)
+# load SAC model
+path = "skill1_2000000epochs_sparseFalse_seed123456_vel_steps70.zip"
+model = SAC.load(path)
 
-model.learn(total_timesteps=1e12,
-            log_interval=10,
-            tb_log_name=checkpoint_name,
-            progress_bar=True)
+obs, _ = env.reset()
+for _ in range(1000):
+    action, _states = model.predict(obs, deterministic=True)
+    next_state, reward, terminated, truncated, _ = env.step(action)
+    if terminated or truncated:
+        obs, info = env.reset()
 
-model.save(checkpoint_name)
 del model

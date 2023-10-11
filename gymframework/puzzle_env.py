@@ -1,11 +1,10 @@
 from typing import Optional, Tuple, Dict, Any
 
-import gym
+import gymnasium as gym
 import numpy as np
 import time
-from gym.core import ObsType, ActType
-from gym.spaces import Box, Dict, Discrete, MultiBinary
-from gym.utils import seeding
+from gymnasium.spaces import Box
+from gymnasium.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
 import torch
@@ -37,6 +36,7 @@ class PuzzleEnv(gym.Env):
                  term_on_change=False,
                  z_cov=12,
                  vel_steps=1,
+                 fm_path="../forwardmodel/models/best_model",
                  verbose=0):
 
         """
@@ -121,6 +121,8 @@ class PuzzleEnv(gym.Env):
 
         # has actor fulfilled criteria of termination
         self.terminated = False
+        # is termination due to timeout?
+        self.truncated = False
         self.env_step_counter = 0
         self._max_episode_steps = max_steps
         self.episode = 0
@@ -129,8 +131,9 @@ class PuzzleEnv(gym.Env):
         self.scene = PuzzleScene(path, verbose=verbose)
 
         # desired x-y-z coordinates of eef
-        self.action_space = Box(low=np.array([-2., -2., -2.]), high=np.array([2., 2., 2.]), shape=(3,),
-                                dtype=np.float64)
+        # use normalized action space, multiply by 2 when applying action
+        self.action_space = Box(low=np.array([-1., -1., -1.]), high=np.array([1., 1., 1.]), shape=(3,),
+                                dtype=np.float32)
 
         # store symbolic observation from previous step to check for change in symbolic observation
         # and for calculating reward based on forward model
@@ -138,7 +141,7 @@ class PuzzleEnv(gym.Env):
 
         # load fully trained forward model
         self.fm = ForwardModel(batch_size=60, learning_rate=0.001)
-        self.fm.model.load_state_dict(torch.load("../SEADS_SlidingPuzzle/forwardmodel/models/best_model"))
+        self.fm.model.load_state_dict(torch.load(fm_path))
         self.fm.model.eval()
 
         # reset to make sure that skill execution is possible after env initialization
@@ -199,7 +202,7 @@ class PuzzleEnv(gym.Env):
             self.reset()
 
         # caution: dont return resetted values but values that let to reset
-        return obs, reward, done, {}
+        return obs, reward, self.terminated, self.truncated, {}
 
     def reset(self,
               *,
@@ -212,6 +215,7 @@ class PuzzleEnv(gym.Env):
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False
+        self.truncated = False
         self.env_step_counter = 0
         self.episode += 1
 
@@ -251,7 +255,7 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        return self._get_observation()
+        return self._get_observation(), {}
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -264,7 +268,11 @@ class PuzzleEnv(gym.Env):
         Returns:
             True if robot should terminate
         """
-        if self.terminated or self.env_step_counter >= self._max_episode_steps:
+        if self.env_step_counter >= self._max_episode_steps:
+            self.truncated = True
+            return True
+
+        if self.terminated:
             return True
         return False
 
@@ -306,10 +314,10 @@ class PuzzleEnv(gym.Env):
         # (vel[0] - velocity in x-direction, vel[1] - velocity in y-direction)
         # vel[2] - velocity in z-direction (set to zero)
         # vel[3] - orientation, set to zero
-        for i in range(self.vel_steps):
+        for i in range(100):
             # get current position
             act = self.scene.q[:3]
-            diff = action - act
+            diff = 2 * action - act
 
             self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
