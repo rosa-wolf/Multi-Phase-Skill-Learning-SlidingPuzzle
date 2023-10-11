@@ -15,7 +15,7 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-from puzzle_env import PuzzleEnv
+from puzzle_env_stable_baselines import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
