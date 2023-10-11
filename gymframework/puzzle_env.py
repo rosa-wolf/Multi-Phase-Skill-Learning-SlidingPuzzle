@@ -243,11 +243,11 @@ class PuzzleEnv(gym.Env):
             self.scene.sym_state = sym_obs
             self.scene.set_to_symbolic_state(zero_vel=True)
 
-            # look which box is in the field we want to push from
-            # important for reward shaping
-            field = self.skills[self.skill][0]
-            # get box that is currently on that field
-            self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+        # look which box is in the field we want to push from
+        # important for reward shaping
+        field = self.skills[self.skill][0]
+        # get box that is currently on that field
+        self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
 
         self._old_sym_obs = self.scene.sym_state.copy()
 

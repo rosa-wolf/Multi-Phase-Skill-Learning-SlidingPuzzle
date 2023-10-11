@@ -65,6 +65,21 @@ class PuzzleEnv(gym.Env):
         self.skill = np.random.randint(0, self.num_skills, 1)[0]
 
         # opt push position for all 14 skills (for calculating reward)
+        # TODO: Make optimal position dependent on current position of block we want to push
+        # position when reading out block position is the center of the block
+        # depending on skill we have to push from different side on the block
+        # optimal position is position at offset into right direction from the center og the block
+        # offset half the side length of the block
+        self.offset = 0.05
+        # direction of offset [x-direction, y-direction]
+        # if 0 no offset in that direction
+        # -1/1: negative/positive offset in that direction
+        self.opt_pos_dir = np.array([[1, 0], [0, 1], [-1, 0], [1, 0], [0, 1], [-1, 0], [0, 1],
+                                     [0, -1], [1, 0], [0, -1], [-1, 0], [1, 0], [0, -1], [-1, 0]])
+        # store which box we will push with current skill
+        self.box = None
+
+        # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
                                  [-0.1, 0.11],
                                  [-0.155, -0.06],
@@ -230,6 +245,12 @@ class PuzzleEnv(gym.Env):
             self.scene.sym_state = sym_obs
             self.scene.set_to_symbolic_state()
 
+        # look which box is in the field we want to push from
+        # important for reward shaping
+        field = self.skills[self.skill][0]
+        # get box that is currently on that field
+        self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+
         self._old_sym_obs = self.scene.sym_state.copy()
 
         return self._get_observation()
@@ -313,6 +334,7 @@ class PuzzleEnv(gym.Env):
         Calculates reward, which is based on symbolic observation change
         """
         # for sparse reward
+        reward = 0
         if self.sparse_reward:
             # only give reward on change of symbolic observation
             reward = 0
@@ -353,27 +375,40 @@ class PuzzleEnv(gym.Env):
             elif self.skill == 13:
                 max = np.array([0.2, -0.2])
 
-            # only consider distance in x-y-direction
-            opt = self.opt_pos[self.skill]
+            # define place of highest reward for each skill (optimal position)
+            # as outer edge of current position of block we want to push
+            # read out position of box that should be pushed
+            opt = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+            # always some y and z-offset because of the way the wedge and the boxes were placed
+            opt[2] -= 0.3
+            opt[1] -= self.offset / 2
+            # additional offset in x-direction and y-direction dependent on skill
+            # (which side do we want to push box from?)
+            opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
+            opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
+            # max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
+            max = np.concatenate((max, np.array([0.25])))
 
             # max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
-            loc = self.scene.C.getJointState()[:2]  # current location
+            loc = self.scene.C.getJointState()[:3]  # current location
 
             # reward: max distance - current distance
-            reward = np.linalg.norm(opt - max) - np.linalg.norm(opt - loc)
+            # only consider distance in x-y-direction
+            # opt = self.opt_pos[self.skill]
+            reward += np.linalg.norm(opt - max) - np.linalg.norm(opt - loc)
 
             # add reward dependent on z-coordinate
             # optimal z is dependent on current x and y (super-gaussian shape)
             # for now lets say the final z should be -0.2
-            cov_inv = np.array([[self.z_cov, 0], [0, self.z_cov]])
-            z_opt_fct = lambda x: -0.2 * np.exp(- (x - opt).T @ cov_inv @ (x - opt))
+            #cov_inv = np.array([[self.z_cov, 0], [0, self.z_cov]])
+            #z_opt_fct = lambda x: -0.2 * np.exp(- (x - opt).T @ cov_inv @ (x - opt))
 
             # the optimal z has its peak at z = 0 (thus negative and shifted)
-            z_opt = z_opt_fct(loc)
+            #z_opt = z_opt_fct(loc)
 
             # give reward dependent on distance of current z to optimal z
             # only positive reward
-            reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
+            #reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
 
         ## extra reward if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
