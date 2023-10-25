@@ -125,7 +125,7 @@ class PuzzleEnv(gym.Env):
         self.scene = PuzzleScene(path, verbose=verbose)
 
         # desired x-y-z coordinates of eef
-        self.action_space = Box(low=np.array([-2., -2., -2.]), high=np.array([2., 2., 2.]), shape=(3,),
+        self.action_space = Box(low=np.array([-1., -1., -1.]), high=np.array([1., 1., 1.]), shape=(3,),
                                 dtype=np.float64)
 
         # store symbolic observation from previous step to check for change in symbolic observation
@@ -312,7 +312,7 @@ class PuzzleEnv(gym.Env):
         for i in range(100):
             # get current position
             act = self.scene.q[:3]
-            diff = action - act
+            diff = 2 * action - act
 
             self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
@@ -383,7 +383,7 @@ class PuzzleEnv(gym.Env):
             # reward: max distance - current distance
             # only consider distance in x-y-direction
             # opt = self.opt_pos[self.skill]
-            reward += np.linalg.norm(opt - max) - np.linalg.norm(opt - loc)
+            reward += 1 - np.linalg.norm(opt - loc)/np.linalg.norm(opt - max)
 
             # add reward dependent on z-coordinate
             # optimal z is dependent on current x and y (super-gaussian shape)
@@ -399,12 +399,12 @@ class PuzzleEnv(gym.Env):
             #reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
 
         ## extra reward if symbolic observation changed
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            # give reward according to forward model
-            # TODO: calculate q_k in a different way (which may be more numerically stable)
-            q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
-                                           self.scene.sym_state.flatten(),
-                                           self.skill)
-            reward += q_k
+        #if not (self._old_sym_obs == self.scene.sym_state).all():
+        #    # give reward according to forward model
+        #    # TODO: calculate q_k in a different way (which may be more numerically stable)
+        #    q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
+        #                                   self.scene.sym_state.flatten(),
+        #                                   self.skill)
+        #    reward += q_k
 
         return reward

@@ -108,7 +108,7 @@ model = SAC("MlpPolicy",
             device=device,
             verbose=0)
 
-model.learn(total_timesteps=1e12,
+model.learn(total_timesteps=args.num_epochs,
             log_interval=10,
             tb_log_name=checkpoint_name,
             progress_bar=True)

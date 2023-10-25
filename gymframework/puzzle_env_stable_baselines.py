@@ -405,12 +405,12 @@ class PuzzleEnv(gym.Env):
             #reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
 
         ## extra reward if symbolic observation changed
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            # give reward according to forward model
-            # TODO: calculate q_k in a different way (which may be more numerically stable)
-            q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
-                                           self.scene.sym_state.flatten(),
-                                           self.skill)
-            reward += q_k
+        #if not (self._old_sym_obs == self.scene.sym_state).all():
+        #    # give reward according to forward model
+        #    # TODO: calculate q_k in a different way (which may be more numerically stable)
+        #    q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
+        #                                   self.scene.sym_state.flatten(),
+        #                                   self.skill)
+        #    reward += q_k
             #reward += 1
         return reward

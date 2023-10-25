@@ -14,7 +14,7 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-from puzzle_env import PuzzleEnv
+from puzzle_env_stable_baselines import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -70,8 +70,8 @@ parser.add_argument('--cuda', action="store_true",
 args = parser.parse_args()
 
 # Environment
-env = PuzzleEnv(path='../slidingPuzzle.g', skill=args.skill, max_steps=args.num_steps, random_init_pos=True,
-                random_init_config=True, verbose=1, give_sym_obs=False, sparse_reward=args.sparse, z_cov=args.z_cov, vel_steps=args.vel_steps)
+env = PuzzleEnv(path='../slidingPuzzle.g', skill=0, max_steps=args.num_steps, random_init_pos=True,
+                random_init_config=True, verbose=1, give_sym_obs=False, sparse_reward=args.sparse, z_cov=args.z_cov)
 env.seed(args.seed)
 env.action_space.seed(args.seed)
 
@@ -87,7 +87,7 @@ checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" +
         args.seed) + "_vel_steps" + str(args.vel_steps)
 
 # load SAC model
-path = "skill1_2000000epochs_sparseFalse_seed123456_vel_steps70.zip"
+path = "skill0_10000epochs_sparseFalse_seed123456_vel_steps1.zip"
 model = SAC.load(path)
 
 obs, _ = env.reset()
