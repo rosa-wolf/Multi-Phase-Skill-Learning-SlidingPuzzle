@@ -271,9 +271,13 @@ class PuzzleEnv(gym.Env):
         Returns the observation:    Robot joint states and velocites and symbolic observation
                                     Executed Skill is also encoded in observation/state
         """
-
+        # TODO: Include position of relevant puzzle piece in observation
         q, q_dot, sym_obs = self.scene.state
         obs = q[:3]
+
+        # add position of relevant puzzle piece
+        obs = np.concatenate((obs, (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()))
+
         if self.give_sym_obs:
             # should agent be informed about symbolic observation?
             obs = np.concatenate((obs, sym_obs.flatten()))
@@ -289,6 +293,9 @@ class PuzzleEnv(gym.Env):
         # observation space as 1D array instead
         # joint configuration (3) + skill (1)
         shape = 3  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
+
+        # add dimensions for position of relevant puzzle piece (x, y, z -position)
+        shape += 3
 
         # make observation space one single array (such that it works with sac algorithm)
         # 0-2 joint position in x,y,z

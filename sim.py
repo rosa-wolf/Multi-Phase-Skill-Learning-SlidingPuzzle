@@ -9,26 +9,39 @@ from gym.utils.env_checker import check_env
 if __name__ == '__main__':
 
     # sanity check of custom env
-    skill = 13
+    skill = 0
     env = PuzzleEnv(verbose=1, skill=skill, penalize=False)
     env.skill = skill
 
-    field = env.skills[env.skill][0]
-    # get box that is currently on that field
-    box = np.where(env.scene.sym_state[:, field] == 1)[0][0]
+    # define place of highest reward for each skill (optimal position)
+    # as outer edge of current position of block we want to push
     # read out position of box that should be pushed
-    opt = (env.scene.C.getFrame("box" + str(box)).getPosition()).copy()
-    print(opt[0])
-    print(opt[1])
-    print(opt[2])
-    # offset in x-direction and y-direction
-    print(box)
-    print(env.offset)
-    print(env.opt_pos_dir[env.skill, 0])
-    # always z-offset of -0.3
+    opt = (env.scene.C.getFrame("box" + str(env.box)).getPosition()).copy()
+    # always some y and z-offset because of the way the wedge and the boxes were placed
     opt[2] -= 0.3
-    # always y-offset
-    opt[1] -= env.offset/2
+    opt[1] -= env.offset / 2
+    # additional offset in x-direction and y-direction dependent on skill
+    # (which side do we want to push box from?)
+    opt[0] += env.offset * env.opt_pos_dir[env.skill, 0]
+    opt[1] += env.offset * env.opt_pos_dir[env.skill, 1]
+    # go to correct x-y-position
+    env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
+
+    # push box
+    env.scene.v = np.array([-0.2, 0., 0., 0.])
+    env.scene.velocity_control(500)
+
+    # recalculate optimal position
+
+    # define place of highest reward for each skill (optimal position)
+    # as outer edge of current position of block we want to push
+    # read out position of box that should be pushed
+    opt = (env.scene.C.getFrame("box" + str(env.box)).getPosition()).copy()
+    # always some y and z-offset because of the way the wedge and the boxes were placed
+    opt[2] -= 0.3
+    opt[1] -= env.offset / 2
+    # additional offset in x-direction and y-direction dependent on skill
+    # (which side do we want to push box from?)
     opt[0] += env.offset * env.opt_pos_dir[env.skill, 0]
     opt[1] += env.offset * env.opt_pos_dir[env.skill, 1]
     # go to correct x-y-position
