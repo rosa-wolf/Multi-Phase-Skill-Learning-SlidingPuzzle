@@ -69,7 +69,7 @@ class PuzzleEnv(gym.Env):
         # depending on skill we have to push from different side on the block
         # optimal position is position at offset into right direction from the center og the block
         # offset half the side length of the block
-        self.offset = 0.05
+        self.offset = 0.02
         # direction of offset [x-direction, y-direction]
         # if 0 no offset in that direction
         # -1/1: negative/positive offset in that direction
