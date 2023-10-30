@@ -321,7 +321,7 @@ class PuzzleEnv(gym.Env):
             act = self.scene.q[:3]
             diff = 2 * action - act
 
-            self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.v = 0.8 * np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _reward(self) -> float:
@@ -390,7 +390,8 @@ class PuzzleEnv(gym.Env):
             # reward: max distance - current distance
             # only consider distance in x-y-direction
             # opt = self.opt_pos[self.skill]
-            reward += 1 - np.linalg.norm(opt - loc)/np.linalg.norm(opt - max)
+            # TODO: try out making curve steeper
+            reward += 5 * (np.linalg.norm(opt - max) - np.linalg.norm(opt - loc))
 
             # add reward dependent on z-coordinate
             # optimal z is dependent on current x and y (super-gaussian shape)
