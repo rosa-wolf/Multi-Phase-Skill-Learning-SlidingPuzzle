@@ -2,7 +2,7 @@ import numpy as np
 import time
 from puzzle_scene import PuzzleScene
 from robotic import ry
-from gymframework.puzzle_env import PuzzleEnv
+from gymframework.puzzle_env_simple import PuzzleEnv
 from gym.utils.env_checker import check_env
 
 
@@ -11,11 +11,14 @@ if __name__ == '__main__':
     # sanity check of custom env
     skill = 0
     env = PuzzleEnv(verbose=1, skill=skill, penalize=False)
+    env.scene.C.view()
     env.skill = skill
+    print("sym_obs before push = ", env.scene.sym_state)
 
     # define place of highest reward for each skill (optimal position)
     # as outer edge of current position of block we want to push
     # read out position of box that should be pushed
+
     opt = (env.scene.C.getFrame("box" + str(env.box)).getPosition()).copy()
     # always some y and z-offset because of the way the wedge and the boxes were placed
     opt[2] -= 0.3
@@ -33,23 +36,9 @@ if __name__ == '__main__':
     env.scene.v = np.array([-0.2, 0., 0., 0.])
     env.scene.velocity_control(500)
 
-    # recalculate optimal position
+    print("sym_obs after push = ", env.scene.sym_state)
 
-    # define place of highest reward for each skill (optimal position)
-    # as outer edge of current position of block we want to push
-    # read out position of box that should be pushed
-    opt = (env.scene.C.getFrame("box" + str(env.box)).getPosition()).copy()
-    # always some y and z-offset because of the way the wedge and the boxes were placed
-    opt[2] -= 0.3
-    opt[1] -= env.offset / 2
-    # additional offset in x-direction and y-direction dependent on skill
-    # (which side do we want to push box from?)
-    opt[0] += env.offset * env.opt_pos_dir[env.skill, 0]
-    opt[1] += env.offset * env.opt_pos_dir[env.skill, 1]
-    # go to correct x-y-position
-    env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
-
-    time.sleep(10)
+    time.sleep(5.)
     #sym_obs = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0],
     #                    [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1]])
     #env.scene.sym_state = sym_obs

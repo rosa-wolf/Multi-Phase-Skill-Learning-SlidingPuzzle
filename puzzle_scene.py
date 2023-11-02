@@ -72,9 +72,14 @@ class PuzzleScene:
             name = "box" + str(i)
             self.discrete_pos[i] = self.C.getFrame(name).getPosition()
             self._sym_state[i, i] = 1
-        # determine position of place which is initially empty (is not )
-        self.discrete_pos[-1, 0] = self.discrete_pos[4, 0] + np.abs(self.discrete_pos[4, 0] - self.discrete_pos[3, 0])
-        self.discrete_pos[-1, 1:] = self.discrete_pos[4, 1:]
+        print("sym_state = ", self._sym_state)
+        # determine position of place which is initially empty
+        # !!! Assumption: Always field with highest index is initially empty
+        # and center of all fields have distance of 0.1 in all dimensions !!!
+        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] + 0.1
+        self.discrete_pos[-1, 1:] = self.discrete_pos[-2, 1:]
+
+        print(self.discrete_pos)
 
         # store intial symbolic state
         self.sym_state0 = self.sym_state.copy()

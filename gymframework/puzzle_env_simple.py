@@ -20,10 +20,12 @@ class PuzzleEnv(gym.Env):
     This is an environment to train the policy for a single skill.
     When initiating the variable for the skill is set and not changed after.
     This is only so we can use the same environment-type for all skills.
+
+    This is the version to test out having a smaller (1x2) board
     """
 
     def __init__(self,
-                 path='slidingPuzzle.g',
+                 path='slidingPuzzle_small.g',
                  skill=0,
                  max_steps=100,
                  evaluate=False,
@@ -31,9 +33,10 @@ class PuzzleEnv(gym.Env):
                  random_init_config=True,
                  random_init_board=False,
                  penalize=False,
-                 puzzlesize = [2, 3],
+                 puzzlesize = [1, 2],
                  give_sym_obs=False,
                  sparse_reward=False,
+                 reward_on_change=False,
                  reward_on_end=False,
                  term_on_change=False,
                  z_cov=12,
@@ -50,16 +53,15 @@ class PuzzleEnv(gym.Env):
         :param random_init_board:   whether to NOT ensure that skill execution is possible in initial board configuration (default false)
         :param give_sym_obs:        whether to give symbolic observation in agents observation (default false)
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
-        :param reward_on_end:       whether to only give reward on episode termination (default false)
-                                    - only use in combination with term_on_change=True
+        :param reward_on_change:    whether to give additional reward when box is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param z_cov                inverse cov of gaussian like function, for calculating optimal z position dependent on
                                     current x-and y-position
-        :param verbose:             whether to render scene (default false)
+        :param verbose:      _       whether to render scene (default false)
         """
         # ground truth skills
-        self.skills = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
-                                [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
+        # we have only one box, so there is only one skill
+        self.skills = np.array([[1, 0], [0, 1]])
 
 
         # which policy are we currently training? (Influences reward)
@@ -75,28 +77,17 @@ class PuzzleEnv(gym.Env):
         # direction of offset [x-direction, y-direction]
         # if 0 no offset in that direction
         # -1/1: negative/positive offset in that direction
-        self.opt_pos_dir = np.array([[1, 0], [0, 1], [-1, 0], [1, 0], [0, 1], [-1, 0], [0, 1],
-                                     [0, -1], [1, 0], [0, -1], [-1, 0], [1, 0], [0, -1], [-1, 0]])
+        self.opt_pos_dir = np.array([[1, 0]])
         # store which box we will push with current skill
         self.box = None
 
         # opt push position for all 14 skills (for calculating reward)
         self.opt_pos = np.array([[0.06, -0.09],
-                                 [-0.1, 0.11],
-                                 [-0.155, -0.06],
-                                 [0.18, -0.06],
-                                 [0.01, 0.11],
-                                 [-0.06, -0.06],
-                                 [0.13, 0.11],
-                                 [-0.12, -0.11],
-                                 [0.06, 0.06],
-                                 [0., -0.12],
-                                 [-0.155, 0.05],
-                                 [0.175, 0.05],
-                                 [0.115, -0.12],
-                                 [-0.05, 0.06]])
+                                 [-0.05, -0.09]])
 
-        self.z_cov = z_cov
+        self.max = np.array([[-0.2, 0.2],
+                             [0.2, -0.2]])
+
         # parameters to control initial env configuration
         self.random_init_pos = random_init_pos
         self.random_init_config = random_init_config
@@ -105,6 +96,7 @@ class PuzzleEnv(gym.Env):
         # parameters to control different versions of observation and reward
         self.give_sym_obs = give_sym_obs
         self.sparse_reward = sparse_reward
+        self.reward_on_change = reward_on_change
         self.reward_on_end = reward_on_end
 
         # if we only give reward on last episode then we should terminate on change of symbolic observation
@@ -229,16 +221,21 @@ class PuzzleEnv(gym.Env):
             # should it be possible to apply skill on initial board configuration?
             if self.random_init_board:
                 # randomly pick the field where no block is initially
-                field = np.delete(np.arange(0, 6), np.random.choice(np.arange(0, 6)))
+                field = np.delete(np.arange(0, self.scene.pieces + 1),
+                                  np.random.choice(np.arange(0, self.scene.pieces + 1)))
             else:
                 # take initial empty field such that skill execution is possible
-                field = np.delete(np.arange(0, 6), self.skills[self.skill, 1])
+                field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill, 1])
 
             # put blocks in random fields, except the one that has to be free
             order = np.random.permutation(field)
-            sym_obs = np.zeros((5, 6))
-            for i in range(5):
+            sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+            for i in range(self.scene.pieces):
                 sym_obs[i, order[i]] = 1
+
+                self.scene.sym_state = sym_obs
+                self.scene.set_to_symbolic_state()
+
 
             self.scene.sym_state = sym_obs
             self.scene.set_to_symbolic_state()
@@ -248,8 +245,6 @@ class PuzzleEnv(gym.Env):
         field = self.skills[self.skill][0]
         # get box that is currently on that field
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-        print(self.scene.sym_state)
-        print(self.box)
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -331,51 +326,19 @@ class PuzzleEnv(gym.Env):
     def _reward(self) -> float:
         """
         Calculates reward, which is based on symbolic observation change
+
+        - reward shaping: give reward that is linearly dependent
+          on distance to some optimal position where agent should ideally execute push movement
+        -> reward positive, linear and higher the smaller the distance to optimal point is
+        - use when fixed episode number because otherwise agent
+          can accumulate higher reward, by doing non-terminating actions
+        - define place of highest reward for each skill (optimal position)
+          as outer edge of position of block we want to push
+            - opt position changes when block position changes
+
         """
-        # for sparse reward
         reward = 0
-        if self.sparse_reward:
-            # only give reward on change of symbolic observation
-            reward = 0
-        else:
-            # reward shaping: give reward that is linearly dependent
-            # on distance to some optimal position where agent should ideally execute push movement
-            # -> reward positive, linear and higher the smaller the distance to optimal point is
-            # use when fixed episode number because otherwise agent
-            # can accumulate higher reward, by doing non-terminating actions
-
-            # define place of highest reward for each skill
-            if self.skill == 0:
-                max = np.array([-0.2, 0.2])
-            elif self.skill == 1:
-                max = np.array([0.2, -0.2])
-            elif self.skill == 2:
-                max = np.array([0.2, 0.2])
-            elif self.skill == 3:
-                max = np.array([-0.2, 0.2])
-            elif self.skill == 4:
-                max = np.array([0.2, -0.2])
-            elif self.skill == 5:
-                max = np.array([0.2, 0.2])
-            elif self.skill == 6:
-                max = np.array([-0.2, -0.2])
-            elif self.skill == 7:
-                max = np.array([0.2, 0.2])
-            elif self.skill == 8:
-                max = np.array([-0.2, -0.2])
-            elif self.skill == 9:
-                max = np.array([0.2, 0.2])
-            elif self.skill == 10:
-                max = np.array([0.2, -0.2])
-            elif self.skill == 11:
-                max = np.array([-0.2, -0.2])
-            elif self.skill == 12:
-                max = np.array([-0.2, 0.2])
-            elif self.skill == 13:
-                max = np.array([0.2, -0.2])
-
-            # define place of highest reward for each skill (optimal position)
-            # as outer edge of current position of block we want to push
+        if not self.sparse_reward:
             # read out position of box that should be pushed
             opt = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
             # always some y and z-offset because of the way the wedge and the boxes were placed
@@ -385,39 +348,18 @@ class PuzzleEnv(gym.Env):
             # (which side do we want to push box from?)
             opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
             opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
-            # max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
-            max = np.concatenate((max, np.array([0.25])))
 
-            # max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)
+            max = np.concatenate((self.max[self.skill], np.array([0.25])))
             loc = self.scene.C.getJointState()[:3]  # current location
 
             # reward: max distance - current distance
-            # only consider distance in x-y-direction
-            # opt = self.opt_pos[self.skill]
             # TODO: try out making curve steeper
             # TODO: try out weighting z-distance lower, such that it becomes more important to get to correct x-y-coordinates
             reward += 5 * (np.linalg.norm(opt - max) - np.linalg.norm(opt - loc))
 
-            # add reward dependent on z-coordinate
-            # optimal z is dependent on current x and y (super-gaussian shape)
-            # for now lets say the final z should be -0.2
-            #cov_inv = np.array([[self.z_cov, 0], [0, self.z_cov]])
-            #z_opt_fct = lambda x: -0.2 * np.exp(- (x - opt).T @ cov_inv @ (x - opt))
-
-            # the optimal z has its peak at z = 0 (thus negative and shifted)
-            #z_opt = z_opt_fct(loc)
-
-            # give reward dependent on distance of current z to optimal z
-            # only positive reward
-            #reward += np.linalg.norm(z_opt - 0.25) - np.linalg.norm(z_opt - self.scene.C.getJointState()[2])
-
-        ## extra reward if symbolic observation changed
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            # give reward according to forward model
-            # TODO: calculate q_k in a different way (which may be more numerically stable)
-            #q_k = self.fm.calculate_reward(self._old_sym_obs.flatten(),
-            #                               self.scene.sym_state.flatten(),
-            #                               self.skill)
-            reward += 5
+        # optionally give reward of one when box was successfully pushed to other field
+        if self.reward_on_change:
+            if not (self._old_sym_obs == self.scene.sym_state).all():
+               reward += 5
 
         return reward

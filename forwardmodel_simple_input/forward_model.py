@@ -91,8 +91,8 @@ class ForwardModel(nn.Module):
         self.sym_obs_size = self.width * self.height * self.pieces
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.input_size = self.sym_obs_size + num_skills
-        self.output_size = self.sym_obs_size
+        self.input_size = self.pieces + 1 + num_skills
+        self.output_size = self.pieces + 1
 
         self.batch_size = batch_size
 
@@ -252,28 +252,16 @@ class ForwardModel(nn.Module):
             :param alpha: porbability of value being one for each entry of symbolic observation
         """
         # calucalate most likely successor state
-        y_pred = y_hat.clone().reshape((y_hat.shape[0], self.pieces, self.width * self.height))
+        y_pred = y_hat.clone()
 
         pred = torch.zeros(y_pred.shape)
-        pred = pred.reshape((pred.shape[0] * pred.shape[1], pred.shape[2]))
 
-        pred[torch.arange(pred.shape[0]), torch.argmax(y_pred, axis=2).flatten()] = 1
-        pred = pred.reshape((y_hat.shape[0], y_hat.shape[1]))
+        pred[torch.arange(pred.shape[0]), torch.argmax(y_pred, axis=1)] = 1
 
         pred = pred.to(self.device)
         # look how many entries are same as in true successor
         # only say its correct if complete symbolic observations are equal
         true = torch.sum((pred == y).all(axis=1))
-        filler = np.zeros((14,))
-        filler[0] = 1
-
-        #print(y_hat[0])
-
-        #for i in range(y_hat.shape[0]):
-        #    visualize_transition(y[i], filler, y_hat[i])
-        #    print("=======================================")
-
-        #print("number of wrong predictions = ", y_hat.shape[0] - true)
 
         # compute percentage of correctly predicted entries
         return true / y.shape[0] # (y.shape[0] * y.shape[1])
@@ -307,6 +295,56 @@ class ForwardModel(nn.Module):
 #
     #    return alpha
 
+
+    def sym_state_to_input(self, state, one_hot=True):
+        """
+        Looks up which puzzle field is empty in given symbolic observation
+        and returns it either as number or as one-hot encoding
+
+        @param state: symbolic state we want to translate
+        @param one_hot: if true return one-hot encoding of empty field
+
+        return: empty field in given symbolic state
+        """
+        state = np.reshape(state, (self.pieces, self.pieces + 1))
+        print(state)
+        empty = np.where(np.sum(state, axis=0) == 0)[0][0]
+
+        if one_hot:
+            out = np.zeros((self.pieces + 1,))
+            out[empty] = 1
+            return out
+
+        return empty
+
+
+    def pred_to_sym_state(self, state, empty):
+        """
+        Given a previous symbolic state and the current empty field it gives the new symbolic state
+        If given empty field a is not empty in the given state, then the box that is on that field a in the
+        state will be moved to the empty field b in the state, while the field a will become empty
+
+        @param state: symbolic state we transition from
+        @param empty: field that is empty after transitioning
+        """
+
+        # look up which field is empty in state
+        orig_empty = self.sym_state_to_input(state, one_hot=False)
+
+        # reshape state
+        state = np.reshape(state, (self.pieces, self.pieces + 1))
+        new_state = state.copy()
+
+        # if empty field changes, state also changes
+        if orig_empty != empty:
+            # get index of box that changes its field
+            box = np.where(state[:, empty] == 1)[0][0]
+            new_state[box, empty] = 0
+            new_state[box, orig_empty] = 1
+
+        return new_state.flatten()
+
+
     def successor(self, state: np.array, skill: np.array) -> np.array:
         """
         Returns successor nodes of a given node
@@ -339,32 +377,40 @@ class ForwardModel(nn.Module):
         return state.flatten()
         ######################################################################
         """
-
+        init_shape = state.shape
         # concatenate state and skill to get input to mlp
-        state = torch.from_numpy(state)
+        one_hot_input = self.sym_state_to_input(state)
+
+        one_hot_input = torch.from_numpy(one_hot_input)
         skill = torch.from_numpy(skill)
-        x = torch.concatenate((state, skill))
+
+        x = torch.concatenate((one_hot_input, skill))
         x = x.to(self.device)
         if self.precision == 'float64':
             x = x.to(torch.float64)
         else:
             x = x.to(torch.float32)
+
         # do forward pass
         # pad array to be of shape (1, old_shape) instead of shape old_shape
+        # (because training is implemented to work in batches)
         x = x[None, :]
         y_pred = self.model(x)
         # interpret y_pred directly as one-hot encoding of block placements for all blocks
         # do multiclass classification
-        old_shape = y_pred.shape
-        y_pred = y_pred.reshape((self.pieces, self.width * self.height))
-        y_pred = torch.softmax(y_pred, dim=1)
+        y_pred = y_pred.reshape((self.pieces + 1, ))
+        y_pred = torch.softmax(y_pred, dim=0)
 
         # calculate successor state
         # block is on that field with the highest probability
-        succ = torch.zeros(y_pred.shape)
-        succ[torch.arange(succ.shape[0]), torch.argmax(y_pred, axis=1)] = 1
+        succ = torch.argmax(y_pred)
 
-        return succ.reshape(state.shape)
+        # formulate succesor symbolic state given initial one and knowledge of empty field
+        # if new field is empty, then box that was on it is now on previous empty field
+        # even if those fields are not neighbors
+        new_state = self.pred_to_sym_state(state, succ)
+
+        return new_state
 
     def valid_state(self, state) -> bool:
         """
@@ -432,7 +478,7 @@ class ForwardModel(nn.Module):
 
                 # find successor state
                 next_state = self.successor(state, one_hot)
-                next_state = next_state.cpu().detach().numpy()
+                # next_state = next_state.cpu().detach().numpy()
 
                 # for devugging visualize every state transition prediction
                 # visualize_transition(state, one_hot, next_state)
