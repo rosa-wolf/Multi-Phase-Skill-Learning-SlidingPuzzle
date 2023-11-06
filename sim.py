@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     # sanity check of custom env
     skill = 0
-    env = PuzzleEnv(verbose=1, skill=skill, penalize=False)
+    env = PuzzleEnv(path="slidingPuzzle_2x4.g", puzzlesize=[2, 2], verbose=1, skill=skill, penalize=False)
     env.scene.C.view()
     env.skill = skill
     print("sym_obs before push = ", env.scene.sym_state)

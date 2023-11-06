@@ -71,7 +71,7 @@ class PuzzleEnv(gym.Env):
         # depending on skill we have to push from different side on the block
         # optimal position is position at offset into right direction from the center og the block
         # offset half the side length of the block
-        self.offset = 0.03
+        self.offset = 0.04
         # direction of offset [x-direction, y-direction]
         # if 0 no offset in that direction
         # -1/1: negative/positive offset in that direction
@@ -134,6 +134,10 @@ class PuzzleEnv(gym.Env):
         # and for calculating reward based on forward model
         self._old_sym_obs = self.scene.sym_state.copy()
 
+        # store initial and goal position of box for reward shaping
+        self.box_init = None
+        self.box_goal = None
+
        ## load fully trained forward model
        #self.fm = ForwardModel(batch_size=60, learning_rate=0.001)
        #self.fm.model.load_state_dict(torch.load("../SEADS_SlidingPuzzle/forwardmodel/models/best_model"))
@@ -180,11 +184,11 @@ class PuzzleEnv(gym.Env):
                 self.terminated = True
                 if self.reward_on_end:
                     reward = self._reward()
-            else:
+            #else:
                 # setback to previous state to continue training until step limit is reached
                 # make sure reward and obs is calculated before this state change
-                self.scene.sym_state = self._old_sym_obs
-                self.scene.set_to_symbolic_state()
+                #self.scene.sym_state = self._old_sym_obs
+                #self.scene.set_to_symbolic_state()
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
@@ -248,8 +252,10 @@ class PuzzleEnv(gym.Env):
         field = self.skills[self.skill][0]
         # get box that is currently on that field
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-        print(self.scene.sym_state)
-        print(self.box)
+
+        # set init and goal position of box
+        self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+        self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -377,8 +383,9 @@ class PuzzleEnv(gym.Env):
             # define place of highest reward for each skill (optimal position)
             # as outer edge of current position of block we want to push
             # read out position of box that should be pushed
-            opt = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+            box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
             # always some y and z-offset because of the way the wedge and the boxes were placed
+            opt = box_pos.copy()
             opt[2] -= 0.3
             opt[1] -= self.offset / 2
             # additional offset in x-direction and y-direction dependent on skill
@@ -396,7 +403,19 @@ class PuzzleEnv(gym.Env):
             # opt = self.opt_pos[self.skill]
             # TODO: try out making curve steeper
             # TODO: try out weighting z-distance lower, such that it becomes more important to get to correct x-y-coordinates
-            reward += 5 * (np.linalg.norm(opt - max) - np.linalg.norm(opt - loc))
+            # reward in [0, 0.1]
+            reward += 0.1 * (np.linalg.norm(opt - max) - np.linalg.norm(opt - loc))/np.linalg.norm(opt - max)
+
+            # give reward for puzzle piece being pushed in range [0, 1]
+            # does path from init to goal go in x-direction (0) or y-direction (1) for the skill
+            idx = [0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0]
+
+            # reward in [0, 1]
+            move_reward = (box_pos[idx[self.skill]] - self.box_init[idx[self.skill]])\
+                          /(self.box_goal[idx[self.skill]] - self.box_init[idx[self.skill]])
+            print("move_reward = ", move_reward)
+
+            reward += move_reward
 
             # add reward dependent on z-coordinate
             # optimal z is dependent on current x and y (super-gaussian shape)
