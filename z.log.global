@@ -1,11 +1,11 @@
 ** compiled at:     Jun 15 2023 13:29:34
-** execution start: 2023-11-03 12:12:45:955358
+** execution start: 2023-11-10 10:49:55:121751
 graph.cpp:initParameters:1384(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1391(3)  - failed
 graph.cpp:initParameters:1397(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1403(3)  - failed
 util.cpp:cd_start:1028(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
-util.cpp:getIs:1065(3) opening input file 'slidingPuzzle_2x4.g'
+util.cpp:getIs:1065(3) opening input file 'slidingPuzzle_1x2.g'
 util.cpp:cd_start:1028(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
 util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
 util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]

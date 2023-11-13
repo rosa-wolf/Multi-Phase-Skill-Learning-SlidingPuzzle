@@ -229,6 +229,8 @@ class PuzzleScene:
         if not in_limit:
             self.q = new_q
 
+            print("q after setback = ", self.q)
+
         #if ((self._q[:3] >= self.q_lim[:, 0]) & (self._q[:3] <= self.q_lim[:, 1])).all():
         #    return True
         return in_limit

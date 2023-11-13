@@ -73,7 +73,7 @@ class PuzzleEnv(gym.Env):
         # depending on skill we have to push from different side on the block
         # optimal position is position at offset into right direction from the center og the block
         # offset half the side length of the block
-        self.offset = 0.03
+        self.offset = 0.06
         # direction of offset [x-direction, y-direction]
         # if 0 no offset in that direction
         # -1/1: negative/positive offset in that direction
@@ -82,11 +82,14 @@ class PuzzleEnv(gym.Env):
         self.box = None
 
         # opt push position for all 14 skills (for calculating reward)
-        self.opt_pos = np.array([[0.06, -0.09],
-                                 [-0.05, -0.09]])
+        #self.opt_pos = np.array([[0.06, -0.09],
+        #                         [-0.05, -0.09]])
 
-        self.max = np.array([[-0.2, 0.2],
-                             [0.2, -0.2]])
+        # TODO: we cannot hardcode a position where the actor will have the maximal distance to the optimal position
+        # as the optimal position changes with the position of the box
+        # However, we can hardcode a maximal distance using the
+        self.max = np.array([-0.25, 0.25, 0.25])
+        self.max_dist = None
 
         # parameters to control initial env configuration
         self.random_init_pos = random_init_pos
@@ -125,6 +128,10 @@ class PuzzleEnv(gym.Env):
         # store symbolic observation from previous step to check for change in symbolic observation
         # and for calculating reward based on forward model
         self._old_sym_obs = self.scene.sym_state.copy()
+
+        # set init and goal position of box for calculating reward
+        self.box_init = None
+        self.box_goal = None
 
        ## load fully trained forward model
        #self.fm = ForwardModel(batch_size=60, learning_rate=0.001)
@@ -248,6 +255,12 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
+        self.max_dist = np.linalg.norm((self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy() - self.max)
+
+        # set init and goal position of box
+        self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+        self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
+
         return self._get_observation()
 
     def seed(self, seed=None):
@@ -318,9 +331,10 @@ class PuzzleEnv(gym.Env):
         for i in range(100):
             # get current position
             act = self.scene.q[:3]
-            diff = 2 * action - act
 
-            self.scene.v = 0.9 * np.array([diff[0], diff[1], diff[2], 0.])
+            diff = action / 4 - act
+
+            self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _reward(self) -> float:
@@ -337,11 +351,15 @@ class PuzzleEnv(gym.Env):
             - opt position changes when block position changes
 
         """
+
+        # TODO: change max to correct value
         reward = 0
         if not self.sparse_reward:
             # read out position of box that should be pushed
-            opt = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+            box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+
             # always some y and z-offset because of the way the wedge and the boxes were placed
+            opt = box_pos.copy()
             opt[2] -= 0.3
             opt[1] -= self.offset / 2
             # additional offset in x-direction and y-direction dependent on skill
@@ -349,13 +367,17 @@ class PuzzleEnv(gym.Env):
             opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
             opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
 
-            max = np.concatenate((self.max[self.skill], np.array([0.25])))
+            #max = np.concatenate((self.max[self.skill], np.array([0.25])))
             loc = self.scene.C.getJointState()[:3]  # current location
 
             # reward: max distance - current distance
             # TODO: try out making curve steeper
             # TODO: try out weighting z-distance lower, such that it becomes more important to get to correct x-y-coordinates
-            reward += 5 * (np.linalg.norm(opt - max) - np.linalg.norm(opt - loc))
+            reward += (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
+
+            # give additional reward for pushing puzzle piece into correct direction
+            # line from start to goal goes only in x-direction for this skill
+            reward += (box_pos[0] - self.box_init[0]) / (self.box_goal[0] - self.box_init[0])
 
         # optionally give reward of one when box was successfully pushed to other field
         if self.reward_on_change:
