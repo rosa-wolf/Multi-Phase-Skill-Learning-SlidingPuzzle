@@ -39,6 +39,7 @@ class PuzzleEnv(gym.Env):
                  reward_on_change=False,
                  reward_on_end=False,
                  term_on_change=False,
+                 setback=False,
                  z_cov=12,
                  verbose=0):
 
@@ -112,6 +113,9 @@ class PuzzleEnv(gym.Env):
         # for evaluating policy on a visual level
         self.evaluate = evaluate
 
+        # should the puzzle board be setback to initial configuration on change of symbolic state
+        self.setback = setback
+
         # has actor fulfilled criteria of termination
         self.terminated = False
         self.env_step_counter = 0
@@ -180,10 +184,13 @@ class PuzzleEnv(gym.Env):
                 if self.reward_on_end:
                     reward = self._reward()
             else:
-                # setback to previous state to continue training until step limit is reached
-                # make sure reward and obs is calculated before this state change
-                self.scene.sym_state = self._old_sym_obs
-                self.scene.set_to_symbolic_state()
+                # only do setback for sparse reward, because for move-reward it penalizes last correct action, that pushes
+                # puzzle piece onto neighboring field
+                if self.setback:
+                    # setback to previous state to continue training until step limit is reached
+                    # make sure reward and obs is calculated before this state change
+                    self.scene.sym_state = self._old_sym_obs
+                    self.scene.set_to_symbolic_state()
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
