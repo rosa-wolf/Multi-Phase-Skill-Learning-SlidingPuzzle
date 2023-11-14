@@ -7,6 +7,7 @@ class PuzzleScene:
     def __init__(self,
                  filename: str,
                  puzzlesize=None,
+                 snapRatio = 4,
                  verbose=0):
         """
 
@@ -86,7 +87,7 @@ class PuzzleScene:
 
         # radius for "snapping" (just any value for now)
         dist = np.linalg.norm(self.discrete_pos[0] - self.discrete_pos[1])
-        self.snapRad = dist/4. # must be smaller or equal to dist/2.
+        self.snapRad = dist/snapRatio # must be smaller or equal to dist/2.
 
         # initialize state (q, \dot q)
         # variable for joint configuration

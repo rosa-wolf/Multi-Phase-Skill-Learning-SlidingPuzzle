@@ -26,6 +26,7 @@ class PuzzleEnv(gym.Env):
 
     def __init__(self,
                  path='slidingPuzzle_small.g',
+                 snapRatio=4.
                  skill=0,
                  max_steps=100,
                  evaluate=False,
@@ -123,7 +124,7 @@ class PuzzleEnv(gym.Env):
         self.episode = 0
 
         # initialize scene
-        self.scene = PuzzleScene(path, puzzlesize=puzzlesize, verbose=verbose)
+        self.scene = PuzzleScene(path, puzzlesize=puzzlesize, verbose=verbose, snapRatio=snapRatio)
 
         # desired x-y-z coordinates of eef
         self.action_space = Box(low=np.array([-1., -1., -1.]), high=np.array([1., 1., 1.]), shape=(3,),
@@ -189,8 +190,13 @@ class PuzzleEnv(gym.Env):
                 if self.setback:
                     # setback to previous state to continue training until step limit is reached
                     # make sure reward and obs is calculated before this state change
+                    # first set actor out of the way,
+                    # and after puzzle piece was reset set actor back to its current position
+                    self.scene.q = [self.scene.q[0], self.scene.q[1], 0., self.scene.q[3]]
+
                     self.scene.sym_state = self._old_sym_obs
                     self.scene.set_to_symbolic_state()
+
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done

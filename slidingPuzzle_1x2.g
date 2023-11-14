@@ -4,10 +4,10 @@ world: {}
 center(world): { Q:[0 0 .1] }
 table(center): { Q:[0 0 -.075], shape:ssBox, size:[.5 .4 .05 .01], color:[.8] }
         
-bound0(center): { Q:[0 -.075 -.025], shape:ssBox, size:[.2125 .05 .15 .01], color:[.8] }
-bound1(center): { Q:[0 +.075 -.025], shape:ssBox, size:[.2125 .05 .15 .01], color:[.8] }
-bound2(center): { Q:[-.12 0 -.025], shape:ssBox, size:[.05 .1125 .15 .01], color:[.8] }
-bound3(center): { Q:[+.12 0 -.025], shape:ssBox, size:[.05 .1125 .15 .01], color:[.8] }
+bound0(center): { Q:[0 -.075 -.025], shape:ssBox, size:[.2125 .05 .09 .01], color:[.8] }
+bound1(center): { Q:[0 +.075 -.025], shape:ssBox, size:[.2125 .05 .09 .01], color:[.8] }
+bound2(center): { Q:[-.12 0 -.025], shape:ssBox, size:[.05 .1125 .09 .01], color:[.8] }
+bound3(center): { Q:[+.12 0 -.025], shape:ssBox, size:[.05 .1125 .09 .01], color:[.8] }
 
         
 box0: { X:[-.05 .0 .11], shape:ssBox, size:[.1 .1 .1 .01], color:[1 1 0], mass: .1 }
