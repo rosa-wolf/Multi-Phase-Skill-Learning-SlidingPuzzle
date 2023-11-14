@@ -26,7 +26,7 @@ class PuzzleEnv(gym.Env):
 
     def __init__(self,
                  path='slidingPuzzle_small.g',
-                 snapRatio=4.
+                 snapRatio=4.,
                  skill=0,
                  max_steps=100,
                  evaluate=False,
