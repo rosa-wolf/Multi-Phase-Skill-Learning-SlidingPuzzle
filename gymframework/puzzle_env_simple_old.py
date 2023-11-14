@@ -373,7 +373,7 @@ class PuzzleEnv(gym.Env):
             # reward: max distance - current distance
             # TODO: try out making curve steeper
             # TODO: try out weighting z-distance lower, such that it becomes more important to get to correct x-y-coordinates
-            reward += (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
+            reward += 0.2 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
 
             # give additional reward for pushing puzzle piece into correct direction
             # line from start to goal goes only in x-direction for this skill
