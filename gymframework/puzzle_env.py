@@ -329,7 +329,7 @@ class PuzzleEnv(gym.Env):
         for i in range(100):
             # get current position
             act = self.scene.q[:3]
-            diff = 2 * action - act
+            diff = action / 4 - act
 
             self.scene.v = 0.9 * np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)

@@ -49,7 +49,10 @@ def gather_data(num_data):
             output[SKILLS[skill, 0]] = 1
         else:
             # random field is empty
-            empty = np.random.choice(np.arange(6))
+            # but not the field that has to be empty to be able to execute the skill
+            fields = np.arange(6)
+            fields = np.delete(fields, SKILLS[skill, 1])
+            empty = np.random.choice(fields)
             input[empty] = 1
             output[empty] = 1
 
@@ -63,10 +66,10 @@ def gather_data(num_data):
 
 if __name__ == "__main__":
 
-    EPOCHS = 100
+    EPOCHS = 10
     print("Epochs = ", EPOCHS)
 
-    num_train_data = 1000
+    num_train_data = 300
     num_test_data = 100
 
     # get forward model

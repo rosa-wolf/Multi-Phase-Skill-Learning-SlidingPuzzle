@@ -9,15 +9,11 @@ import torch.optim as optim
 import torch.utils.data as data
 from torch.utils.tensorboard import SummaryWriter
 
-from mlp import MLP
-from nllloss import NLLLoss_customized
+from .mlp import MLP
+from .nllloss import NLLLoss_customized
 
-from visualize_transitions import visualize_transition
+from .visualize_transitions import visualize_transition
 
-
-
-SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
-                   [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
 
 """
 - The forward model is a tree, connecting all skills
@@ -454,6 +450,11 @@ class ForwardModel(nn.Module):
             skill_sequence: sequence of skills to be executed to go from start to goal configuration
             depth: solution depth
         """
+        # is start == goal, then stop now
+        # algorithm will fail to
+        if (start == goal).all():
+            return [], []
+
         visited = []
         queue = []
         parent = {}
@@ -542,6 +543,12 @@ class ForwardModel(nn.Module):
         ####################################################
         # get model prediction of transitioning from z_0 with each skill
         # formulate input to model
+
+        # get encoding of empty field from symbolic start state
+        start = self.sym_state_to_input(start)
+
+        # get encoding of empty field from symbolic  end state
+        end = self.sym_state_to_input(end)
 
         start = torch.from_numpy(start)
         end = torch.from_numpy(end)

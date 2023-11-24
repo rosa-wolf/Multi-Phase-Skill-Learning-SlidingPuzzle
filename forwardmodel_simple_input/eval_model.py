@@ -88,18 +88,6 @@ succ = torch.round(y_pred.reshape((5, 6)))
 
 print(succ)
 """
-# test whether path-planning works for very simple problem
-#init_state = np.array([[1, 0, 0, 0, 0, 0],
-#                       [0, 1, 0, 0, 0, 0],
-#                       [0, 0, 1, 0, 0, 0],
-#                       [0, 0, 0, 1, 0, 0],
-#                       [0, 0, 0, 0, 1, 0]])
-#goal_state = np.array([[1, 0, 0, 0, 0, 0],
-#                       [0, 0, 0, 1, 0, 0],
-#                       [0, 0, 1, 0, 0, 0],
-#                       [0, 0, 0, 0, 0, 1],
-#                       [0, 1, 0, 0, 0, 0]])
-
 
 init_state = np.array([[0, 0, 1, 0, 0, 0],
                        [0, 0, 0, 0, 1, 0],
@@ -113,4 +101,18 @@ goal_state = np.array([[0, 0, 0, 0, 1, 0],
                        [0, 1, 0, 0, 0, 0]])
 states, skills = my_forwardmodel.breadth_first_search(init_state.flatten(), goal_state.flatten())
 print("number of moves = ", len(states) - 1)
+visualize_result(states, skills)
+
+# load best model
+fm.model.load_state_dict(torch.load("../models/fm_trained-with-policy"))
+fm.model.eval()
+
+# test whether path-planning works for very simple problem
+init_state = np.array([[1, 0]])
+goal_state = np.array([[0, 1]])
+
+states, skills = fm.breadth_first_search(init_state.flatten(), goal_state.flatten())
+print("skills = ", skills)
+print("states = ", states)
+
 visualize_result(states, skills)

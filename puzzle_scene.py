@@ -7,6 +7,7 @@ class PuzzleScene:
     def __init__(self,
                  filename: str,
                  puzzlesize=None,
+                 old_order=False,
                  snapRatio = 4,
                  verbose=0):
         """
@@ -32,7 +33,7 @@ class PuzzleScene:
 
 
         """
-        ry.params_add({'physx/motorKp': 1000., 'physx/motorKd': 100., 'physx/defaultFriction': 0.1})  # 1000 & 100
+        ry.params_add({'physx/motorKp': 1000., 'physx/motorKd': 100., 'physx/defaultFriction': 0.05})  # 1000 & 100
 
         #initialize configuration
         if puzzlesize is None:
@@ -73,14 +74,19 @@ class PuzzleScene:
             name = "box" + str(i)
             self.discrete_pos[i] = self.C.getFrame(name).getPosition()
             self._sym_state[i, i] = 1
-        print("sym_state = ", self._sym_state)
+
+        # TODO: change discrete position of initially empty field for new box order
+        # TODO: just change to + 0.1 for old ordering of puzzle fields
+        # beware: doesn't fit for the trained policies of the 1x2 puzzle
         # determine position of place which is initially empty
         # !!! Assumption: Always field with highest index is initially empty
         # and center of all fields have distance of 0.1 in all dimensions !!!
-        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] + 0.1
+        if old_order:
+            self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] + 0.1
+        else:
+            self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] - 0.1
         self.discrete_pos[-1, 1:] = self.discrete_pos[-2, 1:]
 
-        print(self.discrete_pos)
 
         # store intial symbolic state
         self.sym_state0 = self.sym_state.copy()
@@ -257,10 +263,11 @@ class PuzzleScene:
 
         return np.array(pos)
 
-    def set_to_symbolic_state(self, zero_vel=False) -> None:
+    def set_to_symbolic_state(self, hard=False, zero_vel=False) -> None:
         """
          (Snapping) Sets position of all puzzle pieces to the current symbolic state
         :param zero_vel: whether to set the velocities of the actor to zero
+        :param hard: if true we reinitialize the simulation, else we update existing simulation
         :return: None
         """
         # if new state is invalid don't set to the new state
@@ -285,8 +292,13 @@ class PuzzleScene:
         #    self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape), np.zeros(self.q0.shape[0]))
         #else:
         #    self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape))
-        self.S.pushConfigurationToSimulator()
-        self.S.step([], self.tau, ry.ControlMode.none)
+        if hard:
+            # reinitialize simulation
+            del self.S
+            self.S = ry.Simulation(self.C, ry.SimulationEngine.physx, self.verbose)
+        else:
+            self.S.pushConfigurationToSimulator()
+            self.S.step([], self.tau, ry.ControlMode.none)
 
     def valid_state(self) -> bool:
         """
