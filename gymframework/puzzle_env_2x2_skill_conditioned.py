@@ -311,7 +311,7 @@ class PuzzleEnv(gym.Env):
 
             diff = action - act
 
-            self.scene.v = 3 * np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.v = 2 * np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _reward(self) -> float:
@@ -353,7 +353,6 @@ class PuzzleEnv(gym.Env):
 
             # minimal negative distance between box and actor
             dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-            print("dist = ", dist[0])
             reward += 0.1 * dist[0]
             if np.isclose(dist[0], 0) or dist[0] >= 0:
                 reward += 0.5
