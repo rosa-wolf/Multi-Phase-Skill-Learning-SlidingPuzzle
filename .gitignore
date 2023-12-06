@@ -20,3 +20,8 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+
+#Project specific
+checkpoints/
+models/
+skills/

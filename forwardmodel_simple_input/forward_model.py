@@ -303,7 +303,6 @@ class ForwardModel(nn.Module):
         return: empty field in given symbolic state
         """
         state = np.reshape(state, (self.pieces, self.pieces + 1))
-        print(state)
         empty = np.where(np.sum(state, axis=0) == 0)[0][0]
 
         if one_hot:
@@ -377,34 +376,14 @@ class ForwardModel(nn.Module):
         # concatenate state and skill to get input to mlp
         one_hot_input = self.sym_state_to_input(state)
 
-        one_hot_input = torch.from_numpy(one_hot_input)
-        skill = torch.from_numpy(skill)
+        succ = self.get_prediction(one_hot_input, skill)
 
-        x = torch.concatenate((one_hot_input, skill))
-        x = x.to(self.device)
-        if self.precision == 'float64':
-            x = x.to(torch.float64)
-        else:
-            x = x.to(torch.float32)
-
-        # do forward pass
-        # pad array to be of shape (1, old_shape) instead of shape old_shape
-        # (because training is implemented to work in batches)
-        x = x[None, :]
-        y_pred = self.model(x)
-        # interpret y_pred directly as one-hot encoding of block placements for all blocks
-        # do multiclass classification
-        y_pred = y_pred.reshape((self.pieces + 1, ))
-        y_pred = torch.softmax(y_pred, dim=0)
-
-        # calculate successor state
-        # block is on that field with the highest probability
-        succ = torch.argmax(y_pred)
+        empty = np.where(succ == 1)[0][0]
 
         # formulate succesor symbolic state given initial one and knowledge of empty field
         # if new field is empty, then box that was on it is now on previous empty field
         # even if those fields are not neighbors
-        new_state = self.pred_to_sym_state(state, succ)
+        new_state = self.pred_to_sym_state(state, empty)
 
         return new_state
 
@@ -522,7 +501,72 @@ class ForwardModel(nn.Module):
         print("Goal Not reachable from start configuration")
         return None, None
 
-    def calculate_reward(self, start, end, k):
+    def get_p_matrix(self, state: np.array, skill: np.array) -> np.array:
+        """
+        Given an input to the forward model, it calculates the probabilities over the successor state
+
+        @param state: One-hot encoding of empty field
+        @param skill: One-hot encoding of skill
+
+        returns: Probabiliy over succssor empty field
+        """
+
+        input = np.concatenate((state, skill))
+
+        input = torch.from_numpy(input)
+        input = input.to(self.device)
+        if self.precision == 'float64':
+            input = input.to(torch.float64)
+        else:
+            input = input.to(torch.float32)
+
+        input = input[None, :]
+        # get probability over successor state
+        y_pred = self.model(input)
+
+        y_pred = y_pred.reshape((self.pieces + 1,))
+        y_pred = torch.softmax(y_pred, dim=0)
+
+        return y_pred
+
+    def get_prediction(self, state: np.array, skill: np.array) -> np.array:
+        """
+        Calculates most likely successor state
+
+        @param state: One-hot encoding of empty field
+        @param skill: One-hot encoding of skill
+
+        returns:
+        One-hot encoding of most likely successor empty field
+        """
+
+        input = np.concatenate((state, skill))
+
+        input = torch.from_numpy(input)
+        input = input.to(self.device)
+        if self.precision == 'float64':
+            input = input.to(torch.float64)
+        else:
+            input = input.to(torch.float32)
+
+        input = input[None, :]
+        # get probability over successor state
+        y_pred = self.model(input)
+
+        y_pred = y_pred.reshape((self.pieces + 1,))
+        y_pred = torch.softmax(y_pred, dim=0)
+        # calculate successor state
+        # block is on that field with the highest probability
+        empty = torch.argmax(y_pred)
+
+        succ_state = np.zeros(state.shape)
+        succ_state[empty] = 1
+
+        return succ_state
+
+
+
+    def calculate_reward(self, start, end, k, normalize=True):
         """
         Calculate the reward, that the skill-conditioned policy optimization gets when it does a successful transition
         from state start to state end using skill k
@@ -532,9 +576,10 @@ class ForwardModel(nn.Module):
         K: number of states
 
         Args:
-            :param start (z_0) : symbolic state agent starts in
-            :param end (z_T): symbolic state agent should end
-            :param k: skill agent executes
+            :param start (z_0) : one-hot encoding of empty field agent starts in
+            :param end (z_T): one-hot encoding of empty field agent should end
+            :param k: skill agent executes (not as a one_hot_encoding)
+            :param normalize: if true we add log K, else we do not add it
         Returns:
             reward: R(k)
         """
@@ -542,14 +587,6 @@ class ForwardModel(nn.Module):
         # go through all skills and get sum of likelihoods #
         ####################################################
         # get model prediction of transitioning from z_0 with each skill
-        # formulate input to model
-
-        # get encoding of empty field from symbolic start state
-        start = self.sym_state_to_input(start)
-
-        # get encoding of empty field from symbolic  end state
-        end = self.sym_state_to_input(end)
-
         start = torch.from_numpy(start)
         end = torch.from_numpy(end)
         end = end.to(self.device)
@@ -569,14 +606,14 @@ class ForwardModel(nn.Module):
         y_pred = self.model(input)
 
         # calculate probability to transition to state z_T for each skill
-        # probability is product of probabilities for each block to be in exactly the right field
-        masked = y_pred * end
+        # we are only interested in the probabilitie of the correct field being empty
+        y_pred = y_pred[:, torch.where(end == 1)[0][0]]
 
-        masked = masked.reshape((masked.shape[0], self.pieces, self.width*self.height))
-        sum = torch.sum(torch.prod(torch.sum(masked, axis=2), axis=1))
+        sum_of_probs = torch.sum(y_pred)
 
-        # get likelihood for skill k
-        qk = masked[k]
-        prob = torch.prod(torch.sum(qk, axis=1))
+        if normalize:
+            return np.log(y_pred[k].item() / sum_of_probs.item()) + np.log(self.num_skills)
 
-        return np.log(prob.item() / sum.item()) + np.log(self.num_skills)
+        return np.log(y_pred[k].item() / sum_of_probs.item())
+
+

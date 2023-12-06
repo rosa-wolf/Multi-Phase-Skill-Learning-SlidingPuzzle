@@ -113,6 +113,7 @@ if __name__ == "__main__":
     # load rl environment
     env = PuzzleEnv(path='../SEADS_SlidingPuzzle/slidingPuzzle_1x2.g',
                     max_steps=50,
+                    old_order=True,
                     random_init_pos=True,
                     random_init_config=True,
                     random_init_board=True,

@@ -47,7 +47,7 @@ class PuzzleScene:
         # joint limits (x, y, z) limits
         self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.25, .1]])
         # set limits farther outside, such that it is more likely to explore on edge of puzzle board
-        #self.q_lim = np.array([[-.3, .3], [-.3, .3], [-.25, .0]])
+        #self.q_lim = np.array([[-1., 1.], [-1., 1.], [-1., 1.]])
         #self.X0 = self.C.getFrameState()
         #self.C.setFrameState(self.X0)  # why do we need this? Setting feature with same values it already has?
 
@@ -82,7 +82,7 @@ class PuzzleScene:
         # determine position of place which is initially empty
         # !!! Assumption: Always field with highest index is initially empty
         # and center of all fields have distance of 0.1 in all dimensions !!!
-        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] + 0.1
+        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] - 0.1
         self.discrete_pos[-1, 1:] = self.discrete_pos[-2, 1:]
 
 

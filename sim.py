@@ -9,18 +9,22 @@ from gym.utils.env_checker import check_env
 if __name__ == '__main__':
 
     # sanity check of custom env
-    env = PuzzleEnv(path="slidingPuzzle_2x2.g", puzzlesize=[2, 2], verbose=1, penalize=False)
+    env = PuzzleEnv(path="slidingPuzzle_2x2.g", puzzlesize=[2, 2], verbose=1)
     print(f"init sym obs = {env.scene.sym_state}")
 
     print("RESETTING")
-    env.reset(skill=3)
+    env.reset(skill=0)
 
     box_pos = (env.scene.C.getFrame("box" + str(env.box)).getPosition()).copy()
     print("box_pos = ", box_pos)
 
+    time.sleep(2)
+
     # always some y and z-offset because of the way the wedge and the boxes were placed
     opt = box_pos.copy()
-    opt[2] -= 0.3
+
+    #opt[2] -= 0.31
+    print("opt[2] = ", opt[2])
     #opt[1] += env.offset / 2
     ## additional offset in x-direction and y-direction dependent on skill
     ## (which side do we want to push box from?)
@@ -31,12 +35,16 @@ if __name__ == '__main__':
     # go to correct x-y-position
     #env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
     #print("positioned robot at optimal position")
-    env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
+    env.scene.q = np.array([0.05, 0.1, -0.2, env.scene.q[3]])
+
+    dist, _ = env.scene.C.eval(ry.FS.distance, ["box" + str(env.box), "wedge"])
+    print("dist = ", dist)
+
     print("Gone to optimal position")
-    time.sleep(1)
+    time.sleep(10)
 
     # push box
-    env.scene.v = np.array([0., -0.2, 0., 0.])
+    env.scene.v = np.array([0.2, 0., 0., 0.])
     env.scene.velocity_control(1000)
 
     print("sym_obs after push = ", env.scene.sym_state)

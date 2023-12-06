@@ -14,7 +14,7 @@ import importlib.machinery
 import importlib.util
 
 from forwardmodel_simple_input.forward_model import ForwardModel
-from gymframework.puzzle_env_small_skill_conditioned import PuzzleEnv
+from gymframework.puzzle_env_small_skill_conditioned_parallel_training import PuzzleEnv
 from FmReplayMemory import FmReplayMemory
 
 import os
@@ -29,6 +29,7 @@ from sac import SAC
 from replay_memory import ReplayMemory
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
+
 parser.add_argument('--env_name', default="Skill-Conditioned-Policy",
                     help='Custom Gym Environment for sliding puzzle')
 parser.add_argument('--policy', default="Gaussian",
@@ -50,8 +51,8 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, meta
                     help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N', # default=256
-                    help='batch size (default: 256)')
+parser.add_argument('--batch_size', type=int, default=128, metavar='N', # default=256
+                    help='batch size (default: 128)')
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
 parser.add_argument('--num_epochs', type=int, default=200000, metavar='N',
@@ -60,6 +61,8 @@ parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
                     help='hidden size (default: 512)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
+parser.add_argument('--updates_per_epoch', type=int, default=1, metavar='N',
+                    help='model updates epoch (default: 1)')
 parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
@@ -111,16 +114,34 @@ def process_episode_batch(episode_batch, agent):
 
 if __name__ == "__main__":
 
+    # load forward model (untrained)
+    fm = ForwardModel(width=2,
+                      height=1,
+                      num_skills=2,
+                      batch_size=10,
+                      learning_rate=0.001)
+
+    # save model
+    if not os.path.exists('models/'):
+        os.makedirs('models/')
+    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/models/fm_trained-with-policy_" + str(args.env_name)
+    #fm.model.load_state_dict(torch.load(fm_path))
+    print("saving initial model now")
+    # don't save whole model, but only parameters
+    torch.save(fm.model.state_dict(), fm_path)
+
     # load rl environment
     env = PuzzleEnv(path='../SEADS_SlidingPuzzle/slidingPuzzle_1x2.g',
-                    max_steps=50,
+                    max_steps=200,
+                    fm_path=fm_path,
                     random_init_pos=True,
                     random_init_config=True,
                     random_init_board=True,
-                    verbose=1,
+                    verbose=0,
                     give_sym_obs=False,
-                    sparse_reward=False,
+                    sparse_reward=True,
                     reward_on_change=True,
+                    reward_on_end=True,
                     term_on_change=True,
                     setback=False)
 
@@ -130,59 +151,96 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-
     # agent is skill conditioned and thus also gets one-hot encoding of skill in addition to observation
     agent = SAC(env.observation_space.shape[0], env.action_space, args)
 
-    # load trained policy
-    path = "skills/sac_checkpoint_puzzle_env_skill_conditioned_sparse_small_3853"
-    agent.load_checkpoint(path)
+    # load pre-trained policy
+    checkpoint_name = args.env_name
+    #path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/checkpoints/sac_checkpoint_puzzle_env_from_zero"
+    #agent.load_checkpoint(path)
 
-    # load forward model (untrained)
-    fm = ForwardModel(width=2,
-                      height=1,
-                      num_skills=2,
-                      batch_size=10,
-                      learning_rate=0.001,
-                      precision='float64')
+    # Training Loop
+    # number of terminating transitions (episodes) we want to collect
+    num_epochs = args.num_epochs
+    num_episodes = 5
+    total_num_steps = 0
+    total_num_episodes = 0
+
+    ####################################
+    #    Parameters for fm training    #
+    ####################################
+    n_samples_fm = 20
 
     # One short-term and one long-term memory, we sample episodes from
     # for forward model
+
+    #####################################
+    # Parameters for rl policy training #
+    #####################################
+    policy_updates = 0
+    # number of samples to take from long-term memory for policy update
+    n_samples_policy = 256
+
+    # replay memory for policy
+    recent_memory_policy = ReplayMemory(256, args.seed)
+    buffer_memory_policy = ReplayMemory(10000, args.seed)
     recent_memory_fm = FmReplayMemory(50, args.seed)
     buffer_memory_fm = FmReplayMemory(2048, args.seed)
 
-    # replay memorie for policy
-    recent_memory_policy = ReplayMemory(256, args.seed)
-    buffer_memory_policy = ReplayMemory(2048, args.seed)
+    load_memories = False
+    if load_memories:
+        recent_memory_policy.load_buffer(save_path="checkpoints/sac_memory/recent" + str(args.env_name))
+        buffer_memory_policy.load_buffer(save_path= "checkpoints/sac_memory/buffer" + str(args.env_name))
+        recent_memory_fm.load_buffer(save_path="checkpoints/fm_memory/recent" + str(args.env_name))
+        buffer_memory_fm.load_buffer(save_path="checkpoints/fm_memory/buffer" + str(args.env_name))
 
+    # Tensorboard
+    writer = SummaryWriter('runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                                                         checkpoint_name, args.policy,
+                                                         "autotune" if args.automatic_entropy_tuning else ""))
 
-
-    # Training Loop
-    total_numsteps = 0
-    updates = 0
-    num_epochs = 20
-    # number of terminating transitions (episodes) we want to collect per epoch of training fm
-    num_episodes = 10
-    num_skills = 2
-
+    ####################
+    # Collect episodes #
+    ####################
     for epoch in range(num_epochs):
         # collect 32 episodes
+        # storage to gather episodes in which still have to be relabeled
+        relabel_episodes = []
+
         start_time = time.monotonic()
         for i_episode in range(num_episodes):
-            print(f"============================================\nepisode {i_episode}")
+            total_num_episodes += 1
             # get initial state
             episode_reward = 0
             episode_steps = 0
             done = False
 
-            # reset env
-            state = env.reset()
+            reset = True
+            while reset:
+                # reset env
+                state = env.reset()
 
-            # read out which skill is applied (as one-hot encoding)
-            skill = state[6:]
-            # init state for forward model is one-hot encoding of empty field and one-hot encoding of skill
-            init_state = fm.sym_state_to_input(env.init_sym_state)
+                # read out which skill is applied (as one-hot encoding)
+                skill = state[6:]
+                print("skill = ", skill)
 
+                # one-hot encoding of empty field
+                init_state = fm.sym_state_to_input(env.init_sym_state)
+
+                # look whether the forward model predicts a change in empty field
+                y_pred = fm.get_prediction(init_state, skill)
+                print(f"state =  {init_state}, y_pred = {y_pred}, p_matrix = {fm.get_p_matrix(init_state, skill)}")
+
+                reset = False
+                # do reset when state change is predicted as less than 50% probable
+                if (init_state == y_pred).all():
+                    # fm model predicts skill execution is not possible
+                    # reset the env again with some probability
+                    if np.random.uniform() > fm.get_p_matrix(init_state, skill)[np.where(init_state == 1)[0][0]]:
+                        reset = True
+
+            # temporary storage to gather one full episode, and the transition (z_0, k, z_T) in
+            tmp_episodes = []
             while not done:
                 # apply skill until termination (store only first and last symbolic state)
                 # termination on change of symbolic observation, or step limit
@@ -192,55 +250,129 @@ if __name__ == "__main__":
 
                 next_state, reward, done, sym_state = env.step(action)
 
-                #Todo: append to memory for policy training:
+                # Ignore the "done" signal if it comes from hitting the time horizon.
+                # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
+                mask = 1 if episode_steps == env._max_episode_steps else float(not done)
 
+
+
+                # append to memory for policy training:
+                # first append them to list for relabeling
+                tmp_episodes.append((state, action, reward, next_state, mask))
+
+                #recent_memory_policy.push(state, action, reward, next_state, mask)
+                #buffer_memory_policy.push(state, action, reward, next_state, mask)
 
                 episode_steps += 1
+                total_num_steps += 1
                 episode_reward += reward
 
                 state = next_state
+
+            writer.add_scalar('reward/train', episode_reward, i_episode)
+            print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(total_num_episodes, total_num_steps,
+                                                                                          episode_steps,
+                                                                                          round(episode_reward, 2)))
 
             # get one-hot encoding of empty field of terminal state
             term_state = fm.sym_state_to_input(sym_state)
 
             # append to buffers
-            recent_memory_fm.push(init_state, skill, term_state)
-            buffer_memory_fm.push(init_state, skill, term_state)
+            tmp_episodes.append((init_state, skill, term_state))
 
+            if not (init_state == term_state).all():
+                # append episode multiple times if  the sym state changed
+                for i in range(10):
+                    relabel_episodes.append(tuple(tmp_episodes))
+            else:
+                relabel_episodes.append(tuple(tmp_episodes))
+            # append the complete episode to all episodes
+            #recent_memory_fm.push(init_state, skill, term_state)
+            #buffer_memory_fm.push(init_state, skill, term_state)
 
+        # give episodes to relabeling and append them to buffers
+        rl_epis, fm_epis = env.relabeling(relabel_episodes)
+
+        # append all episodes to buffers
+        for epi in fm_epis:
+            recent_memory_fm.push(*epi)
+            buffer_memory_fm.push(*epi)
+        for epi in rl_epis:
+            for trans in epi:
+                recent_memory_policy.push(*trans)
+                buffer_memory_policy.push(*trans)
+
+        # save memories
+        recent_memory_fm.save_buffer(args.env_name, save_path="checkpoints/fm_memory/recent" + str(args.env_name))
+        buffer_memory_fm.save_buffer(args.env_name, save_path="checkpoints/fm_memory/buffer" + str(args.env_name))
+
+        recent_memory_policy.save_buffer(args.env_name, save_path="checkpoints/sac_memory/recent" + str(args.env_name))
+        buffer_memory_policy.save_buffer(args.env_name, save_path="checkpoints/sac_memory/buffer" + str(args.env_name))
+
+        #######################
+        # Train Forward Model #
+        #######################
         # sample episodes from long-term memory
-        n_samples = 50
-        if len(buffer_memory) >= n_samples:
-            episodes = buffer_memory_fm.sample(n_samples)
+        if len(buffer_memory_fm) >= n_samples_fm:
+            episodes = buffer_memory_fm.sample(n_samples_fm)
         else:
             # if buffer is not yet big enough, take all episodes from buffer
             episodes = buffer_memory_fm.sample(len(buffer_memory_fm))
         # take all episodes from recent memory, and sampled episodes from long-term memory
         episodes = (*zip(*episodes), *zip(*recent_memory_fm.sample(len(recent_memory_fm))))
+
         # reshape episodes sampled from buffer
         episodes = np.array(episodes)
         episodes = episodes.reshape((episodes.shape[0], 6))
-
         # train fm with data for 4 steps
-        for _ in range(4):
 
+        for _ in range(5):
             train_loss, train_acc = fm.train(torch.from_numpy(episodes))
 
-            # save model
-            if not os.path.exists('models/'):
-                os.makedirs('models/')
-            path = "models/fm_trained-with-policy"
             print("saving model now")
             # don't save whole model, but only parameters
-            torch.save(fm.model.state_dict(), path)
+            torch.save(fm.model.state_dict(), fm_path)
 
             end_time = time.monotonic()
             epoch_mins, epoch_secs = fm.epoch_time(start_time, end_time)
-
             print(f'Epoch: {epoch + 1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
             print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
 
-        # TODO train policy
+        #######################
+        #   Train RL Policy   #
+        #######################
+        # update policy for n steps
+        for i in range(args.updates_per_epoch):
+            # only do update if we have already gathered enough samples to fill at least one batch
+            if len(recent_memory_policy) + n_samples_policy >= args.batch_size and len(buffer_memory_policy) >= n_samples_policy:
+                # sample episodes from long-term-memory
+                episodes = buffer_memory_policy.sample(n_samples_policy)
+                ## take all episodes from recent memory, and sampled episodes from long-term memory
+
+                episodes = (*zip(*episodes), *zip(*recent_memory_policy.sample(len(recent_memory_policy))))
+                #episodes = tuple(zip(*episodes))
+                #episodes = tuple(np.array(x) for x in episodes)
+                #print("episodes + recent = ", episodes)
+
+                episodes = ReplayMemory(len(recent_memory_policy) + n_samples_policy, args.seed, episodes)
+
+                # update networks using sac
+                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, reward_avg, qf1_avg, qf2_avg, qf_target_avg = agent.update_parameters(
+                    episodes, args.batch_size, policy_updates)
+
+                writer.add_scalar('loss/critic_1', critic_1_loss, policy_updates)
+                writer.add_scalar('loss/critic_2', critic_2_loss, policy_updates)
+                writer.add_scalar('loss/policy', policy_loss, policy_updates)
+                writer.add_scalar('loss/entropy_loss', ent_loss, policy_updates)
+                writer.add_scalar('entropy_temprature/alpha', alpha, policy_updates)
+                writer.add_scalar('avg_batch_reward/reward', reward_avg, policy_updates)
+                writer.add_scalar('value/critic1', qf1_avg, policy_updates)
+                writer.add_scalar('value/critic2', qf2_avg, policy_updates)
+                writer.add_scalar('value/critic_target', qf_target_avg, policy_updates)
+                policy_updates += 1
+
+                print("saving checkpoint now")
+                agent.save_checkpoint("puzzle_env", checkpoint_name)
 
     env.close()
 

@@ -191,7 +191,6 @@ class PuzzleEnv(gym.Env):
         # before resetting store symbolic state (forward model needs this information)
         info = self.scene.sym_state.copy()
 
-        reward = 0
         # get reward (if we don't only want to give reward on last step of episode)
         reward = self._reward()
 
@@ -220,9 +219,7 @@ class PuzzleEnv(gym.Env):
         if not done:
             self.env_step_counter += 1
         else:
-            print("give reward on end")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
-            print("reward on end = ", self.reward_on_end)
             if self.reward_on_end:
                 # TODO: give a positive reward if skill was not applicable, otherwise give zero/negative reward
                 #if not self.skill_possible:
@@ -240,7 +237,8 @@ class PuzzleEnv(gym.Env):
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        self.skill)
 
-                print("reward_on_end")
+
+                    print("reward_on_end")
 
         return obs, reward, done, info
 
@@ -426,7 +424,7 @@ class PuzzleEnv(gym.Env):
 
         """
         reward = 0
-        if self.skill_possible:
+        if self.skill_possible or True:
             if not self.sparse_reward:
                 # read out position of box that should be pushed
                 box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
@@ -444,7 +442,7 @@ class PuzzleEnv(gym.Env):
                 loc = self.scene.C.getJointState()[:3]  # current location
 
                 # reward: max distance - current distance
-                reward += 0.2 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
+                #reward += 0.2 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
 
                 # give additional reward for pushing puzzle piece into correct direction
                 # line from start to goal goes only in x-direction for this skill
@@ -461,12 +459,16 @@ class PuzzleEnv(gym.Env):
                         # reward += 50
                         # take reward calculated using fm
                         pass
-                    reward += 2 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                           self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                           self.skill)
+                    reward += 50 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                            self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                            self.skill)
+                    print("reward on change = ", reward)
+                    # if reward is negative give a small positive reward instead
+                    if reward < 0:
+                        reward = 0
 
                     # add a constant reward to encourage state change early on in training
-                    #reward += 10
+
 
         return reward
 
@@ -570,8 +572,9 @@ class PuzzleEnv(gym.Env):
                     if not (fm_epi[0] == fm_epi[2]).all():
                         # if state changed in the episode give a larger reward
                         reward *= 50
+                        if reward < 0:
+                            reward = 0
                         # add a constant reward to encourage state change early on in training
-                        reward += 10
 
                     rewards[-1] = reward
 
