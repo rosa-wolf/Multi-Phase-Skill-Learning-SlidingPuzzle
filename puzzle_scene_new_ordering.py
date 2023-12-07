@@ -40,12 +40,16 @@ class PuzzleScene:
         self.puzzlesize = puzzlesize
         self.pieces = self.puzzlesize[0] * self.puzzlesize[1] - 1
 
+        # we only have one puzzle piece
+        # Todo: Change this back when we add pieces
+        self.pieces = 1
+
         self.C = ry.Config()
         self.C.addFile(filename)
 
         # TODO: don't hardcode joint limits
         # joint limits (x, y, z) limits
-        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.25, .1]])
+        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.2, .1]])
         # set limits farther outside, such that it is more likely to explore on edge of puzzle board
         #self.q_lim = np.array([[-1., 1.], [-1., 1.], [-1., 1.]])
         #self.X0 = self.C.getFrameState()
@@ -71,20 +75,29 @@ class PuzzleScene:
         # initialize symbolic state
         self._sym_state = np.zeros((self.pieces, self.pieces + 1), dtype=int)
 
-        for i in range(self.pieces):
-            name = "box" + str(i)
-            self.discrete_pos[i] = self.C.getFrame(name).getPosition()
-            self._sym_state[i, i] = 1
+        #for i in range(self.pieces):
+        #    name = "box" + str(i)
+        #    self.discrete_pos[i] = self.C.getFrame(name).getPosition()
+        #    self._sym_state[i, i] = 1
+#
+        ## TODO: change discrete position of initially empty field for new box order
+        ## TODO: just change to + 0.1 for old ordering of puzzle fields
+        ## beware: doesn't fit for the trained policies of the 1x2 puzzle
+        ## determine position of place which is initially empty
+        ## !!! Assumption: Always field with highest index is initially empty
+        ## and center of all fields have distance of 0.1 in all dimensions !!!
+        #self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] - 0.1
+        #self.discrete_pos[-1, 1:] = self.discrete_pos[-2, 1:]
 
-        # TODO: change discrete position of initially empty field for new box order
-        # TODO: just change to + 0.1 for old ordering of puzzle fields
-        # beware: doesn't fit for the trained policies of the 1x2 puzzle
-        # determine position of place which is initially empty
-        # !!! Assumption: Always field with highest index is initially empty
-        # and center of all fields have distance of 0.1 in all dimensions !!!
-        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] - 0.1
-        self.discrete_pos[-1, 1:] = self.discrete_pos[-2, 1:]
+        self.discrete_pos = np.array([[0.05, -0.05, 0.11],
+                                      [-0.05, -0.05, 0.11],
+                                      [0.05, 0.05, 0.11],
+                                      [-0.05, 0.05, 0.11]])
 
+        self._sym_state = np.array([[1, 0, 0, 0],
+                                    [0, 0, 0, 0],
+                                    [0, 0, 0, 0]])
+#
 
         # store intial symbolic state
         self.sym_state0 = self.sym_state.copy()
@@ -330,7 +343,7 @@ class PuzzleScene:
         for i in range(self.pieces):
             # check whether old symbolic state changes
             old_state = np.where(self.sym_state[i] == 1)[0]
-            # go through all states but except old one and look if puzzle piece is near enough to invoke change of
+            # go through all states except old one and look if puzzle piece is near enough to invoke change of
             # symbolic state
             for j in range(self.pieces + 1):
                 if j != old_state:

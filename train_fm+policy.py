@@ -137,7 +137,7 @@ if __name__ == "__main__":
                     random_init_pos=True,
                     random_init_config=True,
                     random_init_board=True,
-                    verbose=0,
+                    verbose=1,
                     give_sym_obs=False,
                     sparse_reward=True,
                     reward_on_change=True,

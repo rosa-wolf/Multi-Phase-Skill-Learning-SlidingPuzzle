@@ -272,6 +272,7 @@ class PuzzleEnv(gym.Env):
             # Set agent to random initial position inside a box
             init_pos = np.random.uniform(-0.25, .25, (2,))
             self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
+            print("current pos = ", self.scene.q)
         if self.random_init_config:
             # should it be possible to apply skill on initial board configuration?
             if self.random_init_board:

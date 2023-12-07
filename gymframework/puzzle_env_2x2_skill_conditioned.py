@@ -165,7 +165,7 @@ class PuzzleEnv(gym.Env):
         if not done:
             self.env_step_counter += 1
 
-        return obs, reward, done
+        return obs, reward, done, self.scene.sym_state
 
     def reset(self,
               *,
@@ -201,9 +201,11 @@ class PuzzleEnv(gym.Env):
 
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
-        sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-        for i in range(self.scene.pieces):
-            sym_obs[i, order[i]] = 1
+        # Todo: reset after adding more puzzle pieces again
+        #sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+        #for i in range(self.scene.pieces):
+        #    sym_obs[i, order[i]] = 1
+        sym_obs = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
 
         self.scene.sym_state = sym_obs
         self.scene.set_to_symbolic_state(hard=True)
@@ -213,8 +215,9 @@ class PuzzleEnv(gym.Env):
         # important for reward shaping
         field = self.skills[self.skill, 0]
         # get box that is currently on that field
-        self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-
+        # Todo: set back when adding more pieces again
+        #self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+        self.box = 0
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
         max_pos = np.array([0.25, 0.25, 0.25]) * np.concatenate((self.max[self.skill], np.array([1])))
@@ -232,7 +235,7 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        return self._get_observation()
+        return self._get_observation(), self.init_sym_state
 
     def seed(self, seed=None):
         np.random.seed(seed)
@@ -303,7 +306,8 @@ class PuzzleEnv(gym.Env):
         # vel[2] - velocity in z-direction (set to zero)
         # vel[3] - orientation, set to zero
         action[:2] /= 4
-        action[2] = action[2] / 5.714 - 0.075  # if limits are [-.25, .1]
+        action[2] = action[2] / (2/0.3) - 0.05
+        # if limits are [-.25, .1]
 
         for i in range(100):
             # get current position
@@ -311,7 +315,7 @@ class PuzzleEnv(gym.Env):
 
             diff = action - act
 
-            self.scene.v = 2 * np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _reward(self) -> float:
@@ -335,7 +339,7 @@ class PuzzleEnv(gym.Env):
 
             # always some y and z-offset because of the way the wedge and the boxes were placed
             opt = box_pos.copy()
-            opt[2] -= 0.31
+            opt[2] -= 0.2
             # additional offset in x-direction and y-direction dependent on skill
             # (which side do we want to push box from?)
             opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
@@ -344,16 +348,16 @@ class PuzzleEnv(gym.Env):
             loc = self.scene.C.getJointState()[:3]  # current location
 
             # reward: max distance - current distance
-            reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
+            #reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
 
             # give additional reward for pushing puzzle piece towards its goal position
             max_dist = np.linalg.norm(self.box_goal - self.box_init)
             box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            reward += box_reward
+            #reward += box_reward
 
             # minimal negative distance between box and actor
             dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-            reward += 0.1 * dist[0]
+            reward += dist[0]
             if np.isclose(dist[0], 0) or dist[0] >= 0:
                 reward += 0.5
 
@@ -368,3 +372,27 @@ class PuzzleEnv(gym.Env):
                 print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         return reward
+
+    def relabel_all(self, episode):
+        """
+        Relabels all episodes artificially assuming the skill-effect of the skill, under the assumption that skill
+        execution is always possible
+        @param: one episode for sac-training (containing multiple transitions), in the form
+        ((s_0, a_0, r_0, s_1, m_0), (s_1, a_1, r_1, s_2, m_1), ..., (s_T-1, a_T-1, r_T-1, s_T, m_T), (e_0, k, e_T))
+
+        @returns: relabeled transition for sac-training
+        """
+        rl_episode = []
+
+        init_sym_state = episode[-1][0]
+        end_sym_state = episode[-1][2]
+
+        # if no change in symbolic state happened don't relabel episode
+        if (init_sym_state == end_eym_state).all():
+            return episode
+
+        # read out which skills corresponds to the change in symbolic state
+        empty_1 = np.where(init_sym_state == 1)[0][0]
+        empty
+
+        return rl_episode

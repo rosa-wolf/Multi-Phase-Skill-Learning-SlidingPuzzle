@@ -11,10 +11,10 @@ bound3(center): { Q:[+.12 0 -.025], shape:ssBox, size:[.05 .2125 .05 .01], color
 
         
 box0: { X:[.05 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[1 0 0], mass: .1}
-box1: { X:[-.05 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 1 0], mass: .1}
-box2: { X:[.05 .05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 0 1], mass: .1}
+# box1: { X:[-.05 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 1 0], mass: .1}
+# box2: { X:[.05 .05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 0 1], mass: .1}
 
-base { X:[0 0 .3], motors }
+base { X:[0 0 .2], motors }
 fake(base){}
 jointA1(fake){ joint:transX, limits:[-.5,.5], mass:.01 }
 jointA2(jointA1){ joint:transY, limits:[-.5,.5], mass:.01 }
