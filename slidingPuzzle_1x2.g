@@ -12,7 +12,7 @@ bound3(center): { Q:[+.12 0 -.025], shape:ssBox, size:[.05 .1125 .05 .01], color
         
 box0: { X:[-.05 .0 .11], shape:ssBox, size:[.1 .1 .1 .01], color:[1 1 0], mass: .1 }
 
-base { X:[0 0 0], motors }
+base { X:[0 0 .2], motors }
 fake(base){}
 jointA1(fake){ joint:transX, limits:[-.5,.5], mass:.01 }
 jointA2(jointA1){ joint:transY, limits:[-.5,.5], mass:.01 }

@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # go to correct x-y-position
     #env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
     #print("positioned robot at optimal position")
-    env.scene.q = np.array([opt[0], opt[1], 0.1, env.scene.q[3]])
+    env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
 
     time.sleep(5)
 
