@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # save model
     if not os.path.exists('models/'):
         os.makedirs('models/')
-    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/models/fm_trained-with-policy_" + str(args.env_name)
+    fm_path = "models/fm_trained-with-policy_" + str(args.env_name)
     #fm.model.load_state_dict(torch.load(fm_path))
     print("saving initial model now")
     # don't save whole model, but only parameters
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
     # load rl environment
     env = PuzzleEnv(path='../SEADS_SlidingPuzzle/slidingPuzzle_1x2.g',
-                    max_steps=200,
+                    max_steps=100,
                     fm_path=fm_path,
                     random_init_pos=True,
                     random_init_config=True,
@@ -213,7 +213,8 @@ if __name__ == "__main__":
             # get initial state
             episode_reward = 0
             episode_steps = 0
-            done = False
+            terminated = False
+            truncated = False
 
             reset = True
             while reset:
@@ -241,24 +242,22 @@ if __name__ == "__main__":
 
             # temporary storage to gather one full episode, and the transition (z_0, k, z_T) in
             tmp_episodes = []
-            while not done:
+            while not (truncated or terminated):
                 # apply skill until termination (store only first and last symbolic state)
                 # termination on change of symbolic observation, or step limit
                 # sample action from skill conditioned policy
 
                 action = agent.select_action(state)
 
-                next_state, reward, done, sym_state = env.step(action)
+                next_state, reward, terminated, truncated, sym_state = env.step(action)
 
-                # Ignore the "done" signal if it comes from hitting the time horizon.
-                # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-                mask = 1 if episode_steps == env._max_episode_steps else float(not done)
+                print("mask = ", float(not terminated))
 
 
 
                 # append to memory for policy training:
                 # first append them to list for relabeling
-                tmp_episodes.append((state, action, reward, next_state, mask))
+                tmp_episodes.append((state, action, reward, next_state, float(not terminated)))
 
                 #recent_memory_policy.push(state, action, reward, next_state, mask)
                 #buffer_memory_policy.push(state, action, reward, next_state, mask)

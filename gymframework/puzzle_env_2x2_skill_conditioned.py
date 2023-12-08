@@ -105,6 +105,7 @@ class PuzzleEnv(gym.Env):
 
         # has actor fulfilled criteria of termination
         self.terminated = False
+        self.truncated = False
         self.env_step_counter = 0
         self._max_episode_steps = max_steps
         self.episode = 0
@@ -161,11 +162,11 @@ class PuzzleEnv(gym.Env):
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
-        done = self._termination()
-        if not done:
-            self.env_step_counter += 1
+        self._termination()
 
-        return obs, reward, done, self.scene.sym_state
+        self.env_step_counter += 1
+
+        return obs, reward, self.terminated, self.truncated, self.scene.sym_state
 
     def reset(self,
               *,
@@ -177,6 +178,7 @@ class PuzzleEnv(gym.Env):
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False
+        self.truncated = False
         self.env_step_counter = 0
         self.episode += 1
 
@@ -202,10 +204,10 @@ class PuzzleEnv(gym.Env):
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
         # Todo: reset after adding more puzzle pieces again
-        #sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-        #for i in range(self.scene.pieces):
-        #    sym_obs[i, order[i]] = 1
-        sym_obs = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
+        sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+        for i in range(self.scene.pieces):
+            sym_obs[i, order[i]] = 1
+        #sym_obs = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
 
         self.scene.sym_state = sym_obs
         self.scene.set_to_symbolic_state(hard=True)
@@ -216,8 +218,8 @@ class PuzzleEnv(gym.Env):
         field = self.skills[self.skill, 0]
         # get box that is currently on that field
         # Todo: set back when adding more pieces again
-        #self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-        self.box = 0
+        self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+        #self.box = 0
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
         max_pos = np.array([0.25, 0.25, 0.25]) * np.concatenate((self.max[self.skill], np.array([1])))
@@ -248,8 +250,13 @@ class PuzzleEnv(gym.Env):
         Returns:
             True if robot should terminate
         """
-        if self.terminated or (self.env_step_counter >= self._max_episode_steps):
+        if self.terminated:
+            self.truncated = False
             return True
+        elif (self.env_step_counter >= self._max_episode_steps - 1):
+            self.truncated = True
+            return True
+
         return False
 
     def _get_observation(self):
@@ -309,7 +316,7 @@ class PuzzleEnv(gym.Env):
         action[2] = action[2] / (2/0.3) - 0.05
         # if limits are [-.25, .1]
 
-        for i in range(100):
+        for _ in range(100):
             # get current position
             act = self.scene.q[:3]
 
@@ -353,13 +360,14 @@ class PuzzleEnv(gym.Env):
             # give additional reward for pushing puzzle piece towards its goal position
             max_dist = np.linalg.norm(self.box_goal - self.box_init)
             box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            #reward += box_reward
-
+            reward += 5 * box_reward
             # minimal negative distance between box and actor
             dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-            reward += dist[0]
-            if np.isclose(dist[0], 0) or dist[0] >= 0:
-                reward += 0.5
+            reward += 5 * dist[0]
+            print(" dist = ", dist)
+            #if np.isclose(dist[0], 0) or dist[0] >= 0:
+            #    reward += 0.5
+            #    print("give 0.5")
 
 
         # optionally give reward of one when box was successfully pushed to other field

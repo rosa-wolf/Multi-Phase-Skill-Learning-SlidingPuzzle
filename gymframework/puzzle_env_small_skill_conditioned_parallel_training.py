@@ -122,6 +122,7 @@ class PuzzleEnv(gym.Env):
 
         # has actor fulfilled criteria of termination
         self.terminated = False
+        self.truncated = False
         self.env_step_counter = 0
         self._max_episode_steps = max_steps
         self.episode = 0
@@ -240,7 +241,7 @@ class PuzzleEnv(gym.Env):
 
                     print("reward_on_end")
 
-        return obs, reward, done, info
+        return obs, reward, self.terminated, self.truncated, info
 
     def reset(self,
               *,
@@ -253,6 +254,7 @@ class PuzzleEnv(gym.Env):
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False
+        self.truncated = False
         self.skill_possible = True
         self.env_step_counter = 0
         self.episode += 1
@@ -339,8 +341,12 @@ class PuzzleEnv(gym.Env):
         Returns:
             True if robot should terminate
         """
-        if self.terminated or self.env_step_counter >= self._max_episode_steps:
+        if self.terminated:
             return True
+        if self.env_step_counter >= self._max_episode_steps - 1:
+            self.truncated = True
+            return True
+
         return False
 
     def _get_observation(self):

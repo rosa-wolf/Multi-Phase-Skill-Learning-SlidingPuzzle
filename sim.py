@@ -36,7 +36,8 @@ if __name__ == '__main__':
     # go to correct x-y-position
     #env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
     #print("positioned robot at optimal position")
-    env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
+    #env.scene.q = np.array([opt[0], opt[1], opt[2], env.scene.q[3]])
+    env.scene.q = np.array([0.1, 0.1, 0.1, env.scene.q[3]])
 
     time.sleep(5)
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
     print("dist = ", dist)
 
     print("Gone to optimal position")
-    time.sleep(2)
+    time.sleep(5)
 
     print("sym_obs before push = ", env.scene.sym_state)
     # push box
