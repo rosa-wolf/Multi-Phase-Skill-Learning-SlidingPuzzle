@@ -3,19 +3,28 @@ import time
 import numpy as np
 import math
 import os
-from visualize_transitions import visualize_transition
+from forwardmodel_simple_input.visualize_transitions import visualize_transition
 
-from forward_model import ForwardModel
+from forwardmodel_simple_input.forward_model import ForwardModel
 
+#SKILLS = np.array([[0, 1], [0, 3], [2, 1], [2, 5], [3, 0], [3, 4], [5, 2],
+#                   [5, 4], [1, 0], [1, 2], [1, 4], [4, 1], [4, 3], [4, 5]])
+
+SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
+                   [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
 
 SKILLS = np.array([[1, 0], [0, 1]])
 def visualize_result(states, skills):
      states = np.array(states)
-     states = states.reshape((states.shape[0], 1, 2))
+     states = states.reshape((states.shape[0], 5, 6))
 
      for i, state in enumerate(states):
-         print("| {} | {} |".format(np.where(state[:, 1] == 1)[0],
-                                    np.where(state[:, 0] == 1)[0]))
+         print("| {} | {} | {} |\n| {} | {} | {} |".format(np.where(state[:, 2] == 1)[0],
+                                                           np.where(state[:, 1] == 1)[0],
+                                                           np.where(state[:, 0] == 1)[0],
+                                                           np.where(state[:, 5] == 1)[0],
+                                                           np.where(state[:, 4] == 1)[0],
+                                                           np.where(state[:, 3] == 1)[0]))
          if i < len(skills):
             print("------------------------------------------")
             print("----> skill: {}, intended effect: {}".format(skills[i], SKILLS[skills[i]]))
@@ -27,24 +36,25 @@ def gather_data(num_data):
     for i in range(num_data):
         # gather data
         # sample skill
-        k = np.zeros((2,))
-        skill = np.random.choice(np.arange(2))
+        k = np.zeros((14,))
+        skill = np.random.choice(np.arange(14))
         k[skill] = 1
         # sample board
         # sample empty field
         # sample whether we want to make sure that skill execution is possible
         poss = np.random.uniform()
-        input = np.zeros((2,))
-        output = np.zeros((2,))
+        input = np.zeros((6,))
+        output = np.zeros((6,))
         if poss > 0.7:
-            # skill execution is possible
             # field we want to push to is empty
             input[SKILLS[skill, 1]] = 1
             output[SKILLS[skill, 0]] = 1
         else:
-            # random field (but not the one that has to be for the skill),
-            # is empty
-            empty = SKILLS[skill, 0]
+            # random field is empty
+            # but not the field that has to be empty to be able to execute the skill
+            fields = np.arange(6)
+            fields = np.delete(fields, SKILLS[skill, 1])
+            empty = np.random.choice(fields)
             input[empty] = 1
             output[empty] = 1
 
@@ -61,16 +71,11 @@ if __name__ == "__main__":
     EPOCHS = 10
     print("Epochs = ", EPOCHS)
 
-    num_train_data = 50
-    num_test_data = 50
+    num_train_data = 300
+    num_test_data = 100
 
     # get forward model
-    my_forwardmodel = ForwardModel(width=2,
-                                   height=1,
-                                   num_skills=2,
-                                   batch_size=10,
-                                   learning_rate=0.001,
-                                   precision='float64')
+    my_forwardmodel = ForwardModel(batch_size=50, learning_rate=0.001, precision='float64')
     print(my_forwardmodel.model)
 
     for epoch in range(EPOCHS):
@@ -92,7 +97,7 @@ if __name__ == "__main__":
             if not os.path.exists('models/'):
 
                 os.makedirs('models/')
-            path = "models/best_model_change"
+            path = "forwardmodel_simple_input/models/best_model_change"
             print("saving model now")
             # dont save whole model, but only parameters
             torch.save(my_forwardmodel.model.state_dict(), path)
@@ -110,9 +115,21 @@ if __name__ == "__main__":
 
 
     # test whether path-planning works for very simple problem
-    init_state = np.array([[1, 0]])
-    goal_state = np.array([[0, 1]])
-
+    init_state = np.array([[1, 0, 0, 0, 0, 0],
+                           [0, 1, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0],
+                           [0, 0, 0, 1, 0, 0],
+                           [0, 0, 0, 0, 1, 0]])
+    #goal_state = np.array([[1, 0, 0, 0, 0, 0],
+    #                       [0, 0, 1, 0, 0, 0],
+    #                       [0, 0, 0, 0, 0, 1],
+    #                       [0, 0, 0, 1, 0, 0],
+    #                       [0, 1, 0, 0, 0, 0]])
+    goal_state = np.array([[0, 1, 0, 0, 0, 0],
+                           [0, 0, 0, 1, 0, 0],
+                           [0, 0, 1, 0, 0, 0],
+                           [1, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 1]])
     states, skills = my_forwardmodel.breadth_first_search(init_state.flatten(), goal_state.flatten())
     print("skills = ", skills)
     print("states = ", states)

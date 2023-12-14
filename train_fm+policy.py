@@ -131,7 +131,7 @@ if __name__ == "__main__":
     torch.save(fm.model.state_dict(), fm_path)
 
     # load rl environment
-    env = PuzzleEnv(path='../SEADS_SlidingPuzzle/slidingPuzzle_1x2.g',
+    env = PuzzleEnv(path='Puzzles/slidingPuzzle_1x2.g',
                     max_steps=100,
                     fm_path=fm_path,
                     random_init_pos=True,
@@ -290,6 +290,7 @@ if __name__ == "__main__":
             #buffer_memory_fm.push(init_state, skill, term_state)
 
         # give episodes to relabeling and append them to buffers
+        print("relabel_episodes = ", relabel_episodes)
         rl_epis, fm_epis = env.relabeling(relabel_episodes)
 
         # append all episodes to buffers

@@ -70,7 +70,7 @@ parser.add_argument('--cuda', action="store_true",
 args = parser.parse_args()
 
 # Environment
-env = PuzzleEnv(path='../slidingPuzzle.g', skill=0, max_steps=args.num_steps, random_init_pos=True,
+env = PuzzleEnv(path='../Puzzles/slidingPuzzle.g', skill=0, max_steps=args.num_steps, random_init_pos=True,
                 random_init_config=True, verbose=1, give_sym_obs=False, sparse_reward=args.sparse, z_cov=args.z_cov)
 env.seed(args.seed)
 env.action_space.seed(args.seed)

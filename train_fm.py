@@ -111,7 +111,7 @@ def process_episode_batch(episode_batch, agent):
 if __name__ == "__main__":
 
     # load rl environment
-    env = PuzzleEnv(path='../SEADS_SlidingPuzzle/slidingPuzzle_1x2.g',
+    env = PuzzleEnv(path='Puzzles/slidingPuzzle_1x2.g',
                     max_steps=50,
                     old_order=True,
                     random_init_pos=True,

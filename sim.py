@@ -9,7 +9,7 @@ from gym.utils.env_checker import check_env
 if __name__ == '__main__':
 
     # sanity check of custom env
-    env = PuzzleEnv(path="slidingPuzzle_2x2.g", puzzlesize=[2, 2], verbose=1, num_skills=1)
+    env = PuzzleEnv(path="Puzzles/slidingPuzzle_2x2.g", puzzlesize=[2, 2], verbose=1, num_skills=1)
     print(f"init sym obs = {env.scene.sym_state}")
 
     print("RESETTING")

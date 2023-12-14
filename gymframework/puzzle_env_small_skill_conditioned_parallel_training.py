@@ -481,7 +481,7 @@ class PuzzleEnv(gym.Env):
 
     def relabeling(self, episodes):
         """
-        Relabeling of the episoded such that the number of times a certain skill k is applied in the relabeled episoded
+        Relabeling of the episodes such that the number of times a certain skill k is applied in the relabeled episoded
         is equal to the number of times it was applied in the input transitions.
         This is done, to maintain the property of the skills being equally likely
         (which is assumed in the derivation of the reward)
@@ -529,7 +529,7 @@ class PuzzleEnv(gym.Env):
             idx += count[k]
 
         # solve the linear sum assignment problem maximization, using scipy
-        row_idx, _ = optimize.linear_sum_assignment(prob, maximize=True)
+        _, col_idx = optimize.linear_sum_assignment(prob, maximize=True)
 
         # relabel the episodes
         rl_episodes = []
@@ -544,8 +544,7 @@ class PuzzleEnv(gym.Env):
 
             # look if new skill is equal to old skill
             old_skill = np.where(fm_epi[1] == 1)[0][0]
-            new_skill = skill_array[row_idx[i]]
-
+            new_skill = skill_array[col_idx[i]]
 
             if old_skill == new_skill:
                 rl_episodes.append(epi)
@@ -575,7 +574,7 @@ class PuzzleEnv(gym.Env):
                     # Beware: only works for the sparse reward setting
                     # only look at last transition as actor only gets a reward there
                     # reward = self.fm.calculate_reward(fm_epi[0], fm_epi[2], int(new_skill))
-                    reward = prob[i, row_idx[i]] + np.log(self.num_skills)
+                    reward = prob[i, col_idx[i]] + np.log(self.num_skills)
                     if not (fm_epi[0] == fm_epi[2]).all():
                         # if state changed in the episode give a larger reward
                         reward *= 50
