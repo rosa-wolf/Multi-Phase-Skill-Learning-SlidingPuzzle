@@ -376,7 +376,7 @@ class PuzzleEnv(gym.Env):
             # not only when we change to it (such that it is markovian)
             if (self.scene.sym_state == self.goal_sym_state).all():
                 # only get reward for moving the block, if that was the intention of the skill
-                reward += 2
+                reward += 1
                 print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         return reward

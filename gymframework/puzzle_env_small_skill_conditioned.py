@@ -1,11 +1,11 @@
 from typing import Optional, Tuple, Dict, Any
 
-import gym
+import gymnasium as gym
 import numpy as np
 import time
-from gym.core import ObsType, ActType
-from gym.spaces import Box, Dict, Discrete, MultiBinary
-from gym.utils import seeding
+from gymnasium.core import ObsType, ActType
+from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
+from gymnasium.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
 import torch
@@ -31,7 +31,6 @@ class PuzzleEnv(gym.Env):
                  fm_path=None,
                  skill=0,
                  max_steps=100,
-                 evaluate=False,
                  random_init_pos=True,
                  random_init_config=True,
                  random_init_board=False,
@@ -42,8 +41,6 @@ class PuzzleEnv(gym.Env):
                  reward_on_change=False,
                  reward_on_end=False,
                  term_on_change=False,
-                 setback=False,
-                 z_cov=12,
                  verbose=0):
 
         """
@@ -51,7 +48,6 @@ class PuzzleEnv(gym.Env):
         :param skill: which skill we want to train (influences reward and field configuration)
         :param path: path to scene file
         :param max_steps: Maximum number of steps per episode
-        :param evaluate: evaluation mode (default false)
         :param random_init_pos:     whether agent should be placed in random initial position on start of episode (default true)
         :param random_init_config:  whether puzzle pieces should be in random positions initially (default true)
         :param random_init_board:   whether to NOT ensure that skill execution is possible in initial board configuration (default false)
@@ -59,7 +55,6 @@ class PuzzleEnv(gym.Env):
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
         :param reward_on_change:    whether to give additional reward when box is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
-        :param z_cov                inverse cov of gaussian like function, for calculating optimal z position dependent on
                                     current x-and y-position
         :param verbose:      _       whether to render scene (default false)
         """
@@ -117,11 +112,9 @@ class PuzzleEnv(gym.Env):
         # for evaluating policy on a visual level
         self.evaluate = evaluate
 
-        # should the puzzle board be setback to initial configuration on change of symbolic state
-        self.setback = setback
-
         # has actor fulfilled criteria of termination
         self.terminated = False
+        self.truncated = False
         self.env_step_counter = 0
         self._max_episode_steps = max_steps
         self.episode = 0
@@ -130,8 +123,7 @@ class PuzzleEnv(gym.Env):
         self.scene = PuzzleScene(path, puzzlesize=puzzlesize, verbose=verbose, snapRatio=snapRatio)
 
         # desired x-y-z coordinates of eef
-        self.action_space = Box(low=np.array([-1., -1., -1.]), high=np.array([1., 1., 1.]), shape=(3,),
-                                dtype=np.float64)
+        self.action_space = Box(low=np.array([-1., -1., -1.]), high=np.array([1., 1., 1.]), shape=(3,))
 
         # store symbolic observation from previous step to check for change in symbolic observation
         # and for calculating reward based on forward model
@@ -153,7 +145,7 @@ class PuzzleEnv(gym.Env):
         self.fm_path = fm_path
         if self.fm_path is None:
             self.fm.model.load_state_dict(
-                torch.load("../SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
+                torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
         else:
             # load forward model we currently train
             self.fm.model.load_state_dict(torch.load(self.fm_path))
@@ -196,23 +188,8 @@ class PuzzleEnv(gym.Env):
         reward = self._reward()
 
         # check if symbolic observation changed
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            # for episode termination on change of symbolic observation
-            print("sym state changed")
-            if self.term_on_change or self.evaluate:
-                self.terminated = True
-            else:
-                # only do setback for sparse reward, because for move-reward it penalizes last correct action, that pushes
-                # puzzle piece onto neighboring field
-                if self.setback:
-                    # setback to previous state to continue training until step limit is reached
-                    # make sure reward and obs is calculated before this state change
-                    # first set actor out of the way,
-                    # and after puzzle piece was reset set actor back to its current position
-                    self.scene.q = [self.scene.q[0], self.scene.q[1], 0., self.scene.q[3]]
-
-                    self.scene.sym_state = self._old_sym_obs
-                    self.scene.set_to_symbolic_state()
+        if self.term_on_change:
+            self.terminated = not (self._old_sym_obs == self.scene.sym_state).all()
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
@@ -242,7 +219,7 @@ class PuzzleEnv(gym.Env):
 
                 print("reward_on_end")
 
-        return obs, reward, done, info
+        return obs, reward, self.terminated, self.truncated, {"sym_state": info}
 
     def reset(self,
               *,
@@ -255,6 +232,7 @@ class PuzzleEnv(gym.Env):
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False
+        self.truncated = False
         self.skill_possible = True
         self.env_step_counter = 0
         self.episode += 1
@@ -327,10 +305,10 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        return self._get_observation()
+        return self._get_observation(), {}
 
     def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
+        np.random.seed(seed)
         return [seed]
 
     def _termination(self):
@@ -340,9 +318,11 @@ class PuzzleEnv(gym.Env):
         Returns:
             True if robot should terminate
         """
-        if self.terminated or self.env_step_counter >= self._max_episode_steps:
+        if self.terminated:
             return True
-        return False
+        if self.env_step_counter >= self._max_episode_steps - 1:
+            self.truncated = True
+            return True
 
     def _get_observation(self):
         """

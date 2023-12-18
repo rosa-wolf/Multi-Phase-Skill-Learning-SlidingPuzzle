@@ -525,7 +525,9 @@ class ForwardModel(nn.Module):
         y_pred = self.model(input)
 
         y_pred = y_pred.reshape((self.pieces + 1,))
-        y_pred = torch.softmax(y_pred, dim=0)
+
+        # softmax is already taken in forward call
+        #y_pred = torch.softmax(y_pred, dim=0)
 
         return y_pred
 
@@ -554,7 +556,9 @@ class ForwardModel(nn.Module):
         y_pred = self.model(input)
 
         y_pred = y_pred.reshape((self.pieces + 1,))
-        y_pred = torch.softmax(y_pred, dim=0)
+
+        # softmax is already taken in forward call
+        # y_pred = torch.softmax(y_pred, dim=0)
         # calculate successor state
         # block is on that field with the highest probability
         empty = torch.argmax(y_pred)

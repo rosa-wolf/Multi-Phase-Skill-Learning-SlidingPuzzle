@@ -38,7 +38,6 @@ class MLP(nn.Module):
 
         # interpret y_pred directly as one-hot encoding of block placements for all blocks
         # do multiclass classification
-
         # each row has to some up to one
         y_pred = torch.softmax(y_pred, axis=1)
         # get it back to previous shape

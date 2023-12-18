@@ -1,11 +1,11 @@
 from typing import Optional, Tuple, Dict, Any
 
-import gym
+import gymnasium as gym
 import numpy as np
 import time
-from gym.core import ObsType, ActType
-from gym.spaces import Box, Dict, Discrete, MultiBinary
-from gym.utils import seeding
+from gymnasium.core import ObsType, ActType
+from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
+from gymnasium.utils import seeding
 from puzzle_scene import PuzzleScene
 from robotic import ry
 import torch
@@ -154,7 +154,7 @@ class PuzzleEnv(gym.Env):
         self.fm_path = fm_path
         if self.fm_path is None:
             self.fm.model.load_state_dict(
-                torch.load("../SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
+                torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
         else:
             # load forward model we currently train
             self.fm.model.load_state_dict(torch.load(self.fm_path))
@@ -193,7 +193,7 @@ class PuzzleEnv(gym.Env):
         info = self.scene.sym_state.copy()
 
         # get reward (if we don't only want to give reward on last step of episode)
-        reward = self._reward()
+        reward = self.compute_reward()
 
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
@@ -241,7 +241,7 @@ class PuzzleEnv(gym.Env):
 
                     print("reward_on_end")
 
-        return obs, reward, self.terminated, self.truncated, info
+        return obs, reward, self.terminated, self.truncated, info # info
 
     def reset(self,
               *,
@@ -416,7 +416,7 @@ class PuzzleEnv(gym.Env):
             self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
-    def _reward(self) -> float:
+    def compute_reward(self) -> float:
         """
         Calculates reward, which is based on symbolic observation change
 
@@ -433,27 +433,10 @@ class PuzzleEnv(gym.Env):
         reward = 0
         if self.skill_possible or True:
             if not self.sparse_reward:
-                # read out position of box that should be pushed
-                box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
-
-                # always some y and z-offset because of the way the wedge and the boxes were placed
-                opt = box_pos.copy()
-                opt[2] -= 0.3
-                opt[1] -= self.offset / 2
-                # additional offset in x-direction and y-direction dependent on skill
-                # (which side do we want to push box from?)
-                opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
-                opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
-
-                #max = np.concatenate((self.max[self.skill], np.array([0.25])))
-                loc = self.scene.C.getJointState()[:3]  # current location
-
-                # reward: max distance - current distance
-                #reward += 0.2 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
-
-                # give additional reward for pushing puzzle piece into correct direction
-                # line from start to goal goes only in x-direction for this skill
-                reward += (box_pos[0] - self.box_init[0]) / (self.box_goal[0] - self.box_init[0])
+                # give a small reward calculated by the forward model in every step
+                reward += 0.0001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                          self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                          self.skill)
 
 
             # optionally give reward of one when box was successfully pushed to other field
@@ -466,6 +449,7 @@ class PuzzleEnv(gym.Env):
                         # reward += 50
                         # take reward calculated using fm
                         pass
+
                     reward += 50 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                             self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                             self.skill)
@@ -474,7 +458,6 @@ class PuzzleEnv(gym.Env):
                     if reward < 0:
                         reward = 0
 
-                    # add a constant reward to encourage state change early on in training
 
 
         return reward
@@ -576,6 +559,7 @@ class PuzzleEnv(gym.Env):
                     # reward = self.fm.calculate_reward(fm_epi[0], fm_epi[2], int(new_skill))
                     reward = prob[i, col_idx[i]] + np.log(self.num_skills)
                     if not (fm_epi[0] == fm_epi[2]).all():
+
                         # if state changed in the episode give a larger reward
                         reward *= 50
                         if reward < 0:

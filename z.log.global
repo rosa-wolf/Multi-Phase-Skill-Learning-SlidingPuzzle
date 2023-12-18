@@ -1,5 +1,5 @@
 ** compiled at:     Jun 15 2023 13:29:34
-** execution start: 2023-12-14 17:08:17:308516
+** execution start: 2023-12-18 17:40:49:337409
 graph.cpp:initParameters:1384(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1391(3)  - failed
 graph.cpp:initParameters:1397(3) opening base config file '/root/local/rai/../local.cfg'
@@ -19,6 +19,14 @@ util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
 util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
 util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
 simulation.cpp:~Simulation:157(0) shutting down Simulation
-** execution stop: 2023-12-14 17:08:25:416726
-** real time: 8.10826sec
-** CPU time: 17.1565
+util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
+util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
+util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
+util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
+util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
+util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
+util.ipp:getParameterBase:29(3) physx/defaultFriction:  0.05 # user [d]
+util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
+util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
+util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
+simulation.cpp:~Simulation:157(0) shutting down Simulation

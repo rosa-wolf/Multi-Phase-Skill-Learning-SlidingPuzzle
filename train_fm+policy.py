@@ -40,19 +40,19 @@ parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
+parser.add_argument('--lr', type=float, default=0.001, metavar='G',
+                    help='learning rate (default: 0.0003)')
+parser.add_argument('--critic_lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
 parser.add_argument('--z_cov', type=float, default=10, metavar='G',
                     help='Parameter for inverse cov of optimal z-position function (default: 10)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
-                    help='Automaically adjust α (default: False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--batch_size', type=int, default=128, metavar='N', # default=256
-                    help='batch size (default: 128)')
+parser.add_argument('--batch_size', type=int, default=256, metavar='N', # default=256
+                    help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
 parser.add_argument('--num_epochs', type=int, default=200000, metavar='N',
@@ -63,12 +63,14 @@ parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
 parser.add_argument('--updates_per_epoch', type=int, default=1, metavar='N',
                     help='model updates epoch (default: 1)')
-parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=1000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
-parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
+parser.add_argument('--replay_size', type=int, default=5000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
+parser.add_argument('--automatic_entropy_tuning', action='store_true',
+                    help='Automaically adjust α (default: False)')
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 args = parser.parse_args()
@@ -89,29 +91,6 @@ def visualize_result(states, skills):
             print("------------------------------------------")
 
 
-def process_episode_batch(episode_batch, agent):
-    """
-    # Add reward given by forward model to the episodes
-    Author: Jan Achterhold
-    :param episode_batch:
-    :param agent:
-    :return:
-    """
-
-    # TODO: split episode_batch into state, next_state, skill, reward
-
-    # TODO: compute the reward using the forward model (with reward improvements from paper)
-
-    # TODO: clip the rewards
-    processed_episode_list = []
-    for episode_idx, original_episode in enumerate(episode_batch):
-        episode = deepcopy(original_episode)
-        # TODO: add calculated rewards to episode_batch
-
-        # TODO: add flags
-    pass
-
-
 if __name__ == "__main__":
 
     # load forward model (untrained)
@@ -119,7 +98,7 @@ if __name__ == "__main__":
                       height=1,
                       num_skills=2,
                       batch_size=10,
-                      learning_rate=0.001)
+                      learning_rate=0.0001)
 
     # save model
     if not os.path.exists('models/'):
@@ -137,11 +116,11 @@ if __name__ == "__main__":
                     random_init_pos=True,
                     random_init_config=True,
                     random_init_board=True,
-                    verbose=1,
+                    verbose=0,
                     give_sym_obs=False,
-                    sparse_reward=True,
+                    sparse_reward=False,
                     reward_on_change=True,
-                    reward_on_end=True,
+                    reward_on_end=False,
                     term_on_change=True,
                     setback=False)
 
@@ -182,10 +161,10 @@ if __name__ == "__main__":
     n_samples_policy = 256
 
     # replay memory for policy
-    recent_memory_policy = ReplayMemory(256, args.seed)
-    buffer_memory_policy = ReplayMemory(10000, args.seed)
-    recent_memory_fm = FmReplayMemory(50, args.seed)
-    buffer_memory_fm = FmReplayMemory(2048, args.seed)
+    recent_memory_policy = ReplayMemory(20000, args.seed)
+    buffer_memory_policy = ReplayMemory(100000, args.seed)
+    recent_memory_fm = FmReplayMemory(20, args.seed)
+    buffer_memory_fm = FmReplayMemory(100, args.seed)
 
     load_memories = False
     if load_memories:
@@ -233,12 +212,15 @@ if __name__ == "__main__":
                 print(f"state =  {init_state}, y_pred = {y_pred}, p_matrix = {fm.get_p_matrix(init_state, skill)}")
 
                 reset = False
-                # do reset when state change is predicted as less than 50% probable
-                if (init_state == y_pred).all():
-                    # fm model predicts skill execution is not possible
-                    # reset the env again with some probability
-                    if np.random.uniform() > fm.get_p_matrix(init_state, skill)[np.where(init_state == 1)[0][0]]:
-                        reset = True
+
+                # only do this if fm is already being trained
+                if total_num_episodes > 1000:
+                    # do reset when state change is predicted as less than 50% probable
+                    if (init_state == y_pred).all():
+                        # fm model predicts skill execution is not possible
+                        # reset the env again with some probability
+                        if np.random.uniform() > fm.get_p_matrix(init_state, skill)[np.where(init_state == 1)[0][0]]:
+                            reset = True
 
             # temporary storage to gather one full episode, and the transition (z_0, k, z_T) in
             tmp_episodes = []
@@ -246,21 +228,33 @@ if __name__ == "__main__":
                 # apply skill until termination (store only first and last symbolic state)
                 # termination on change of symbolic observation, or step limit
                 # sample action from skill conditioned policy
+                if total_num_episodes < 30:
+                    action = env.action_space.sample()
+                else:
+                    action = agent.select_action(state)
 
-                action = agent.select_action(state)
+                # add gaussian noise to action
+                action = np.clip(action + np.random.normal(0, 1), -1, 1)
 
                 next_state, reward, terminated, truncated, sym_state = env.step(action)
 
-                print("mask = ", float(not terminated))
+                # for first 50 episodes give constant reward instead of reward calculated by forward model
+                if total_num_episodes <= 200:
+                    if terminated:
+                        reward = 50
+                        for _ in range(50):
+                            # if sym state changed append episode several times
+                            recent_memory_policy.push(state, action, reward, next_state, float(not terminated))
+                            buffer_memory_policy.push(state, action, reward, next_state, float(not terminated))
+                    else:
+                        reward = 0
+                        recent_memory_policy.push(state, action, reward, next_state, float(not terminated))
+                        buffer_memory_policy.push(state, action, reward, next_state, float(not terminated))
 
-
-
+                print("reward = ", reward)
                 # append to memory for policy training:
                 # first append them to list for relabeling
-                tmp_episodes.append((state, action, reward, next_state, float(not terminated)))
-
-                #recent_memory_policy.push(state, action, reward, next_state, mask)
-                #buffer_memory_policy.push(state, action, reward, next_state, mask)
+                #tmp_episodes.append((state, action, reward, next_state, float(not terminated)))
 
                 episode_steps += 1
                 total_num_steps += 1
@@ -277,30 +271,32 @@ if __name__ == "__main__":
             term_state = fm.sym_state_to_input(sym_state)
 
             # append to buffers
-            tmp_episodes.append((init_state, skill, term_state))
+            recent_memory_fm.push(init_state, skill, term_state)
+            buffer_memory_fm.push(init_state, skill, term_state)
+            #tmp_episodes.append((init_state, skill, term_state))
 
-            if not (init_state == term_state).all():
-                # append episode multiple times if  the sym state changed
-                for i in range(10):
-                    relabel_episodes.append(tuple(tmp_episodes))
-            else:
-                relabel_episodes.append(tuple(tmp_episodes))
+            #if not (init_state == term_state).all():
+            #    # append episode multiple times if  the sym state changed
+            #    for i in range(50):
+            #        relabel_episodes.append(tuple(tmp_episodes))
+            #else:
+            #    relabel_episodes.append(tuple(tmp_episodes))
             # append the complete episode to all episodes
             #recent_memory_fm.push(init_state, skill, term_state)
             #buffer_memory_fm.push(init_state, skill, term_state)
 
         # give episodes to relabeling and append them to buffers
-        print("relabel_episodes = ", relabel_episodes)
-        rl_epis, fm_epis = env.relabeling(relabel_episodes)
+        #print("relabel_episodes = ", relabel_episodes)
+        #rl_epis, fm_epis = env.relabeling(relabel_episodes)
 
-        # append all episodes to buffers
-        for epi in fm_epis:
-            recent_memory_fm.push(*epi)
-            buffer_memory_fm.push(*epi)
-        for epi in rl_epis:
-            for trans in epi:
-                recent_memory_policy.push(*trans)
-                buffer_memory_policy.push(*trans)
+        ## append all episodes to buffers
+        #for epi in fm_epis:
+        #    recent_memory_fm.push(*epi)
+        #    buffer_memory_fm.push(*epi)
+        #for epi in rl_epis:
+        #    for trans in epi:
+        #        recent_memory_policy.push(*trans)
+        #        buffer_memory_policy.push(*trans)
 
         # save memories
         recent_memory_fm.save_buffer(args.env_name, save_path="checkpoints/fm_memory/recent" + str(args.env_name))
@@ -309,34 +305,36 @@ if __name__ == "__main__":
         recent_memory_policy.save_buffer(args.env_name, save_path="checkpoints/sac_memory/recent" + str(args.env_name))
         buffer_memory_policy.save_buffer(args.env_name, save_path="checkpoints/sac_memory/buffer" + str(args.env_name))
 
-        #######################
-        # Train Forward Model #
-        #######################
-        # sample episodes from long-term memory
-        if len(buffer_memory_fm) >= n_samples_fm:
-            episodes = buffer_memory_fm.sample(n_samples_fm)
-        else:
-            # if buffer is not yet big enough, take all episodes from buffer
-            episodes = buffer_memory_fm.sample(len(buffer_memory_fm))
-        # take all episodes from recent memory, and sampled episodes from long-term memory
-        episodes = (*zip(*episodes), *zip(*recent_memory_fm.sample(len(recent_memory_fm))))
+        # only start training the forward model after 200 epochs
+        if total_num_episodes >= 1000:
+            #######################
+            # Train Forward Model #
+            #######################
+            # sample episodes from long-term memory
+            if len(buffer_memory_fm) >= n_samples_fm:
+                episodes = buffer_memory_fm.sample(n_samples_fm)
+            else:
+                # if buffer is not yet big enough, take all episodes from buffer
+                episodes = buffer_memory_fm.sample(len(buffer_memory_fm))
+            # take all episodes from recent memory, and sampled episodes from long-term memory
+            episodes = (*zip(*episodes), *zip(*recent_memory_fm.sample(len(recent_memory_fm))))
 
-        # reshape episodes sampled from buffer
-        episodes = np.array(episodes)
-        episodes = episodes.reshape((episodes.shape[0], 6))
-        # train fm with data for 4 steps
+            # reshape episodes sampled from buffer
+            episodes = np.array(episodes)
+            episodes = episodes.reshape((episodes.shape[0], 6))
+            # train fm with data for 4 steps
 
-        for _ in range(5):
-            train_loss, train_acc = fm.train(torch.from_numpy(episodes))
+            for _ in range(10):
+                train_loss, train_acc = fm.train(torch.from_numpy(episodes))
 
-            print("saving model now")
-            # don't save whole model, but only parameters
-            torch.save(fm.model.state_dict(), fm_path)
+                print("saving model now")
+                # don't save whole model, but only parameters
+                torch.save(fm.model.state_dict(), fm_path)
 
-            end_time = time.monotonic()
-            epoch_mins, epoch_secs = fm.epoch_time(start_time, end_time)
-            print(f'Epoch: {epoch + 1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
-            print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
+                end_time = time.monotonic()
+                epoch_mins, epoch_secs = fm.epoch_time(start_time, end_time)
+                print(f'Epoch: {epoch + 1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
+                print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
 
         #######################
         #   Train RL Policy   #
@@ -348,18 +346,14 @@ if __name__ == "__main__":
                 # sample episodes from long-term-memory
                 episodes = buffer_memory_policy.sample(n_samples_policy)
                 ## take all episodes from recent memory, and sampled episodes from long-term memory
-
                 episodes = (*zip(*episodes), *zip(*recent_memory_policy.sample(len(recent_memory_policy))))
                 #episodes = tuple(zip(*episodes))
                 #episodes = tuple(np.array(x) for x in episodes)
                 #print("episodes + recent = ", episodes)
-
                 episodes = ReplayMemory(len(recent_memory_policy) + n_samples_policy, args.seed, episodes)
-
                 # update networks using sac
                 critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, reward_avg, qf1_avg, qf2_avg, qf_target_avg = agent.update_parameters(
                     episodes, args.batch_size, policy_updates)
-
                 writer.add_scalar('loss/critic_1', critic_1_loss, policy_updates)
                 writer.add_scalar('loss/critic_2', critic_2_loss, policy_updates)
                 writer.add_scalar('loss/policy', policy_loss, policy_updates)
@@ -371,8 +365,7 @@ if __name__ == "__main__":
                 writer.add_scalar('value/critic_target', qf_target_avg, policy_updates)
                 policy_updates += 1
 
-                print("saving checkpoint now")
-                agent.save_checkpoint("puzzle_env", checkpoint_name)
-
+        agent.save_checkpoint("puzzle_env", checkpoint_name)
+        print(f"updated policy {args.updates_per_epoch} times")
     env.close()
 
