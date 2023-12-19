@@ -360,10 +360,10 @@ class PuzzleEnv(gym.Env):
             # give additional reward for pushing puzzle piece towards its goal position
             max_dist = np.linalg.norm(self.box_goal - self.box_init)
             box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            reward += 5 * box_reward
+            reward += box_reward
             # minimal negative distance between box and actor
             dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-            reward += 5 * dist[0]
+            reward += 0.1 * dist[0]
             print(" dist = ", dist)
             #if np.isclose(dist[0], 0) or dist[0] >= 0:
             #    reward += 0.5
@@ -374,9 +374,14 @@ class PuzzleEnv(gym.Env):
         if self.reward_on_change:
             # give this reward every time we are in goal symbolic state
             # not only when we change to it (such that it is markovian)
-            if (self.scene.sym_state == self.goal_sym_state).all():
-                # only get reward for moving the block, if that was the intention of the skill
-                reward += 1
+            if not (self.scene.sym_state == self.init_sym_state).all():
+                if (self.scene.sym_state == self.goal_sym_state).all():
+                    # only get reward for moving the block, if that was the intention of the skill
+                    reward += 1
+                else:
+                    # punish if wrong block was pushed
+                    reward -= 1
+
                 print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         return reward

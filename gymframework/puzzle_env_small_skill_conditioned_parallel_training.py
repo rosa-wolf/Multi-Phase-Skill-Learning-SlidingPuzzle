@@ -144,6 +144,9 @@ class PuzzleEnv(gym.Env):
 
         self.init_sym_state = None
 
+        # if true we are in the starting episodes where the environment may reward differently
+        self.starting_epis = False
+
         # load fully trained forward model
         self.fm = ForwardModel(width=2,
                                height=1,
@@ -431,12 +434,30 @@ class PuzzleEnv(gym.Env):
 
         """
         reward = 0
-        if self.skill_possible or True:
+
+        if self.starting_epis:
+            # reward for any change in sym state independent of skill
+            if not (self.init_sym_state == self.scene.sym_state).all():
+                print("SYM STATE CHANGED !!!")
+                reward += 50
+
+            # penalize being far away from all boxes
+            # penalty is negative distance to closest box
+            min_dist = - np.inf
+            for i in range(self.num_pieces):
+                # minimal negative distance between box and actor
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
+                if dist[0] > min_dist:
+                    min_dist = dist[0]
+
+            reward += 0.1 * min_dist
+
+        else:
             if not self.sparse_reward:
                 # give a small reward calculated by the forward model in every step
                 reward += 0.0001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                          self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                          self.skill)
+                                                            self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                            self.skill)
 
 
             # optionally give reward of one when box was successfully pushed to other field
@@ -444,12 +465,6 @@ class PuzzleEnv(gym.Env):
                 # give this reward every time we are in goal symbolic state
                 # not only when we change to it (such that it is markovian))
                 if not (self.init_sym_state == self.scene.sym_state).all():
-                    # only get reward for moving the block, if that was the intention of the skill
-                    if self.skill_possible:
-                        # reward += 50
-                        # take reward calculated using fm
-                        pass
-
                     reward += 50 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                             self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                             self.skill)

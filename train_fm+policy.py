@@ -44,7 +44,7 @@ parser.add_argument('--lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--critic_lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
-parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
+parser.add_argument('--alpha', type=float, default=5., metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
 parser.add_argument('--z_cov', type=float, default=10, metavar='G',
@@ -71,6 +71,8 @@ parser.add_argument('--replay_size', type=int, default=5000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
 parser.add_argument('--automatic_entropy_tuning', action='store_true',
                     help='Automaically adjust α (default: False)')
+parser.add_argument('--target_entropy', default=None, type=float,
+                    help='target entropy when automatic entropy tuning is true')
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 args = parser.parse_args()
@@ -124,6 +126,7 @@ if __name__ == "__main__":
                     term_on_change=True,
                     setback=False)
 
+    env.starting_epis = True
     env.seed(args.seed)
     env.action_space.seed(args.seed)
 
@@ -141,7 +144,7 @@ if __name__ == "__main__":
     # Training Loop
     # number of terminating transitions (episodes) we want to collect
     num_epochs = args.num_epochs
-    num_episodes = 5
+    num_episodes = 10
     total_num_steps = 0
     total_num_episodes = 0
 
@@ -189,7 +192,11 @@ if __name__ == "__main__":
         start_time = time.monotonic()
         for i_episode in range(num_episodes):
             total_num_episodes += 1
+
+            if total_num_episodes >= 1000:
+                env.starting_epis = False
             # get initial state
+
             episode_reward = 0
             episode_steps = 0
             terminated = False
@@ -214,7 +221,7 @@ if __name__ == "__main__":
                 reset = False
 
                 # only do this if fm is already being trained
-                if total_num_episodes > 1000:
+                if not env.starting_epis:
                     # do reset when state change is predicted as less than 50% probable
                     if (init_state == y_pred).all():
                         # fm model predicts skill execution is not possible
@@ -230,28 +237,26 @@ if __name__ == "__main__":
                 # sample action from skill conditioned policy
                 if total_num_episodes < 30:
                     action = env.action_space.sample()
+                    # add gaussian noise to action
+                    action = np.clip(action + 0.1 * np.random.normal(0, 0.1, 3), -1, 1)
                 else:
                     action = agent.select_action(state)
 
-                # add gaussian noise to action
-                action = np.clip(action + np.random.normal(0, 1), -1, 1)
+                    # add gaussian noise to action
+                    action = np.clip(action + 0.1 * np.random.normal(0, 0.05, 3), -1, 1)
 
                 next_state, reward, terminated, truncated, sym_state = env.step(action)
 
-                # for first 50 episodes give constant reward instead of reward calculated by forward model
-                if total_num_episodes <= 200:
-                    if terminated:
-                        reward = 50
-                        for _ in range(50):
-                            # if sym state changed append episode several times
-                            recent_memory_policy.push(state, action, reward, next_state, float(not terminated))
-                            buffer_memory_policy.push(state, action, reward, next_state, float(not terminated))
-                    else:
-                        reward = 0
+                # append transition more often if it lead to success
+                if terminated:
+                    for _ in range(49):
+                        # if sym state changed append episode several times
                         recent_memory_policy.push(state, action, reward, next_state, float(not terminated))
                         buffer_memory_policy.push(state, action, reward, next_state, float(not terminated))
 
-                print("reward = ", reward)
+                recent_memory_policy.push(state, action, reward, next_state, float(not terminated))
+                buffer_memory_policy.push(state, action, reward, next_state, float(not terminated))
+
                 # append to memory for policy training:
                 # first append them to list for relabeling
                 #tmp_episodes.append((state, action, reward, next_state, float(not terminated)))
@@ -259,10 +264,10 @@ if __name__ == "__main__":
                 episode_steps += 1
                 total_num_steps += 1
                 episode_reward += reward
-
                 state = next_state
 
-            writer.add_scalar('reward/train', episode_reward, i_episode)
+            print("writing episode reward to file:", episode_reward)
+            writer.add_scalar('reward/train', episode_reward, total_num_episodes)
             print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(total_num_episodes, total_num_steps,
                                                                                           episode_steps,
                                                                                           round(episode_reward, 2)))
@@ -306,7 +311,7 @@ if __name__ == "__main__":
         buffer_memory_policy.save_buffer(args.env_name, save_path="checkpoints/sac_memory/buffer" + str(args.env_name))
 
         # only start training the forward model after 200 epochs
-        if total_num_episodes >= 1000:
+        if not env.starting_epis:
             #######################
             # Train Forward Model #
             #######################
