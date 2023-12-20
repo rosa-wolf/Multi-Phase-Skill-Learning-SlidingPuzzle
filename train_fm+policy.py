@@ -44,11 +44,9 @@ parser.add_argument('--lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--critic_lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
-parser.add_argument('--alpha', type=float, default=5., metavar='G',
+parser.add_argument('--alpha', type=float, default=0.3, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--z_cov', type=float, default=10, metavar='G',
-                    help='Parameter for inverse cov of optimal z-position function (default: 10)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--batch_size', type=int, default=256, metavar='N', # default=256
@@ -57,6 +55,8 @@ parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
 parser.add_argument('--num_epochs', type=int, default=200000, metavar='N',
                     help='number of training epochs (default: 200000)')
+parser.add_argument('--num_start_epis', type=int, default=1000, metavar='N',
+                    help='number of start episodes where fm is not yet included in training (default: 1000)')
 parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
                     help='hidden size (default: 512)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
@@ -99,8 +99,8 @@ if __name__ == "__main__":
     fm = ForwardModel(width=2,
                       height=1,
                       num_skills=2,
-                      batch_size=10,
-                      learning_rate=0.0001)
+                      batch_size=100,
+                      learning_rate=0.001)
 
     # save model
     if not os.path.exists('models/'):
@@ -164,10 +164,10 @@ if __name__ == "__main__":
     n_samples_policy = 256
 
     # replay memory for policy
-    recent_memory_policy = ReplayMemory(20000, args.seed)
+    recent_memory_policy = ReplayMemory(50000, args.seed)
     buffer_memory_policy = ReplayMemory(100000, args.seed)
-    recent_memory_fm = FmReplayMemory(20, args.seed)
-    buffer_memory_fm = FmReplayMemory(100, args.seed)
+    recent_memory_fm = FmReplayMemory(100, args.seed)
+    buffer_memory_fm = FmReplayMemory(500, args.seed)
 
     load_memories = False
     if load_memories:
@@ -193,9 +193,8 @@ if __name__ == "__main__":
         for i_episode in range(num_episodes):
             total_num_episodes += 1
 
-            if total_num_episodes >= 1000:
+            if total_num_episodes > args.num_start_epis:
                 env.starting_epis = False
-            # get initial state
 
             episode_reward = 0
             episode_steps = 0
@@ -222,6 +221,7 @@ if __name__ == "__main__":
 
                 # only do this if fm is already being trained
                 if not env.starting_epis:
+                    print("testing for reset")
                     # do reset when state change is predicted as less than 50% probable
                     if (init_state == y_pred).all():
                         # fm model predicts skill execution is not possible
@@ -242,13 +242,12 @@ if __name__ == "__main__":
                 else:
                     action = agent.select_action(state)
 
-                    # add gaussian noise to action
-                    action = np.clip(action + 0.1 * np.random.normal(0, 0.05, 3), -1, 1)
-
                 next_state, reward, terminated, truncated, sym_state = env.step(action)
 
-                # append transition more often if it lead to success
+                print("reward = ", reward)
+                # append transition more often if it led to success
                 if terminated:
+                    print("terminated now")
                     for _ in range(49):
                         # if sym state changed append episode several times
                         recent_memory_policy.push(state, action, reward, next_state, float(not terminated))
@@ -332,7 +331,6 @@ if __name__ == "__main__":
             for _ in range(10):
                 train_loss, train_acc = fm.train(torch.from_numpy(episodes))
 
-                print("saving model now")
                 # don't save whole model, but only parameters
                 torch.save(fm.model.state_dict(), fm_path)
 
@@ -340,6 +338,8 @@ if __name__ == "__main__":
                 epoch_mins, epoch_secs = fm.epoch_time(start_time, end_time)
                 print(f'Epoch: {epoch + 1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
                 print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
+
+            print("updated forward model 10 times")
 
         #######################
         #   Train RL Policy   #

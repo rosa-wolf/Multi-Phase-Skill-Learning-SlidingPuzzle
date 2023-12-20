@@ -468,10 +468,13 @@ class PuzzleEnv(gym.Env):
                     reward += 50 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                             self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                             self.skill)
+
                     print("reward on change = ", reward)
                     # if reward is negative give a small positive reward instead
                     if reward < 0:
                         reward = 0
+                    else:
+                        reward += 10
 
 
 
