@@ -228,7 +228,7 @@ class PuzzleEnv(gym.Env):
         self.max_dist = np.linalg.norm(curr_pos - max_pos)
 
         # set init and goal position of box
-        self.box_init = self.scene.discrete_pos[self.skills[self.skill, 0]]
+        self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill, 0]]
         self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
 
         # calculate goal sym_state
@@ -269,12 +269,9 @@ class PuzzleEnv(gym.Env):
         q, _, _ = self.scene.state
         obs = q[:3]
 
-        # only take coordinates of relevant puzzle piece for now
-        obs = np.concatenate((obs, (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()))
-
-        # add neg distance between actor and relevant box to observation
-        dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-        obs = np.concatenate((obs, dist))
+        # add coordinates of all puzzle pieces
+        for i in range(self.num_pieces):
+            obs = np.concatenate((obs, ((self.scene.C.getFrame("box" + str(i)).getPosition()).copy())[:2]))
 
         # add executed skill to obervation/state (as one-hot encoding)
         one_hot = np.zeros(shape=self.num_skills)
@@ -294,10 +291,7 @@ class PuzzleEnv(gym.Env):
         shape = 3  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
 
         # add dimensions for position of all (relevant) puzzle pieces (x, y, z -position)
-        shape += 3 # (self.num_pieces + 1) * 3
-
-        # space for scalar neg distance
-        shape += 1
+        shape += self.num_pieces * 2
 
         # add space needed for one-hot encoding of skill
         shape += self.num_skills
@@ -362,7 +356,7 @@ class PuzzleEnv(gym.Env):
             # give additional reward for pushing puzzle piece towards its goal position
             max_dist = np.linalg.norm(self.box_goal - self.box_init)
             box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            reward += box_reward
+            reward += 2 * box_reward
             # minimal negative distance between box and actor
             if self.neg_dist_reward:
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
@@ -379,10 +373,10 @@ class PuzzleEnv(gym.Env):
             if not (self.scene.sym_state == self.init_sym_state).all():
                 if (self.scene.sym_state == self.goal_sym_state).all():
                     # only get reward for moving the block, if that was the intention of the skill
-                    reward += 1
+                    reward += 3
                 else:
                     # punish if wrong block was pushed
-                    reward -= 1
+                    reward -= 3
 
                 #print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 

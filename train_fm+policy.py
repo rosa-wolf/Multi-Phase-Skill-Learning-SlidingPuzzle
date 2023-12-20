@@ -165,9 +165,9 @@ if __name__ == "__main__":
 
     # replay memory for policy
     recent_memory_policy = ReplayMemory(50000, args.seed)
-    buffer_memory_policy = ReplayMemory(100000, args.seed)
-    recent_memory_fm = FmReplayMemory(100, args.seed)
-    buffer_memory_fm = FmReplayMemory(500, args.seed)
+    buffer_memory_policy = ReplayMemory(1000000, args.seed)
+    recent_memory_fm = FmReplayMemory(500, args.seed)
+    buffer_memory_fm = FmReplayMemory(5000, args.seed)
 
     load_memories = False
     if load_memories:
@@ -277,6 +277,11 @@ if __name__ == "__main__":
             # append to buffers
             recent_memory_fm.push(init_state, skill, term_state)
             buffer_memory_fm.push(init_state, skill, term_state)
+
+            if not (init_state == term_state).all():
+                for i in range(10):
+                    recent_memory_fm.push(init_state, skill, term_state)
+                    buffer_memory_fm.push(init_state, skill, term_state)
             #tmp_episodes.append((init_state, skill, term_state))
 
             #if not (init_state == term_state).all():

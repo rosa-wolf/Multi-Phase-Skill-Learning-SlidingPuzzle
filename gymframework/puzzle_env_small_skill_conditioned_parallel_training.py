@@ -455,7 +455,7 @@ class PuzzleEnv(gym.Env):
         else:
             if not self.sparse_reward:
                 # give a small reward calculated by the forward model in every step
-                reward += 0.0001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                             self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                             self.skill)
 
@@ -470,9 +470,9 @@ class PuzzleEnv(gym.Env):
                                                             self.skill)
 
                     print("reward on change = ", reward)
-                    # if reward is negative give a small positive reward instead
-                    if reward < 0:
-                        reward = 0
+                    # if reward is negative give a small negative reward instead
+                    if reward < -0.1:
+                        reward = -0.1
                     else:
                         reward += 10
 

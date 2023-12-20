@@ -16,7 +16,7 @@ fm = ForwardModel(width=2,
                       learning_rate=0.001)
 
 # save model
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/models/fm_trained-with-policy_fm-rl-parallel_new"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/models/fm_trained-with-policy_fm-rl-parallel_add-reward_auto-tuning"
 fm.model.load_state_dict(torch.load(fm_path))
 
 input_states = [np.array([0, 1]), np.array([1, 0])]
