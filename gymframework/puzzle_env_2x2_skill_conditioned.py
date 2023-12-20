@@ -34,6 +34,7 @@ class PuzzleEnv(gym.Env):
                  give_sym_obs=False,
                  sparse_reward=False,
                  reward_on_change=False,
+                 neg_dist_reward=True,
                  reward_on_end=False,
                  term_on_change=False,
                  verbose=0):
@@ -93,6 +94,7 @@ class PuzzleEnv(gym.Env):
         self.sparse_reward = sparse_reward
         self.reward_on_change = reward_on_change
         self.reward_on_end = reward_on_end
+        self.neg_dist_reward = neg_dist_reward
 
         # is skill execution possible?
         self.skill_possible = None
@@ -362,9 +364,9 @@ class PuzzleEnv(gym.Env):
             box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
             reward += box_reward
             # minimal negative distance between box and actor
-            dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-            reward += 0.1 * dist[0]
-            print(" dist = ", dist)
+            if self.neg_dist_reward:
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+                reward += 0.1 * dist[0]
             #if np.isclose(dist[0], 0) or dist[0] >= 0:
             #    reward += 0.5
             #    print("give 0.5")
@@ -382,7 +384,7 @@ class PuzzleEnv(gym.Env):
                     # punish if wrong block was pushed
                     reward -= 1
 
-                print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                #print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         return reward
 
