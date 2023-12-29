@@ -112,6 +112,8 @@ class PuzzleEnv(gym.Env):
         # and for calculating reward based on forward model
         self._old_sym_obs = self.scene.sym_state.copy()
 
+        self.init_sym_state = None
+
         # set init and goal position of box for calculating reward
         self.box_init = None
         self.box_goal = None
@@ -143,9 +145,7 @@ class PuzzleEnv(gym.Env):
 
         obs = self._get_observation()
 
-        if not self.reward_on_end:
-            # get reward (if we don't only want to give reward on last step of episode)
-            reward = self._reward()
+        reward = self._reward()
 
         # check if symbolic observation changed
         if self.term_on_change:
@@ -157,9 +157,6 @@ class PuzzleEnv(gym.Env):
         done = self._termination()
         if not done:
             self.env_step_counter += 1
-        else:
-            if self.reward_on_end:
-                reward = self._reward()
 
         print("reward = ", reward)
 
@@ -215,10 +212,12 @@ class PuzzleEnv(gym.Env):
         self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
         self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
 
+        self.init_sym_state = self.scene.sym_state.copy()
+
         return self._get_observation(), {}
 
     def seed(self, seed=None):
-        self.env_step_counter >= self._max_episode_steps
+        np.random.seed(seed)
         return [seed]
 
     def _termination(self):
@@ -240,13 +239,16 @@ class PuzzleEnv(gym.Env):
         Returns the observation:    Robot joint states and velocites and symbolic observation
                                     Executed Skill is also encoded in observation/state
         """
-        q, q_dot, sym_obs = self.scene.state
-        obs = q[:3]
+        q, _, _ = self.scene.state
 
-        # add position of relevant puzzle piece
-        obs = np.concatenate((obs, (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()))
+        # normalize state space (has influence on policy, because of the added noise)
+        # joint angles and box position are all in range [-0.25, 0.25]
+        obs = q[:3] * 4
 
-        return obs
+        # add x-and y-position of relevant puzzle piece
+        pos = ((self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy())[:2]
+
+        return np.concatenate((obs, pos * 4))
 
     @property
     def observation_space(self):
@@ -259,9 +261,9 @@ class PuzzleEnv(gym.Env):
         shape = 3  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
 
         # add dimensions for position of relevant puzzle piece (x, y, z -position)
-        shape += 3
+        shape += 2
 
-        return Box(low=-np.inf, high=np.inf, shape=(shape,), dtype=np.float64)
+        return Box(low=-1, high=1, shape=(shape,), dtype=np.float64)
 
     def apply_action(self, action):
         """
@@ -314,7 +316,7 @@ class PuzzleEnv(gym.Env):
             loc = self.scene.C.getJointState()[:3]  # current location
 
             # reward: max distance - current distance
-            #reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
+            reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
 
             dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
             reward += 0.1 * dist[0]
@@ -325,7 +327,8 @@ class PuzzleEnv(gym.Env):
 
         # optionally give reward of one when box was successfully pushed to other field
         if self.reward_on_change:
-            if not (self._old_sym_obs == self.scene.sym_state).all():
-               reward += 50
+            if not (self.init_sym_state == self.scene.sym_state).all():
+                print("SYM STATE CHANGED!!!")
+                reward += 50
 
         return reward

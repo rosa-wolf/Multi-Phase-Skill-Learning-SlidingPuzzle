@@ -1,3 +1,3 @@
-nohup python3 sac_training.py --hidden_size 512 --alpha 0.1 --batch_size 128 --skill 0 --num_epochs 2000000 --num_steps 100 --env_name skill0 --batch_size 256 --cuda > /dev/null 2>&1 &
-nohup python3 sac_training.py --hidden_size 512 --alpha 0.1 --batch_size 128 --skill 1 --num_epochs 2000000 --num_steps 100 --env_name skill1 --batch_size 256 --cuda > /dev/null 2>&1 &
-nohup python3 sac_training.py --hidden_size 512 --alpha 0.1 --batch_size 128 --skill 5 --num_epochs 2000000 --num_steps 100 --env_name skill5 --batch_size 256 --cuda > /dev/null 2>&1 &
+#!/bin/bash
+
+nohup python3 sac-fm_training.py  --num_epochs 10000 --env_name fm-policy-parallel > /dev/null 2>&1 &

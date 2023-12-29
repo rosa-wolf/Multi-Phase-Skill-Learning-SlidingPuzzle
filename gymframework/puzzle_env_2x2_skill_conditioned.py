@@ -1,11 +1,11 @@
 from typing import Optional, Tuple, Dict, Any
 
-import gym
+import gymnasium as gym
 import numpy as np
 import time
-from gym.core import ObsType, ActType
-from gym.spaces import Box, Dict, Discrete, MultiBinary
-from gym.utils import seeding
+from gymnasium.core import ObsType, ActType
+from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
+from gymnasium.utils import seeding
 from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
 import torch
@@ -117,7 +117,7 @@ class PuzzleEnv(gym.Env):
 
         # desired x-y-z coordinates of eef
         self.action_space = Box(low=np.array([-1., -1., -1.]), high=np.array([1., 1., 1.]), shape=(3,),
-                                dtype=np.float64)
+                                dtype=np.float32)
 
         # store symbolic observation from previous step to check for change in symbolic observation
         # and for calculating reward based on forward model
@@ -168,7 +168,7 @@ class PuzzleEnv(gym.Env):
 
         self.env_step_counter += 1
 
-        return obs, reward, self.terminated, self.truncated, self.scene.sym_state
+        return obs, reward, self.terminated, self.truncated, {}
 
     def reset(self,
               *,
@@ -239,7 +239,9 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        return self._get_observation(), self.init_sym_state
+        print("skill = ", self.skill)
+
+        return self._get_observation(), {}
 
     def seed(self, seed=None):
         np.random.seed(seed)
@@ -263,15 +265,15 @@ class PuzzleEnv(gym.Env):
 
     def _get_observation(self):
         """
-        Returns the observation:    Robot joint states and velocites and symbolic observation
+        Returns the normalized observation:    Robot joint states and velocites and symbolic observation
                                     Executed Skill is also encoded in observation/state
         """
         q, _, _ = self.scene.state
-        obs = q[:3]
+        obs = q[:3] * 4.
 
         # add coordinates of all puzzle pieces
         for i in range(self.num_pieces):
-            obs = np.concatenate((obs, ((self.scene.C.getFrame("box" + str(i)).getPosition()).copy())[:2]))
+            obs = np.concatenate((obs, ((self.scene.C.getFrame("box" + str(i)).getPosition()).copy())[:2] * 4.))
 
         # add executed skill to obervation/state (as one-hot encoding)
         one_hot = np.zeros(shape=self.num_skills)
@@ -296,7 +298,7 @@ class PuzzleEnv(gym.Env):
         # add space needed for one-hot encoding of skill
         shape += self.num_skills
 
-        return Box(low=-np.inf, high=np.inf, shape=(shape,), dtype=np.float64)
+        return Box(low=-1., high=1., shape=(shape,), dtype=np.float64)
 
     def apply_action(self, action):
         """
@@ -308,8 +310,8 @@ class PuzzleEnv(gym.Env):
         # (vel[0] - velocity in x-direction, vel[1] - velocity in y-direction)
         # vel[2] - velocity in z-direction (set to zero)
         # vel[3] - orientation, set to zero
-        action[:2] /= 4
-        action[2] = action[2] / (2/0.3) - 0.05
+        action[:3] /= 4
+        #action[2] = action[2] / (2/0.3) - 0.05
         # if limits are [-.25, .1]
 
         for _ in range(100):
@@ -351,16 +353,16 @@ class PuzzleEnv(gym.Env):
             loc = self.scene.C.getJointState()[:3]  # current location
 
             # reward: max distance - current distance
-            #reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
+            reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
 
             # give additional reward for pushing puzzle piece towards its goal position
             max_dist = np.linalg.norm(self.box_goal - self.box_init)
             box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            reward += 2 * box_reward
+            reward += box_reward
             # minimal negative distance between box and actor
             if self.neg_dist_reward:
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-                reward += 0.1 * dist[0]
+                reward += dist[0]
             #if np.isclose(dist[0], 0) or dist[0] >= 0:
             #    reward += 0.5
             #    print("give 0.5")
@@ -373,13 +375,12 @@ class PuzzleEnv(gym.Env):
             if not (self.scene.sym_state == self.init_sym_state).all():
                 if (self.scene.sym_state == self.goal_sym_state).all():
                     # only get reward for moving the block, if that was the intention of the skill
-                    reward += 3
+                    reward += 1
+                    print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 else:
                     # punish if wrong block was pushed
-                    reward -= 3
-
-                #print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
+                    reward -= 1
+                    print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return reward
 
     def relabel_all(self, episode):

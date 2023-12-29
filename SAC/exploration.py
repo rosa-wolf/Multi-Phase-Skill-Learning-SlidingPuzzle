@@ -1,12 +1,14 @@
 import gymnasium as gym
-from stable_baselines3 import SAC, HerReplayBuffer
-from torch.utils.tensorboard import SummaryWriter
-import argparse
-import torch
-import numpy as np
+from stable_baselines3 import SAC
+from stable_baselines3.common.monitor import Monitor
 
 from stable_baselines3.common import noise
 from stable_baselines3.common.env_checker import check_env
+import argparse
+import matplotlib.pyplot as plt
+
+import torch
+import numpy as np
 
 import os
 import sys
@@ -16,7 +18,7 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-from puzzle_env_small import PuzzleEnv
+from puzzle_env_small_skill_conditioned import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -48,11 +50,11 @@ parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
 #parser.add_argument('--eval', type=bool, default=True,
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
-parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.1, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
-parser.add_argument('--lr', type=float, default=0.001, metavar='G',
+parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
@@ -77,16 +79,23 @@ parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 args = parser.parse_args()
 
+if torch.cuda.is_available():
+    device = 'cuda'
+else:
+    device = 'cpu'
+
 # Environment
 env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                 max_steps=100,
                 random_init_board=False,
-                verbose=0,
+                verbose=1,
                 sparse_reward=False,
-                reward_on_change=False,
+                reward_on_change=True,
                 term_on_change=False,
                 reward_on_end=False,
                 snapRatio=args.snap_ratio)
+
+check_env(env)
 
 env.seed(args.seed)
 env.action_space.seed(args.seed)
@@ -94,41 +103,43 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-env.reset()
-
-check_env(env)
-
-if args.cuda:
-    device = 'cuda'
-else:
-    device = 'cpu'
-
-checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed) + "_vel_steps" + str(args.vel_steps)
-
 # initialize SAC
 model = SAC("MlpPolicy",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=args.start_steps,
             batch_size=args.batch_size,  # mini-batch size for each gradient update
-            #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
-            #train_freq=(1, "step"),
-            #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
+            gradient_steps=-1, # do as many gradient steps as steps done in the env
             ent_coef='auto',
-            #use_sde=True, # use state dependent exploration
-            #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
-            #stats_window_size=args.batch_size,
-            tensorboard_log="checkpoints/stable_baselines_log",
+            target_entropy=-2.5,
             device=device,
             verbose=1)
 
-model.learn(total_timesteps=args.num_epochs * 100,
-            log_interval=10,
-            tb_log_name=checkpoint_name,
-            progress_bar=True)
 
-model.save(checkpoint_name)
+obs, _ = env.reset()
+actions = []
+for _ in range(1000):
+    action, _states = model.predict(obs)
+    actions.append(action)
+    obs, reward, terminated, truncated, _ = env.step(action)
+    if terminated or truncated:
+        obs, _ = env.reset()
+
 del model
+env.close()
+
+# plot the actions as points in a 3D graph
+actions = np.array(actions)
+fig = plt.figure(figsize=(14, 9))
+ax = plt.axes(projection = '3d')
+#ax.plot_wireframe(x, y, z, color='black')
+ax.scatter(actions[:, 0], actions[:, 1], actions[:, 2])
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
+plt.title("Sampled Actions of untrained agent")
+plt.show()
+plt.savefig("Exploration.png")
+
+# after 140 epis actor learned skill-conditioned with reward shaping when skill execution is always possible

@@ -570,7 +570,7 @@ class ForwardModel(nn.Module):
 
 
 
-    def calculate_reward(self, start, end, k, normalize=True):
+    def calculate_reward(self, start, end, k, normalize=True) -> float:
         """
         Calculate the reward, that the skill-conditioned policy optimization gets when it does a successful transition
         from state start to state end using skill k
@@ -610,7 +610,7 @@ class ForwardModel(nn.Module):
         y_pred = self.model(input)
 
         # calculate probability to transition to state z_T for each skill
-        # we are only interested in the probabilitie of the correct field being empty
+        # we are only interested in the probability of the correct field being empty
         y_pred = y_pred[:, torch.where(end == 1)[0][0]]
 
         sum_of_probs = torch.sum(y_pred)
@@ -619,5 +619,51 @@ class ForwardModel(nn.Module):
             return np.log(y_pred[k].item() / sum_of_probs.item()) + np.log(self.num_skills)
 
         return np.log(y_pred[k].item() / sum_of_probs.item())
+
+    def novelty_bonus(self, start, end) -> float:
+        """
+        given the transition from start to end, returns
+
+                max_k' q(z_end | z_start, k')
+
+        Args:
+            :param start (z_0) : one-hot encoding of empty field agent starts in
+            :param end (z_T): one-hot encoding of empty field agent should end
+        """
+
+        ####################################################
+        # go through all skills and get sum of likelihoods #
+        ####################################################
+        # get model prediction of transitioning from z_0 with each skill
+        start = torch.from_numpy(start)
+        end = torch.from_numpy(end)
+        end = end.to(self.device)
+
+        # get one_hot encoding for all skills
+        one_hot = torch.eye(self.num_skills)
+        # concatenate with input state z_0
+        input = start.repeat(self.num_skills, 1)
+        input = torch.concatenate((input, one_hot), axis=1)
+
+        input = input.to(self.device)
+        if self.precision == 'float64':
+            input = input.to(torch.float64)
+        else:
+            input = input.to(torch.float32)
+
+        y_pred = self.model(input)
+
+        # calculate probability to transition to state z_T for each skill
+        # we are only interested in the probability of the correct field being empty
+        y_pred = y_pred[:, torch.where(end == 1)[0][0]]
+
+        # bonus is large if no skill induces this transition
+        # if another skill induces this transition bonus is small, discouraging skill from also being conditioned on
+        # this behaviour
+        # if skill itself induces this transition bonus is small, but then skill is already well conditioned, so this 7
+        # should not be a problem
+        bonus = - torch.max(torch.log(y_pred))
+
+        return bonus
 
 

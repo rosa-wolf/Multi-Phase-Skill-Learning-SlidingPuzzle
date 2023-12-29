@@ -49,7 +49,7 @@ class PuzzleScene:
 
         # TODO: don't hardcode joint limits
         # joint limits (x, y, z) limits
-        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.2, .1]])
+        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.25, .25]])
         # set limits farther outside, such that it is more likely to explore on edge of puzzle board
         #self.q_lim = np.array([[-1., 1.], [-1., 1.], [-1., 1.]])
         #self.X0 = self.C.getFrameState()

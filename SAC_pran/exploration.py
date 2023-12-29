@@ -1,9 +1,6 @@
 import gymnasium as gym
-from stable_baselines3 import SAC, HerReplayBuffer
-from stable_baselines3.common.monitor import Monitor
-from torch.utils.tensorboard import SummaryWriter
-from stable_baselines3.common.evaluation import evaluate_policy
 import argparse
+import matplotlib.pyplot as plt
 
 import torch
 import numpy as np
@@ -16,9 +13,13 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-#from puzzle_env_small import PuzzleEnv
-#from puzzle_env_small_skill_conditioned import PuzzleEnv
-from puzzle_env_small_skill_conditioned_parallel_training import PuzzleEnv
+mod_dir = os.path.join(dir, "../../pytorch-soft-actor-critic/")
+sys.path.append(mod_dir)
+mod_dir = os.path.join(dir, "../../pytorch-soft-actor-critic/")
+sys.path.append(mod_dir)
+
+from sac import SAC
+from puzzle_env_small_skill_conditioned import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -52,15 +53,17 @@ parser.add_argument('--policy', default="Gaussian",
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
-parser.add_argument('--tau', type=float, default=0.1, metavar='G',
+parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
 parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
+parser.add_argument('--automatic_entropy_tuning', action="store_true",
                     help='Automaically adjust α (default: False)')
+parser.add_argument('--target_entropy', default=None, type=float,
+                    help='target entropy when automatic entropy tuning is true')
 parser.add_argument('--batch_size', type=int, default=256, metavar='N', # default=256
                     help='batch size (default: 256)')
 parser.add_argument('--num_epochs', type=int, default=200000, metavar='N',
@@ -79,33 +82,21 @@ parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 args = parser.parse_args()
 
-if args.cuda:
+if torch.cuda.is_available():
     device = 'cuda'
 else:
     device = 'cpu'
 
-# load SAC model
-#log_dir = "checkpoints/single-push"
-#log_dir = "checkpoints/skill-conditioned-always-possible"
-#log_dir = "checkpoints/skill-conditioned-sparse"
-#log_dir = "checkpoints/init-epis-parallel-sparse"
-log_dir = "checkpoints/test"
-fm_dir = log_dir + "/fm"
-
 # Environment
 env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                 max_steps=100,
-                num_skills=2,
+                random_init_board=False,
                 verbose=1,
-                fm_path=fm_dir + "/fm",
-                sparse_reward=True,
-                reward_on_change=args.reward_on_change,
+                sparse_reward=False,
+                reward_on_change=True,
                 term_on_change=False,
                 reward_on_end=False,
                 snapRatio=args.snap_ratio)
-
-# use different seed than in training
-seed = 98765
 
 env.seed(args.seed)
 env.action_space.seed(args.seed)
@@ -113,20 +104,34 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load(log_dir + "/model/model_100000_steps", evn=env)
+# init sac agent with same parameters as stable baseline sac agent
+print(env.observation_space.shape)
+print(env.action_space.shape)
+agent = SAC(env.observation_space.shape[0], env.action_space, args)
 
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
-
-print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()
-for _ in range(1000):
-    action, _states = model.predict(obs, deterministic=True)
+actions = []
+for _ in range(2000):
+    action = agent.select_action(obs)
+    actions.append(action)
     obs, reward, terminated, truncated, _ = env.step(action)
     if terminated or truncated:
         obs, _ = env.reset()
 
-del model
 env.close()
+
+# plot the actions as points in a 3D graph
+actions = np.array(actions)
+fig = plt.figure(figsize=(14, 9))
+ax = plt.axes(projection = '3d')
+#ax.plot_wireframe(x, y, z, color='black')
+ax.scatter(actions[:, 0], actions[:, 1], actions[:, 2])
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
+plt.title("Sampled Actions of untrained agent (Implementation of Pran et al.)")
+plt.show()
+plt.savefig("Exploration_pran.png")
 
 # after 140 epis actor learned skill-conditioned with reward shaping when skill execution is always possible

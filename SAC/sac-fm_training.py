@@ -1,12 +1,16 @@
 import gymnasium as gym
 from stable_baselines3 import SAC, HerReplayBuffer
-from stable_baselines3.common.monitor import Monitor
 from torch.utils.tensorboard import SummaryWriter
-from stable_baselines3.common.evaluation import evaluate_policy
 import argparse
-
 import torch
 import numpy as np
+
+from stable_baselines3.common import noise
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, StopTrainingOnMaxEpisodes
+
+from callbacks.fm_callback import FmCallback
 
 import os
 import sys
@@ -50,18 +54,18 @@ parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
 #parser.add_argument('--eval', type=bool, default=True,
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.1, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
-parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
+parser.add_argument('--lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
                     help='Automaically adjust α (default: False)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N', # default=256
+parser.add_argument('--batch_size', type=int, default=128, metavar='N', # default=256
                     help='batch size (default: 256)')
 parser.add_argument('--num_epochs', type=int, default=200000, metavar='N',
                     help='number of training epochs (default: 200000)')
@@ -73,39 +77,33 @@ parser.add_argument('--start_steps', type=int, default=1000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
-parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
+parser.add_argument('--replay_size', type=int, default=10000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
-parser.add_argument('--cuda', action="store_true",
-                    help='run on CUDA (default: False)')
 args = parser.parse_args()
 
-if args.cuda:
+if torch.cuda.is_available():
     device = 'cuda'
 else:
     device = 'cpu'
 
-# load SAC model
-#log_dir = "checkpoints/single-push"
-#log_dir = "checkpoints/skill-conditioned-always-possible"
-#log_dir = "checkpoints/skill-conditioned-sparse"
-#log_dir = "checkpoints/init-epis-parallel-sparse"
-log_dir = "checkpoints/test"
+log_dir = "checkpoints/" + args.env_name
+os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
+os.makedirs(fm_dir, exist_ok=True)
 
 # Environment
 env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                 max_steps=100,
                 num_skills=2,
-                verbose=1,
+                verbose=0,
                 fm_path=fm_dir + "/fm",
                 sparse_reward=True,
-                reward_on_change=args.reward_on_change,
+                reward_on_change=True,
                 term_on_change=False,
                 reward_on_end=False,
                 snapRatio=args.snap_ratio)
 
-# use different seed than in training
-seed = 98765
+check_env(env)
 
 env.seed(args.seed)
 env.action_space.seed(args.seed)
@@ -113,20 +111,53 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load(log_dir + "/model/model_100000_steps", evn=env)
+checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" + str(args.sparse) + "_seed" + str(
+        args.seed)
 
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
+# initialize callbacks
+# Save a checkpoint every 1000 steps
+checkpoint_callback = CheckpointCallback(
+  save_freq=100,
+  save_path=log_dir + "/model/",
+  name_prefix="model",
+  save_replay_buffer=True,
+  save_vecnormalize=True,
+)
 
+# callback for updating and training fm
+fm_callback = FmCallback(update_freq=100, save_path=log_dir + "/fm", seed=args.seed)
 
-print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset()
-for _ in range(1000):
-    action, _states = model.predict(obs, deterministic=True)
-    obs, reward, terminated, truncated, _ = env.step(action)
-    if terminated or truncated:
-        obs, _ = env.reset()
+callback = CallbackList([checkpoint_callback, fm_callback])
+
+# initialize SAC
+model = SAC("MlpPolicy",  # could also use CnnPolicy
+            env,        # gym env
+            learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
+            buffer_size=args.replay_size,
+            learning_starts=10, # when learning should start to prevent learning on little data
+            batch_size=args.batch_size,  # mini-batch size for each gradient update
+            #tau=args.tau,  # update for polyak update
+            gamma=args.gamma,  # learning rate
+            gradient_steps=-1, # do as many gradient steps as steps done in the env
+            #train_freq=(1, "step"),
+            #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
+            ent_coef='auto',
+            target_entropy=-2.5,
+            #use_sde=True, # use state dependent exploration
+            #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
+            #stats_window_size=args.batch_size,
+            tensorboard_log=log_dir,
+            device=device,
+            verbose=1)
+
+model.learn(total_timesteps=args.num_epochs * 100,
+            log_interval=5,
+            tb_log_name="tb_logs",
+            progress_bar=False,
+            callback=callback)
+
+mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=20)
+print(f"mean_reward = {mean_reward}, std_reward = {std_reward}")
 
 del model
 env.close()
-
-# after 140 epis actor learned skill-conditioned with reward shaping when skill execution is always possible
