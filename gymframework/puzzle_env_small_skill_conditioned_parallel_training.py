@@ -101,14 +101,11 @@ class PuzzleEnv(gym.Env):
                                learning_rate=0.001)
 
         self.fm_path = fm_path
-        torch.save(self.fm.model.state_dict(), fm_path)
-        #if self.fm_path is None:
-        #    self.fm.model.load_state_dict(
-        #        torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
-        #else:
-        #    # load forward model we currently train
-        #    self.fm.model.load_state_dict(torch.load(self.fm_path))
-        #self.fm.model.eval()
+        if self.fm_path is None:
+            self.fm.model.load_state_dict(
+                torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
+        else:
+            torch.save(self.fm.model.state_dict(), fm_path)
 
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
         """
@@ -189,7 +186,7 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
-        if self.episode > 1000:
+        if self.episode > 5000:
             self.starting_epis = False
 
         # sample skill

@@ -117,7 +117,7 @@ checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" +
 # initialize callbacks
 # Save a checkpoint every 1000 steps
 checkpoint_callback = CheckpointCallback(
-  save_freq=100,
+  save_freq=5000,
   save_path=log_dir + "/model/",
   name_prefix="model",
   save_replay_buffer=True,
@@ -151,7 +151,7 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             verbose=1)
 
 model.learn(total_timesteps=args.num_epochs * 100,
-            log_interval=5,
+            log_interval=10,
             tb_log_name="tb_logs",
             progress_bar=False,
             callback=callback)

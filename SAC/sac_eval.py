@@ -97,7 +97,6 @@ env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                 max_steps=100,
                 num_skills=2,
                 verbose=1,
-                fm_path=fm_dir + "/fm",
                 sparse_reward=True,
                 reward_on_change=args.reward_on_change,
                 term_on_change=False,
@@ -113,7 +112,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load(log_dir + "/model/model_100000_steps", evn=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/fm-policy-parallel/model/model_1000000_steps", evn=env)
 
 mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 

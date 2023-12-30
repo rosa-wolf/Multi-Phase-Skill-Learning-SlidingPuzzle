@@ -18,12 +18,10 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-from puzzle_env_2x2_skill_conditioned import PuzzleEnv
-
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
-                    help='Mujoco Gym environment (default: HalfCheetah-v2)')
+                    help='custom gym environment')
 parser.add_argument('--snap_ratio', default=4., type=float,
                     help='1/Ratio of when symbolic state changes, if box is pushed')
 parser.add_argument('--num_skills', default=8, type=int,
@@ -81,18 +79,31 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
+
 # Environment
-env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                seed=args.seed,
-                num_skills=args.num_skills,
-                max_steps=args.num_steps,
-                verbose=0,
-                sparse_reward=True,
-                reward_on_change=True,
-                neg_dist_reward=True,
-                term_on_change=False,
-                reward_on_end=False,
-                snapRatio=args.snap_ratio)
+match args.env_name:
+    case "skill_conditioned_2x2":
+        from puzzle_env_2x2_skill_conditioned import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                        max_steps=100,
+                        verbose=0,
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        neg_dist_reward=False,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
+    case "skill_conditioned_3x3":
+        from puzzle_env_3x3_skill_conditioned import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                        max_steps=100,
+                        verbose=0,
+                        sparse_reward=False,
+                        reward_on_change=True,
+                        neg_dist_reward=True,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
 
 check_env(env)
 
@@ -102,7 +113,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/2x2-2-skills-sparse"
+log_dir = "checkpoints/" + args.env_name
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
@@ -113,17 +124,12 @@ checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" +
 # initialize callbacks
 # Save a checkpoint every 1000 steps
 checkpoint_callback = CheckpointCallback(
-  save_freq=1000,
+  save_freq=5000,
   save_path=log_dir + "/model/",
   name_prefix="model",
   save_replay_buffer=True,
   save_vecnormalize=True,
 )
-# stop training on max episodes regardless of number of timesteps
-# useful when we end episode on change of symbolic state
-#callback_max_episodes = StopTrainingOnMaxEpisodes(max_episodes=args.num_epochs, verbose=1)
-
-#callback = CallbackList([checkpoint_callback, callback_max_episodes])
 
 # initialize SAC
 model = SAC("MlpPolicy",  # could also use CnnPolicy
@@ -147,13 +153,10 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             verbose=1)
 
 model.learn(total_timesteps=args.num_epochs * 100,
-            log_interval=5,
+            log_interval=10,
             tb_log_name="tb_logs",
-            progress_bar=True,
+            progress_bar=False,
             callback=checkpoint_callback)
-
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=20)
-print(f"mean_reward = {mean_reward}, std_reward = {std_reward}")
 
 del model
 env.close()
