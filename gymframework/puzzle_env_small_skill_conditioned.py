@@ -132,23 +132,23 @@ class PuzzleEnv(gym.Env):
 
         self.init_sym_state = None
 
-        # load fully trained forward model
-        self.fm = ForwardModel(width=2,
-                               height=1,
-                               num_skills=2,
-                               batch_size=10,
-                               learning_rate=0.001)
-
-        self.fm_path = fm_path
-        if self.fm_path is None:
-            self.fm.model.load_state_dict(
-                torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
-        else:
-            # load forward model we currently train
-            self.fm.model.load_state_dict(torch.load(self.fm_path))
-        self.fm.model.eval()
-        # reset to make sure that skill execution is possible after env initialization
-        #self.reset()
+        ## load fully trained forward model
+        #self.fm = ForwardModel(width=2,
+        #                       height=1,
+        #                       num_skills=2,
+        #                       batch_size=10,
+        #                       learning_rate=0.001)
+#
+        #self.fm_path = fm_path
+        #if self.fm_path is None:
+        #    self.fm.model.load_state_dict(
+        #        torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
+        #else:
+        #    # load forward model we currently train
+        #    self.fm.model.load_state_dict(torch.load(self.fm_path))
+        #self.fm.model.eval()
+        ## reset to make sure that skill execution is possible after env initialization
+        ##self.reset()
 
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
         """
@@ -394,7 +394,7 @@ class PuzzleEnv(gym.Env):
 
         """
         reward = 0
-        if self.skill_possible or True:
+        if self.skill_possible:
             if not self.sparse_reward:
                 # read out position of box that should be pushed
                 box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
@@ -448,6 +448,7 @@ class PuzzleEnv(gym.Env):
                     reward -= 1
                     print("SYM STATE CHANGED BUT SHOULD NOT HAVE")
 
+        print("reward = ", reward)
 
         return reward
 

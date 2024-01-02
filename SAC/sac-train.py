@@ -124,13 +124,10 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name
+log_dir = "checkpoints/" + args.env_name + "epochs_sparse" + str(args.sparse)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
-
-checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed)
 
 # initialize callbacks
 # Save a checkpoint every 1000 steps

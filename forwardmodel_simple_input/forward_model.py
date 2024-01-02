@@ -620,7 +620,7 @@ class ForwardModel(nn.Module):
 
         return np.log(y_pred[k].item() / sum_of_probs.item())
 
-    def novelty_bonus(self, start, end) -> float:
+    def novelty_bonus(self, start, end, skill) -> float:
         """
         given the transition from start to end, returns
 
@@ -629,6 +629,7 @@ class ForwardModel(nn.Module):
         Args:
             :param start (z_0) : one-hot encoding of empty field agent starts in
             :param end (z_T): one-hot encoding of empty field agent should end
+            :skill: as scalar(NOT as one-hot encoding!!!)
         """
 
         ####################################################
@@ -657,13 +658,11 @@ class ForwardModel(nn.Module):
         # we are only interested in the probability of the correct field being empty
         y_pred = y_pred[:, torch.where(end == 1)[0][0]]
 
-        # bonus is large if no skill induces this transition
-        # if another skill induces this transition bonus is small, discouraging skill from also being conditioned on
-        # this behaviour
-        # if skill itself induces this transition bonus is small, but then skill is already well conditioned, so this 7
-        # should not be a problem
-        bonus = - torch.max(torch.log(y_pred))
+        idx = torch.arange(y_pred.shape[0])
+        y_pred = y_pred[idx != skill]
 
-        return bonus
+        # additional bonus if for all other skills fm believes transition to be unlikely
+
+        return - torch.max(torch.log(y_pred))
 
 

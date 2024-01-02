@@ -75,6 +75,7 @@ class PuzzleEnv(gym.Env):
         self.terminated = False
         self.truncated = False
         self.env_step_counter = 0
+        self.total_env_steps = 0
         self._max_episode_steps = max_steps
         self.episode = 0
 
@@ -122,6 +123,7 @@ class PuzzleEnv(gym.Env):
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
 
+        self.total_env_steps += 1
         # store current symbolic observation before executing action
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -157,12 +159,16 @@ class PuzzleEnv(gym.Env):
                 # execution was no possible
                 # only add reward if we did not yet do this when calculating reward
                 if (self._old_sym_obs == self.scene.sym_state).all():
-                    reward += self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                    # give scaled down novelty bonus after some initial time
+                    # where we only want to learn to induce change
+                    pass
+                if self.total_env_steps > 15000:
+                    reward += np.max(-0.5, self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                       self.skill)
+                                                       self.skill))
 
 
-                    print("reward_on_end")
+                    print("reward_on_end = ", reward)
 
         return (obs,
                 reward,
@@ -203,7 +209,7 @@ class PuzzleEnv(gym.Env):
         # randomly pick the field where no block is initially
         field = np.delete(np.arange(0, self.scene.pieces + 1),
                           np.random.choice(np.arange(0, self.scene.pieces + 1)))
-
+        print("empty field = ", field)
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
         sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
@@ -317,11 +323,14 @@ class PuzzleEnv(gym.Env):
             # reward for any change in sym state independent of skill
             if not (self.init_sym_state == self.scene.sym_state).all():
                 print("SYM STATE CHANGED !!!")
-                reward += 1
+                #reward += 1
 
                 # add novelty bonus (min + 0)
-                reward += self.fm.novelty_bonus(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                self.fm.sym_state_to_input(self.scene.sym_state.flatten()))
+                reward += 10 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+                                                self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                self.skill)
+
+                print("reward = ", reward)
 
 
             if not self.sparse_reward:
@@ -359,8 +368,6 @@ class PuzzleEnv(gym.Env):
                         reward = -0.1
                     else:
                         reward += 10
-
-
 
         return reward
 
