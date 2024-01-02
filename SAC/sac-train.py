@@ -82,13 +82,24 @@ else:
 
 # Environment
 match args.env_name:
+    case "skill_conditioned_1x2":
+        from puzzle_env_small_skill_conditioned import PuzzleEnv
+
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                        max_steps=100,
+                        verbose=0,
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
     case "skill_conditioned_2x2":
         from puzzle_env_2x2_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                         max_steps=100,
                         verbose=0,
-                        sparse_reward=True,
-                        reward_on_change=True,
+                        sparse_reward=args.sparse,
+                        reward_on_change=args.reward_on_change,
                         neg_dist_reward=False,
                         term_on_change=False,
                         reward_on_end=False,
@@ -127,7 +138,7 @@ checkpoint_callback = CheckpointCallback(
   save_freq=5000,
   save_path=log_dir + "/model/",
   name_prefix="model",
-  save_replay_buffer=True,
+  save_replay_buffer=False,
   save_vecnormalize=True,
 )
 
@@ -144,7 +155,7 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             #train_freq=(1, "step"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
-            target_entropy=-2.5,
+            target_entropy=-3.,
             #use_sde=True, # use state dependent exploration
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
@@ -155,7 +166,7 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
 model.learn(total_timesteps=args.num_epochs * 100,
             log_interval=10,
             tb_log_name="tb_logs",
-            progress_bar=False,
+            progress_bar=True,
             callback=checkpoint_callback)
 
 del model

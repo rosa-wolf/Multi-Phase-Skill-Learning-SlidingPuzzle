@@ -16,10 +16,6 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-#from puzzle_env_small import PuzzleEnv
-#from puzzle_env_small_skill_conditioned import PuzzleEnv
-from puzzle_env_small_skill_conditioned_parallel_training import PuzzleEnv
-
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', default="HalfCheetah-v2",
@@ -92,16 +88,42 @@ else:
 log_dir = "checkpoints/test"
 fm_dir = log_dir + "/fm"
 
+
 # Environment
-env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                max_steps=100,
-                num_skills=2,
-                verbose=1,
-                sparse_reward=True,
-                reward_on_change=args.reward_on_change,
-                term_on_change=False,
-                reward_on_end=False,
-                snapRatio=args.snap_ratio)
+match args.env_name:
+    case "skill_conditioned_2x2":
+        from puzzle_env_2x2_skill_conditioned import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                        max_steps=100,
+                        verbose=1,
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        neg_dist_reward=False,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
+    case "skill_conditioned_3x3":
+        from puzzle_env_3x3_skill_conditioned import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                        max_steps=100,
+                        verbose=1,
+                        sparse_reward=False,
+                        reward_on_change=True,
+                        neg_dist_reward=True,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
+    case "parallel_1x2":
+        from puzzle_env_small_skill_conditioned_parallel_training import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                        max_steps=100,
+                        num_skills=2,
+                        verbose=1,
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        term_on_change=True,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
 
 # use different seed than in training
 seed = 98765
@@ -112,15 +134,15 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/fm-policy-parallel/model/model_1000000_steps", evn=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/fm-policy-parallel/model/model_108000_steps", evn=env)
 
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
+#mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
-print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
+#print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()
-for _ in range(1000):
-    action, _states = model.predict(obs, deterministic=True)
+for _ in range(2000):
+    action, _states = model.predict(obs, deterministic=False)
     obs, reward, terminated, truncated, _ = env.step(action)
     if terminated or truncated:
         obs, _ = env.reset()

@@ -99,8 +99,8 @@ env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                 fm_path=fm_dir + "/fm",
                 sparse_reward=True,
                 reward_on_change=True,
-                term_on_change=False,
-                reward_on_end=False,
+                term_on_change=True,
+                reward_on_end=args.reward_on_end,
                 snapRatio=args.snap_ratio)
 
 check_env(env)
@@ -117,15 +117,15 @@ checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" +
 # initialize callbacks
 # Save a checkpoint every 1000 steps
 checkpoint_callback = CheckpointCallback(
-  save_freq=5000,
+  save_freq=1000,
   save_path=log_dir + "/model/",
   name_prefix="model",
-  save_replay_buffer=True,
+  save_replay_buffer=False,
   save_vecnormalize=True,
 )
 
 # callback for updating and training fm
-fm_callback = FmCallback(update_freq=100, save_path=log_dir + "/fm", seed=args.seed)
+fm_callback = FmCallback(update_freq=500, save_path=log_dir + "/fm", seed=args.seed)
 
 callback = CallbackList([checkpoint_callback, fm_callback])
 
@@ -142,7 +142,6 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             #train_freq=(1, "step"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
-            target_entropy=-2.5,
             #use_sde=True, # use state dependent exploration
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
@@ -153,7 +152,7 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
 model.learn(total_timesteps=args.num_epochs * 100,
             log_interval=10,
             tb_log_name="tb_logs",
-            progress_bar=False,
+            progress_bar=True,
             callback=callback)
 
 mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=20)

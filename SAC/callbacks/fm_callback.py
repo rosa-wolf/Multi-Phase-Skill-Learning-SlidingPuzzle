@@ -74,7 +74,7 @@ class FmCallback(BaseCallback):
             # Todo: update fm
             if len(self.buffer) >= self.sample_size:
                 # update fm several times
-                for _ in range(1):
+                for _ in range(2):
                     # sample from buffer
                     episodes = self.buffer.sample(self.sample_size)
 
