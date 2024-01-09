@@ -139,7 +139,7 @@ class PuzzleEnv(gym.Env):
         #                       batch_size=10,
         #                       learning_rate=0.001)
 #
-        #self.fm_path = fm_path
+        self.fm_path = fm_path
         #if self.fm_path is None:
         #    self.fm.model.load_state_dict(
         #        torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))

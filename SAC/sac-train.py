@@ -124,7 +124,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name + "epochs_sparse" + str(args.sparse)
+log_dir = "checkpoints/" + args.env_name
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
@@ -144,10 +144,10 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=10, # when learning should start to prevent learning on little data
+            learning_starts=1000, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
-            gamma=args.gamma,  # learning rate
+            gamma=args.gamma, # discount factor
             gradient_steps=-1, # do as many gradient steps as steps done in the env
             #train_freq=(1, "step"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
@@ -161,7 +161,7 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             verbose=1)
 
 model.learn(total_timesteps=args.num_epochs * 100,
-            log_interval=10,
+            log_interval=1,
             tb_log_name="tb_logs",
             progress_bar=True,
             callback=checkpoint_callback)

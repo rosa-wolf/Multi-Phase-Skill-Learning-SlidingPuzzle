@@ -659,7 +659,7 @@ class ForwardModel(nn.Module):
         y_pred = y_pred[:, torch.where(end == 1)[0][0]]
 
         idx = torch.arange(y_pred.shape[0])
-        y_pred = y_pred[idx != skill]
+        #y_pred = y_pred[idx != skill]
 
         # additional bonus if for all other skills fm believes transition to be unlikely
 

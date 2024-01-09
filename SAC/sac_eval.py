@@ -134,7 +134,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/fm-policy-parallel/model/model_108000_steps", evn=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/test/model/model_231000_steps", evn=env)
 
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
@@ -142,7 +142,7 @@ model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()
 for _ in range(2000):
-    action, _states = model.predict(obs, deterministic=False)
+    action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     if terminated or truncated:
         obs, _ = env.reset()

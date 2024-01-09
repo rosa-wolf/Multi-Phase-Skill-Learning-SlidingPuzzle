@@ -16,7 +16,7 @@ fm = ForwardModel(width=2,
                       learning_rate=0.001)
 
 # save model
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/fm-policy-parallel/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/fm-policy-parallel-r-on-end/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
 
 input_states = [np.array([0, 1]), np.array([1, 0])]
