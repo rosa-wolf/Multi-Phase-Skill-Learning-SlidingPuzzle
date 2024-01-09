@@ -110,8 +110,8 @@ match args.env_name:
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         max_steps=100,
-                        verbose=1,
-                        sparse_reward=False,
+                        verbose=0,
+                        sparse_reward=args.sparse,
                         reward_on_change=args.reward_on_change,
                         neg_dist_reward=args.neg_dist_reward,
                         movement_reward=args.movement_reward,
@@ -127,7 +127,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + args_movement_reward
+log_dir = "checkpoints/" + args.env_name + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
