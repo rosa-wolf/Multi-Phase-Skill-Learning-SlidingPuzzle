@@ -20,15 +20,11 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-#from puzzle_env_small import PuzzleEnv
-#from puzzle_env_small_skill_conditioned import PuzzleEnv
-from puzzle_env_small_skill_conditioned_parallel_training import PuzzleEnv
-
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', default="HalfCheetah-v2",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--skill', default=0, type=int,
+parser.add_argument('--num_skills', default=2, type=int,
                     help='Enumeration of the skill to train')
 parser.add_argument('--vel_steps', default=1, type=int,
                     help='Number of times to apply velocity control in one step of the agent')
@@ -91,17 +87,35 @@ os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
 os.makedirs(fm_dir, exist_ok=True)
 
-# Environment
-env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                max_steps=100,
-                num_skills=2,
-                verbose=0,
-                fm_path=fm_dir + "/fm",
-                sparse_reward=True,
-                reward_on_change=True,
-                term_on_change=True,
-                reward_on_end=args.reward_on_end,
-                snapRatio=args.snap_ratio)
+
+match args.env_name:
+    case "parallel_1x2":
+        from puzzle_env_small_skill_conditioned_parallel_training import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                        max_steps=100,
+                        num_skills=args.num_skills,
+                        verbose=0,
+                        fm_path=fm_dir + "/fm",
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        term_on_change=True,
+                        reward_on_end=args.reward_on_end,
+                        snapRatio=args.snap_ratio)
+        puzzle_size = [1, 2]
+    case "parallel_2x2":
+        from puzzle_env_2x2_skill_conditioned_parallel_training import PuzzleEnv
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                        max_steps=100,
+                        num_skills=args.num_skills,
+                        verbose=0,
+                        fm_path=fm_dir + "/fm",
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        term_on_change=True,
+                        reward_on_end=args.reward_on_end,
+                        snapRatio=args.snap_ratio)
+
+        puzzle_size = [2, 2]
 
 check_env(env)
 
@@ -125,7 +139,7 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # callback for updating and training fm
-fm_callback = FmCallback(update_freq=500, save_path=log_dir + "/fm", seed=args.seed)
+fm_callback = FmCallback(update_freq=500, save_path=log_dir + "/fm", size=puzzle_size, num_skills=args.num_skills, seed=args.seed)
 
 callback = CallbackList([checkpoint_callback, fm_callback])
 

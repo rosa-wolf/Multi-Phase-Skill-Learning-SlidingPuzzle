@@ -30,6 +30,8 @@ parser.add_argument('--num_steps', default=100, type=int,
                     help='Number of max episode steps')
 parser.add_argument('--neg_dist_reward', action='store_true', default=False,
                     help='Give negative distance reward')
+parser.add_argument('--movement_reward', action='store_true', default=False,
+                    help='Give negative distance reward')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--reward_on_change', action='store_true', default=False,
@@ -108,10 +110,11 @@ match args.env_name:
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         max_steps=100,
-                        verbose=0,
+                        verbose=1,
                         sparse_reward=False,
-                        reward_on_change=True,
-                        neg_dist_reward=True,
+                        reward_on_change=args.reward_on_change,
+                        neg_dist_reward=args.neg_dist_reward,
+                        movement_reward=args.movement_reward,
                         term_on_change=False,
                         reward_on_end=False,
                         snapRatio=args.snap_ratio)
@@ -124,7 +127,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name
+log_dir = "checkpoints/" + args.env_name + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + args_movement_reward
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()

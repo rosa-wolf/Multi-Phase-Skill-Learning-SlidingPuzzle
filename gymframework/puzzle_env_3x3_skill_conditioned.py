@@ -34,6 +34,7 @@ class PuzzleEnv(gym.Env):
                  sparse_reward=False,
                  reward_on_change=False,
                  neg_dist_reward=True,
+                 movement_reward=True,
                  reward_on_end=False,
                  term_on_change=False,
                  verbose=0):
@@ -79,6 +80,7 @@ class PuzzleEnv(gym.Env):
         self.reward_on_change = reward_on_change
         self.reward_on_end = reward_on_end
         self.neg_dist_reward = neg_dist_reward
+        self.movement_reward = movement_reward
 
         # is skill execution possible?
         self.skill_possible = None
@@ -319,13 +321,14 @@ class PuzzleEnv(gym.Env):
             box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
 
             # give additional reward for pushing puzzle piece towards its goal position
-            max_dist = np.linalg.norm(self.box_goal - self.box_init)
-            box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            reward += box_reward
+            if self.movement_reward:
+                max_dist = np.linalg.norm(self.box_goal - self.box_init)
+                box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
+                reward += box_reward
             # minimal negative distance between box and actor
-            if self.neg_dist_reward:
-                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-                reward += 0.1 * dist[0]
+            #if self.neg_dist_reward:
+            #    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+            #    reward += 0.1 * dist[0]
             #if np.isclose(dist[0], 0) or dist[0] >= 0:
             #    reward += 0.5
             #    print("give 0.5")
@@ -344,6 +347,7 @@ class PuzzleEnv(gym.Env):
                     # punish if wrong block was pushed
                     reward -= 1
                     print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("reward = ", reward)
         return reward
 
     def relabel_all(self, episode):

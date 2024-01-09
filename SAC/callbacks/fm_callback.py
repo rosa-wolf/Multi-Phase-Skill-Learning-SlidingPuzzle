@@ -28,7 +28,7 @@ class FmCallback(BaseCallback):
     :param verbose: (int)
     """
 
-    def __init__(self, update_freq: int, save_path: str, seed: float, memory_size=500, sample_size=50, num_skills=2, verbose=1):
+    def __init__(self, update_freq: int, save_path: str, seed: float, memory_size=500, sample_size=50, size=[1, 2], num_skills=2, verbose=1):
         super().__init__(verbose)
         self.update_freq = update_freq
         self.save_path = save_path
@@ -38,8 +38,8 @@ class FmCallback(BaseCallback):
         self.verbose = verbose
         self.num_skills = num_skills
         # initialize forward model (untrained)
-        self.fm = ForwardModel(width=2,
-                          height=1,
+        self.fm = ForwardModel(width=size[1],
+                          height=size[0],
                           num_skills=self.num_skills,
                           batch_size=15,
                           learning_rate=0.001)
