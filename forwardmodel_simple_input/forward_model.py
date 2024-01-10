@@ -105,76 +105,85 @@ class ForwardModel(nn.Module):
         :param data: data to train on
         """
 
+        state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
+
+        print(state_batch)
+        print(skill_batch)
+
+        x = torch.FloatTensor(state_batch).to(self.device)
+        k = torch.FloatTensor(skill_batch).to(self.device)
+        y = torch.FloatTensor(next_state_batch).to(self.device)
+
+        # input to network is state AND skill
+        x = torch.cat((x, k), 1)
+
         epoch_loss = 0
         epoch_acc = 0
 
-        num_batches = math.ceil(data.shape[0]/self.batch_size)
+        #num_batches = math.ceil(data.shape[0]/self.batch_size)
+        ## go through all batches
+        #for i in range(num_batches):
+        #    if i == num_batches - 1:
+        #        # if we are in last batch take rest of data
+        #        x = data[i * self.batch_size: , : self.input_size]
+        #        y = data[i * self.batch_size: , self.input_size:]
+        #    else:
+        #        # take one batch of data
+        #        x = data[i * self.batch_size: (i + 1) * self.batch_size, : self.input_size]
+        #        y = data[i * self.batch_size: (i + 1) * self.batch_size, self.input_size:]
+
+        #x = x.to(self.device)
+        #y = y.to(self.device)
 
         self.model.train()
 
-        # go through all batches
-        for i in range(num_batches):
-            if i == num_batches - 1:
-                # if we are in last batch take rest of data
-                x = data[i * self.batch_size: , : self.input_size]
-                y = data[i * self.batch_size: , self.input_size:]
-            else:
-                # take one batch of data
-                x = data[i * self.batch_size: (i + 1) * self.batch_size, : self.input_size]
-                y = data[i * self.batch_size: (i + 1) * self.batch_size, self.input_size:]
+        if self.precision == 'float64':
+            x = x.to(torch.float64)
+            y = y.to(torch.float64)
+        else:
+            x = x.to(torch.float32)
+            y = y.to(torch.float64)
+        if (torch.isnan(x)).any():
+            print("input contains nan values")
 
-            x = x.to(self.device)
-            y = y.to(self.device)
+        # set all gradients to zero
+        self.optimizer.zero_grad()
 
-            if self.precision == 'float64':
-                x = x.to(torch.float64)
-                y = y.to(torch.float64)
-            else:
-                x = x.to(torch.float32)
-                y = y.to(torch.float64)
+        # get y_pred (multiclass classification)
+        y_pred = self.model(x)
 
-            if (torch.isnan(x)).any():
-                print("input contains nan values")
+        # get alpha (probability of state being 1) from y_pred
+        #alpha = self.calculate_alpha(x, y_pred)
+        #loss, max_loss, max_ep = self.criterion(y_pred, y)
+        loss = self.criterion(y_pred, y)
 
-            # set all gradients to zero
-            self.optimizer.zero_grad()
-            # get y_pred (multiclass classification)
-            y_pred = self.model(x)
+        #print("loss = ", loss)
+        #print("=========================================")
+        #print("transition with max loss : ", max_loss)
+        #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
+        #print("prediction ", y_pred[max_ep].reshape((5, 6)))
+        #print("=========================================")
 
+        if torch.isnan(loss).any():
+            print("loss is nan")
 
-            # get alpha (probability of state being 1) from y_pred
-            #alpha = self.calculate_alpha(x, y_pred)
+        loss.backward()
+        self.optimizer.step()
 
-            #loss, max_loss, max_ep = self.criterion(y_pred, y)
-            loss = self.criterion(y_pred, y)
+        acc = self.calculate_accuracy(y_pred, y)
 
-            #print("loss = ", loss)
+        epoch_loss += loss.item()
+        epoch_acc += acc.item()
+        # check if weights contain nan of inf values
 
-            #print("=========================================")
-            #print("transition with max loss : ", max_loss)
-            #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
-            #print("prediction ", y_pred[max_ep].reshape((5, 6)))
-            #print("=========================================")
-#
-            if torch.isnan(loss).any():
-                print("loss is nan")
+        for p in self.model.parameters():
+            if torch.isinf(p).any():
+                print('weights contain inf values, ', p)
+            if torch.isnan(p).any():
+                print('weights contain nan values, ', p)
 
-            loss.backward()
-            self.optimizer.step()
-
-            acc = self.calculate_accuracy(y_pred, y)
-
-            epoch_loss += loss.item()
-            epoch_acc += acc.item()
-
-            # check if weights contain nan of inf values
-            for p in self.model.parameters():
-                if torch.isinf(p).any():
-                    print('weights contain inf values, ', p)
-                if torch.isnan(p).any():
-                    print('weights contain nan values, ', p)
-
-        return epoch_loss / num_batches, epoch_acc / num_batches
+        #return epoch_loss / num_batches, epoch_acc / num_batches
+        return epoch_loss, epoch_acc
 
     def evaluate(self, data):
         """
@@ -310,6 +319,7 @@ class ForwardModel(nn.Module):
             out[empty] = 1
             return out
 
+        print("empty = ", empty)
         return empty
 
 

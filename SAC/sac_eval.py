@@ -106,7 +106,7 @@ match args.env_name:
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         max_steps=100,
-                        verbose=0,
+                        verbose=1,
                         sparse_reward=False,
                         reward_on_change=True,
                         neg_dist_reward=True,
@@ -118,7 +118,7 @@ match args.env_name:
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                         max_steps=100,
                         num_skills=2,
-                        verbose=0,
+                        verbose=1,
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -134,7 +134,9 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/test/model/model_231000_steps", evn=env)
+#model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_1x2/model/model_1562000_steps", evn=env)
+
+model = SAC.load("checkpoints/skill_conditioned_3x3/model/model_200000_steps", env=env)
 
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 

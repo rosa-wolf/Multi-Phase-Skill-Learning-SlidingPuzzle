@@ -322,13 +322,15 @@ class PuzzleEnv(gym.Env):
 
             # give additional reward for pushing puzzle piece towards its goal position
             if self.movement_reward:
+                print("give movement reward")
                 max_dist = np.linalg.norm(self.box_goal - self.box_init)
                 box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
                 reward += box_reward
             # minimal negative distance between box and actor
-            #if self.neg_dist_reward:
-            #    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-            #    reward += 0.1 * dist[0]
+            if self.neg_dist_reward:
+                print("give neg dist reward")
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+                reward += 5 * dist[0]
             #if np.isclose(dist[0], 0) or dist[0] >= 0:
             #    reward += 0.5
             #    print("give 0.5")

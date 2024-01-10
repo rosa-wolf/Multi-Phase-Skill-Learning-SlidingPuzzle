@@ -28,7 +28,7 @@ class FmCallback(BaseCallback):
     :param verbose: (int)
     """
 
-    def __init__(self, update_freq: int, save_path: str, seed: float, memory_size=500, sample_size=50, size=[1, 2], num_skills=2, verbose=1):
+    def __init__(self, update_freq: int, save_path: str, seed: float, memory_size=500, sample_size=30, size=[1, 2], num_skills=2, verbose=1):
         super().__init__(verbose)
         self.update_freq = update_freq
         self.save_path = save_path
@@ -41,7 +41,7 @@ class FmCallback(BaseCallback):
         self.fm = ForwardModel(width=size[1],
                           height=size[0],
                           num_skills=self.num_skills,
-                          batch_size=15,
+                          batch_size=sample_size,
                           learning_rate=0.001)
 
     def _init_callback(self) -> None:
@@ -75,15 +75,9 @@ class FmCallback(BaseCallback):
             if len(self.buffer) >= self.sample_size:
                 # update fm several times
                 for _ in range(2):
-                    # sample from buffer
-                    episodes = self.buffer.sample(self.sample_size)
 
-                    # reshape episodes for input to fm training
-                    episodes = tuple(zip(*episodes))
-                    episodes = np.array(episodes)
-                    episodes = episodes.reshape((episodes.shape[0], 6))
-
-                    train_loss, train_acc = self.fm.train(torch.from_numpy(episodes))
+                    # put sampling batch(es) from buffer into forward model train function
+                    train_loss, train_acc = self.fm.train(self.buffer)
 
                     if self.verbose > 0:
                         print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')

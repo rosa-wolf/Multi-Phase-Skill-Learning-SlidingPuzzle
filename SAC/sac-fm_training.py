@@ -144,7 +144,7 @@ fm_callback = FmCallback(update_freq=500, save_path=log_dir + "/fm", size=puzzle
 callback = CallbackList([checkpoint_callback, fm_callback])
 
 # initialize SAC
-model = SAC("MlpPolicy",  # could also use CnnPolicy
+model = SAC("MlpPolicy",
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,

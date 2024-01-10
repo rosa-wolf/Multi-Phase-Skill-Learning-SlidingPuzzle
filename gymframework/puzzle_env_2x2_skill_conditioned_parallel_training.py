@@ -95,11 +95,12 @@ class PuzzleEnv(gym.Env):
         self.starting_epis = True
 
         ## load fully trained forward model
+
+        # initially dummy environment (we will not train this, so learning parameters are irrelevant)
+        # only used for loading saved fm into
         self.fm = ForwardModel(width=puzzlesize[1],
                                height=puzzlesize[0],
-                               num_skills=self.num_skills,
-                               batch_size=10,
-                               learning_rate=0.001)
+                               num_skills=self.num_skills)
 
         self.fm_path = fm_path
         if self.fm_path is None:
