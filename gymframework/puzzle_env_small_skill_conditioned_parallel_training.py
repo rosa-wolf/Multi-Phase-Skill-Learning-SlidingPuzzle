@@ -179,6 +179,7 @@ class PuzzleEnv(gym.Env):
     def reset(self,
               *,
               seed: Optional[int] = None,
+              skill = None,
               options: Optional[dict] = None, ) -> tuple[dict[str, Any], dict[Any, Any]]:
         """
         Resets the environment (including the agent) to the initial conditions.
@@ -195,8 +196,11 @@ class PuzzleEnv(gym.Env):
         if self.episode > 5000:
             self.starting_epis = False
 
-        # sample skill
-        self.skill = np.random.randint(0, self.num_skills, 1)[0]
+        if skill is not None:
+            self.skill = skill
+        else:
+            # sample skill
+            self.skill = np.random.randint(0, self.num_skills, 1)[0]
         print("skill = ", self.skill)
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.

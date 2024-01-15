@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Any
 
 import gymnasium as gym
 import numpy as np
@@ -144,6 +144,9 @@ class PuzzleEnv(gym.Env):
         # get reward (if we don't only want to give reward on last step of episode)
         reward = self._reward()
 
+        print("obs = ", obs)
+        print("--------------------------------------------")
+
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # for episode termination on change of symbolic observation
@@ -164,10 +167,10 @@ class PuzzleEnv(gym.Env):
                     # give scaled down novelty bonus after some initial time
                     # where we only want to learn to induce change
                     pass
-                if self.total_env_steps > 100000:
+                if self.total_env_steps > 2000000:
                     reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                       self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                       self.skill)])
+                                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                                    self.skill)])
 
 
                     print("reward_on_end = ", reward)
@@ -181,6 +184,7 @@ class PuzzleEnv(gym.Env):
     def reset(self,
               *,
               seed: Optional[int] = None,
+              skill = None,
               options: Optional[dict] = None, ) -> tuple[dict[str, Any], dict[Any, Any]]:
         """
         Resets the environment (including the agent) to the initial conditions.
@@ -194,11 +198,14 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
-        if self.episode > 5000:
-            self.starting_epis = False
+        #if self.episode > 5000:
+        #    self.starting_epis = False
 
         # sample skill
-        self.skill = np.random.randint(0, self.num_skills, 1)[0]
+        if skill is not None:
+            self.skill = skill
+        else:
+            self.skill = np.random.randint(0, self.num_skills, 1)[0]
         print("skill = ", self.skill)
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
@@ -256,17 +263,39 @@ class PuzzleEnv(gym.Env):
         Returns the observation:    Robot joint states and velocites and symbolic observation
                                     Executed Skill is also encoded in observation/state
         """
-        q, q_dot, sym_obs = self.scene.state
-        obs = q[:3] * 4
+        # actor joint cooridinates
+        q, _, _ = self.scene.state
+        q = q[:3] * 4  # for normilization
+        q = q.astype(np.float32)
 
-        # not only add position of relevant puzzle piece, but of all puzzle pieces
-        for i in range(self.num_pieces):
-            obs = np.concatenate((obs, ((self.scene.C.getFrame("box" + str(i)).getPosition()).copy())[:2] * 4))
+        # one-hot encoding of initially empty field
+        empty = np.where(np.sum(self.init_sym_state, axis=0) == 0)[0][0]
+        one_hot_empty = np.zeros((self.num_pieces + 1,), dtype=np.int8)
+        one_hot_empty[empty] = 1
 
-        # add executed skill to obervation/state (as one-hot encoding)
-        one_hot = np.zeros(shape=self.num_skills)
-        one_hot[self.skill] = 1
-        obs = np.concatenate((obs, one_hot))
+        # coordinates of boxes on the fields, with encoding whether field is empty (1) or occupied (0)
+        pos = np.empty((self.num_pieces + 1, 2), dtype=np.float32)
+        curr_empty = np.zeros((self.num_pieces + 1,), dtype=np.int8)
+        for i in range(self.scene.sym_state.shape[1]):
+            box_idx = np.where(self.scene.sym_state[:, i] == 1)[0]
+            if box_idx.shape[0] == 0:
+                curr_empty[i] = 1  # encode whether field is empty
+                pos[i] = self.scene.discrete_pos[i, :2] * 4
+            else:
+                box_idx = box_idx[0]
+                pos[i] = (self.scene.C.getFrame("box" + str(box_idx)).getPosition()[:2] * 4).copy()
+
+        pos = pos.flatten()
+
+        # one-hot encoding of skill
+        one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
+        one_hot_skill[self.skill] = 1
+
+        obs = {"q": q,
+               "init_empty": one_hot_empty,
+               "curr_empty": curr_empty,
+               "box_pos": pos,
+               "skill": one_hot_skill}
 
         return obs
 
@@ -275,16 +304,13 @@ class PuzzleEnv(gym.Env):
         """
         Defines bounds of the observation space
         """
-        # joint configuration (3)
-        shape = 3
+        obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
+                     "init_empty": MultiBinary(self.num_pieces + 1), # Box(low=-1, high=1, shape=(self.num_pieces + 1,)),
+                     "curr_empty": MultiBinary(self.num_pieces + 1),
+                     "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,)),
+                     "skill": MultiBinary(self.num_skills)}  # Box(low=-1, high=1, shape=(self.num_skills,))}
 
-        # add dimensions for position of all (relevant) puzzle pieces (x, y-position)
-        shape += self.num_pieces * 2
-
-        # add space needed for one-hot encoding of skill
-        shape += self.num_skills
-
-        return Box(low=-1, high=1, shape=(shape,), dtype=np.float64)
+        return Dict(obs_space)
 
     def apply_action(self, action):
         """
@@ -323,7 +349,7 @@ class PuzzleEnv(gym.Env):
 
         if self.starting_epis:
             # reward for any change in sym state independent of skill
-            if not (self.init_sym_state == self.scene.sym_state).all():
+            if not (self._old_sym_obs == self.scene.sym_state).all():
                 print("SYM STATE CHANGED !!!")
                 #reward += 1
 
@@ -333,7 +359,6 @@ class PuzzleEnv(gym.Env):
                                                     self.skill)
 
                 print("reward = ", reward)
-
 
             if not self.sparse_reward:
                 # penalize being far away from all boxes

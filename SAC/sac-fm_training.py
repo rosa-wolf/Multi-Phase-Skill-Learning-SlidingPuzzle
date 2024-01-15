@@ -110,8 +110,8 @@ match args.env_name:
                         verbose=0,
                         fm_path=fm_dir + "/fm",
                         sparse_reward=True,
-                        reward_on_change=True,
-                        term_on_change=True,
+                        reward_on_change=False,
+                        term_on_change=False,
                         reward_on_end=args.reward_on_end,
                         snapRatio=args.snap_ratio)
 
@@ -125,8 +125,8 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-checkpoint_name = args.env_name + "_" + str(args.num_epochs) + "epochs_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed)
+checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" + str(
+        args.seed) + "_num_skills" + str(args.num_skills)
 
 # initialize callbacks
 # Save a checkpoint every 1000 steps
@@ -144,11 +144,11 @@ fm_callback = FmCallback(update_freq=500, save_path=log_dir + "/fm", size=puzzle
 callback = CallbackList([checkpoint_callback, fm_callback])
 
 # initialize SAC
-model = SAC("MlpPolicy",
+model = SAC("MultiInputPolicy",
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=10, # when learning should start to prevent learning on little data
+            learning_starts=1000, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate

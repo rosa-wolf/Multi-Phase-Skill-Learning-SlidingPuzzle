@@ -96,10 +96,10 @@ match args.env_name:
                         reward_on_end=False,
                         snapRatio=args.snap_ratio)
     case "skill_conditioned_2x2":
-        from puzzle_env_2x2_skill_conditioned import PuzzleEnv
+        from puzzle_env_2x2_skill_conditioned_new_obs import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                         max_steps=100,
-                        verbose=0,
+                        verbose=1,
                         sparse_reward=args.sparse,
                         reward_on_change=args.reward_on_change,
                         neg_dist_reward=False,
@@ -109,6 +109,7 @@ match args.env_name:
     case "skill_conditioned_3x3":
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                        num_skills=args.num_skills,
                         max_steps=100,
                         verbose=0,
                         sparse_reward=args.sparse,
@@ -127,7 +128,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_sparse" + str(args.sparse)
+log_dir = "checkpoints/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_sparse" + str(args.sparse)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()

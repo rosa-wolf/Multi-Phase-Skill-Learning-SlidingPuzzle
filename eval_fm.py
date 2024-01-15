@@ -8,24 +8,27 @@ import os
 from forwardmodel_simple_input.forward_model import ForwardModel
 
 # load model
-
+num_skills = 8
 fm = ForwardModel(width=2,
-                      height=1,
-                      num_skills=2,
+                      height=2,
+                      num_skills=num_skills,
                       batch_size=10,
                       learning_rate=0.001)
 
 # save model
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/fm-policy-parallel-r-on-end/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
 
-input_states = [np.array([0, 1]), np.array([1, 0])]
-input_skills = [0, 1]
+#input_states = [np.array([0, 1]), np.array([1, 0])]
+#input_skills = [0, 1]
 
-for k in input_skills:
+
+input_states = [np.array([1, 0, 0, 0]), np.array([0, 1, 0, 0]), np.array([0, 0, 1, 0]), np.array([0, 0, 0, 1])]
+
+for k in range(num_skills):
     print(f"====================\nskill = {k}")
     for state in input_states:
-        one_hot_skill = np.zeros(2)
+        one_hot_skill = np.zeros(num_skills)
         one_hot_skill[k] = 1
 
         pred = fm.get_p_matrix(state, one_hot_skill)
