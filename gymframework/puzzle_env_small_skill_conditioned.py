@@ -41,6 +41,7 @@ class PuzzleEnv(gym.Env):
                  reward_on_change=False,
                  reward_on_end=False,
                  term_on_change=False,
+                 seed=12345,
                  verbose=0):
 
         """
@@ -58,6 +59,7 @@ class PuzzleEnv(gym.Env):
                                     current x-and y-position
         :param verbose:      _       whether to render scene (default false)
         """
+        self.seed(seed=seed)
         # ground truth skills
         # we have only one box, so there is only one skill
         self.skills = np.array([[1, 0], [0, 1]])

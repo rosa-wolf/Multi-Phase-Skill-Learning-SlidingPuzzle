@@ -6,9 +6,10 @@ import torch
 import numpy as np
 
 from stable_baselines3.common import noise
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 
 import os
 import sys
@@ -95,20 +96,51 @@ match args.env_name:
                         term_on_change=False,
                         reward_on_end=False,
                         snapRatio=args.snap_ratio)
+        eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                        max_steps=100,
+                        verbose=0,
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio,
+                        seed=98765)
+
     case "skill_conditioned_2x2":
-        from puzzle_env_2x2_skill_conditioned_new_obs import PuzzleEnv
+        from puzzle_env_2x2_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                         max_steps=100,
-                        verbose=1,
+                        verbose=0,
                         sparse_reward=args.sparse,
                         reward_on_change=args.reward_on_change,
                         neg_dist_reward=False,
                         term_on_change=False,
                         reward_on_end=False,
                         snapRatio=args.snap_ratio)
+        eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                        max_steps=100,
+                        verbose=0,
+                        sparse_reward=args.sparse,
+                        reward_on_change=args.reward_on_change,
+                        neg_dist_reward=False,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        seed=98765,
+                        snapRatio=args.snap_ratio)
     case "skill_conditioned_3x3":
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                        num_skills=args.num_skills,
+                        max_steps=100,
+                        verbose=1,
+                        sparse_reward=args.sparse,
+                        reward_on_change=args.reward_on_change,
+                        neg_dist_reward=args.neg_dist_reward,
+                        movement_reward=args.movement_reward,
+                        term_on_change=False,
+                        reward_on_end=False,
+                        snapRatio=args.snap_ratio)
+        eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         num_skills=args.num_skills,
                         max_steps=100,
                         verbose=0,
@@ -118,9 +150,12 @@ match args.env_name:
                         movement_reward=args.movement_reward,
                         term_on_change=False,
                         reward_on_end=False,
+                        seed=98765,
                         snapRatio=args.snap_ratio)
 
 check_env(env)
+
+eval_env = Monitor(eval_env)
 
 env.seed(args.seed)
 env.action_space.seed(args.seed)
@@ -128,7 +163,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_sparse" + str(args.sparse)
+log_dir = "checkpoints/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
@@ -143,8 +178,16 @@ checkpoint_callback = CheckpointCallback(
   save_vecnormalize=True,
 )
 
+# Use deterministic actions for evaluation
+eval_callback = EvalCallback(eval_env,
+                             log_path=log_dir, eval_freq=500,
+                             n_eval_episodes=5,
+                             deterministic=True, render=False)
+
+callbacks = CallbackList([checkpoint_callback, eval_callback])
+
 # initialize SAC
-model = SAC("MlpPolicy",  # could also use CnnPolicy
+model = SAC("MultiInputPolicy", #"MlpPolicy",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
@@ -159,7 +202,7 @@ model = SAC("MlpPolicy",  # could also use CnnPolicy
             target_entropy=-3.,
             #use_sde=True, # use state dependent exploration
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
-            #stats_window_size=args.batch_size,
+            stats_window_size=1,
             tensorboard_log=log_dir,
             device=device,
             verbose=1)
@@ -168,7 +211,7 @@ model.learn(total_timesteps=args.num_epochs * 100,
             log_interval=1,
             tb_log_name="tb_logs",
             progress_bar=True,
-            callback=checkpoint_callback)
+            callback=callbacks)
 
 del model
 env.close()
