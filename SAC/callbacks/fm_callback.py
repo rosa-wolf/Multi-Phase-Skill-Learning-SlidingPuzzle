@@ -28,11 +28,22 @@ class FmCallback(BaseCallback):
     :param verbose: (int)
     """
 
-    def __init__(self, update_freq: int, save_path: str, seed: float, memory_size=500, sample_size=30, size=[1, 2], num_skills=2, verbose=1):
+    def __init__(self, update_freq: int, save_path: str,
+                 seed: float, memory_size=500,
+                 sample_size=30,
+                 size=[1, 2],
+                 num_skills=2,
+                 relabel=False,
+                 verbose=1):
+
         super().__init__(verbose)
         self.update_freq = update_freq
         self.save_path = save_path
         self.sample_size = sample_size
+        self.relabel = relabel
+        self.relabel_buffer = {"max_reward": [],
+                                "max_skill": []}
+
         # initialize empty replay memory for fm
         self.buffer = FmReplayMemory(memory_size, seed)
         self.verbose = verbose
@@ -56,18 +67,13 @@ class FmCallback(BaseCallback):
         torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
     def _on_step(self) -> bool:
-        """
-        Update fm
-        """
-        if self.locals["dones"][0]:
-            # Todo: save episode transition to buffer
-            init_empty = self.fm.sym_state_to_input(self.locals['infos'][0]['init_sym_state'])
-            out_empty = self.fm.sym_state_to_input(self.locals['infos'][0]['sym_state'])
 
-            one_hot_skill = np.zeros(self.num_skills)
-            one_hot_skill[self.locals['infos'][0]['skill']] = 1
-
-            self.buffer.push(init_empty, one_hot_skill, out_empty)
+        if self.locals["dones"] != 0:
+            print("append infos to buffer")
+            print("infos = ", self.locals["infos"][0])
+            self.relabel_buffer["max_reward"].append((self.locals["infos"][0])["max_reward"])
+            self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
+            print("buffer = ", self.relabel_buffer)
 
         # only start training after buffer is filled a bit
         if self.n_calls % self.update_freq == 0:
@@ -86,3 +92,63 @@ class FmCallback(BaseCallback):
                     print("Saving updated model now")
                 # don't save whole model, but only parameters
                 torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
+
+
+    def _on_rollout_end(self) -> bool:
+        """
+        Update fm
+        """
+        print("---------------------------------")
+
+        print("num_collected_episodes = ", self.locals["num_collected_episodes"])
+        print("replay_buffer_done = ", np.where((self.locals["replay_buffer"]).dones == 1))
+
+        # number of episodes to relabel
+        num_relabel = self.locals["num_collected_episodes"] + 1
+        print(self.locals)
+        # for now relabel without caring for skill distribution
+        dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
+        print("dones = ", dones)
+        for i_episode in range(num_relabel):
+            # get start and end idx of episode to relabel
+            if dones.shape[0] < (num_relabel + 1) - i_episode:
+                start_idx = 0
+            else:
+                start_idx = dones[-(num_relabel + 1) + i_episode] + 1
+
+            end_idx = dones[-(num_relabel) + i_episode]
+            print(f"start_idx = {start_idx}, end_idx = {end_idx}")
+
+            init_empty = (self.locals["replay_buffer"]).next_observations["init_empty"][end_idx]
+            out_empty = (self.locals["replay_buffer"]).next_observations["curr_empty"][end_idx]
+            old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
+            print("old skill = ", old_skill)
+
+            # get skill that maximizes reward
+            # TODO: relabeling for now assumes that we terminated on change of symbolic state
+            if self.relabel:
+                new_skill = self.relabel_buffer["max_skill"][i_episode]
+
+                if not (new_skill == old_skill).all():
+                    # relabel policy transitions with 50% probability
+                    if np.random.normal() > 0.5:
+                        # relabel all transitions in episode
+                        new_reward = self.relabel_buffer["max_reward"][i_episode]
+
+                        # replace skill and in all transitions and reward in last transition of episode
+
+                        (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
+                        (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
+
+                # always relabel fm transition
+                self.buffer.push(init_empty, new_skill, out_empty)
+            else:
+                # always relabel fm transition
+                self.buffer.push(init_empty, old_skill, out_empty)
+
+        print("-------------------------------------------------------")
+
+        self.relabel_buffer = {"max_reward": [],
+                               "max_skill": []}
+
+

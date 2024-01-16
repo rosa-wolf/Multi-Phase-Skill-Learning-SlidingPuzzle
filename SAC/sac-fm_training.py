@@ -26,6 +26,8 @@ parser.add_argument('--env_name', default="HalfCheetah-v2",
                     help='Mujoco Gym environment (default: HalfCheetah-v2)')
 parser.add_argument('--num_skills', default=2, type=int,
                     help='Enumeration of the skill to train')
+parser.add_argument('--num_episodes', default=1, type=int,
+                    help='Number of episode to collect in each rollout')
 parser.add_argument('--vel_steps', default=1, type=int,
                     help='Number of times to apply velocity control in one step of the agent')
 parser.add_argument('--sparse', action='store_true', default=False,
@@ -82,10 +84,14 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
-log_dir = "checkpoints/" + args.env_name
+log_dir = "checkpoints/" + args.env_name + "relabeling"
 os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
 os.makedirs(fm_dir, exist_ok=True)
+
+
+# TODO: make this a parameter
+relabel = True
 
 
 match args.env_name:
@@ -100,6 +106,7 @@ match args.env_name:
                         reward_on_change=True,
                         term_on_change=True,
                         reward_on_end=args.reward_on_end,
+                        relabel=relabel,
                         snapRatio=args.snap_ratio)
         puzzle_size = [1, 2]
     case "parallel_2x2":
@@ -139,7 +146,12 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # callback for updating and training fm
-fm_callback = FmCallback(update_freq=500, save_path=log_dir + "/fm", size=puzzle_size, num_skills=args.num_skills, seed=args.seed)
+fm_callback = FmCallback(update_freq=500,
+                         save_path=log_dir + "/fm",
+                         size=puzzle_size,
+                         num_skills=args.num_skills,
+                         seed=args.seed,
+                         relabel=relabel)
 
 callback = CallbackList([checkpoint_callback, fm_callback])
 
@@ -153,7 +165,7 @@ model = SAC("MultiInputPolicy",
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
             gradient_steps=-1, # do as many gradient steps as steps done in the env
-            #train_freq=(1, "step"),
+            train_freq=(args.num_episodes, "episode"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
             #use_sde=True, # use state dependent exploration

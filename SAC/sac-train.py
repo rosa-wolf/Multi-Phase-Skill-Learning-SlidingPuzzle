@@ -187,7 +187,7 @@ eval_callback = EvalCallback(eval_env,
 callbacks = CallbackList([checkpoint_callback, eval_callback])
 
 # initialize SAC
-model = SAC("MultiInputPolicy", #"MlpPolicy",  # could also use CnnPolicy
+model = SAC("MlpPolicy",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
@@ -196,7 +196,6 @@ model = SAC("MultiInputPolicy", #"MlpPolicy",  # could also use CnnPolicy
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma, # discount factor
             gradient_steps=-1, # do as many gradient steps as steps done in the env
-            #train_freq=(1, "step"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
             target_entropy=-3.,
