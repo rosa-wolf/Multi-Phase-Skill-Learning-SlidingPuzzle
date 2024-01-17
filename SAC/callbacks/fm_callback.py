@@ -105,7 +105,7 @@ class FmCallback(BaseCallback):
 
         # number of episodes to relabel
         num_relabel = self.locals["num_collected_episodes"] + 1
-        print(self.locals)
+
         # for now relabel without caring for skill distribution
         dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
         print("dones = ", dones)
@@ -129,11 +129,15 @@ class FmCallback(BaseCallback):
             if self.relabel:
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
 
+                curr_reward = self.locals["replay_buffer"].rewards[end_idx]
+
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
+
+
 
                         # replace skill and in all transitions and reward in last transition of episode
 

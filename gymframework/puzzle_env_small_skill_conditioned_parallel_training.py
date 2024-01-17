@@ -395,6 +395,7 @@ class PuzzleEnv(gym.Env):
 
         max_reward = reward
         skill = self.skill
+
         for k in range(self.num_skills):
             if k != self.skill:
                 reward = self._reward(k=k)
@@ -407,6 +408,8 @@ class PuzzleEnv(gym.Env):
 
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
         one_hot_skill[skill] = 1
+
+        max_reward = np.array([max_reward], dtype=np.float32)
 
         return one_hot_skill, max_reward
 
