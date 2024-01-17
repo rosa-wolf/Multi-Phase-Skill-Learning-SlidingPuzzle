@@ -153,7 +153,7 @@ fm_callback = FmCallback(update_freq=500,
                          size=puzzle_size,
                          num_skills=args.num_skills,
                          seed=args.seed,
-                         relabel=relabel)
+                         relabel=args.relabeling)
 
 callback = CallbackList([checkpoint_callback, fm_callback])
 

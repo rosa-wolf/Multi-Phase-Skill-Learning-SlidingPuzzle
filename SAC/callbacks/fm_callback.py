@@ -145,8 +145,6 @@ class FmCallback(BaseCallback):
             if self.relabel:
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
 
-                curr_reward = self.locals["replay_buffer"].rewards[end_idx]
-
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
