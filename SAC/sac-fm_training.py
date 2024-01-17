@@ -30,6 +30,8 @@ parser.add_argument('--num_episodes', default=1, type=int,
                     help='Number of episode to collect in each rollout')
 parser.add_argument('--vel_steps', default=1, type=int,
                     help='Number of times to apply velocity control in one step of the agent')
+parser.add_argument('--relabeling', action='store_true', default=False,
+                    help='Do HER for higher level skills')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
@@ -106,7 +108,7 @@ match args.env_name:
                         reward_on_change=True,
                         term_on_change=True,
                         reward_on_end=True,
-                        relabel=relabel,
+                        relabel=args.relabeling,
                         snapRatio=args.snap_ratio)
         puzzle_size = [1, 2]
     case "parallel_2x2":

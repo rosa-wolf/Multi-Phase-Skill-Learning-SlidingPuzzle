@@ -28,12 +28,15 @@ class FmCallback(BaseCallback):
     :param verbose: (int)
     """
 
-    def __init__(self, update_freq: int, save_path: str,
+    def __init__(self, update_freq: int,
+                 save_path: str,
                  seed: float, memory_size=500,
                  sample_size=30,
                  size=[1, 2],
                  num_skills=2,
                  relabel=False,
+                 logging=True,
+                 eval_freq=500,
                  verbose=1):
 
         super().__init__(verbose)
@@ -54,6 +57,12 @@ class FmCallback(BaseCallback):
                           num_skills=self.num_skills,
                           batch_size=sample_size,
                           learning_rate=0.001)
+
+        self.logging = logging
+        if self.logging:
+            self.test_acc = []
+            self.test_loss = []
+            self.eval_freq = eval_freq
 
     def _init_callback(self) -> None:
         # Create folder if needed
@@ -90,6 +99,18 @@ class FmCallback(BaseCallback):
                 # don't save whole model, but only parameters
                 torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
+        if self.logging:
+            if self.n_calls % self.eval_freq == 0:
+                if len(self.buffer) >= self.sample_size:
+                    if self.verbose:
+                        print("Evaluate now")
+                    test_loss, test_acc = self.fm.evaluate(self.buffer)
+                    self.test_acc.append(test_acc)
+                    self.test_loss.append(test_loss)
+                    np.savez(self.save_path + "log_data", test_acc=test_acc, train_acc=train_acc)
+
+                    if self.verbose > 0:
+                        print(f'\tEval Loss: {test_loss:.3f} | Eval Acc: {test_acc * 100:.2f}%')
 
     def _on_rollout_end(self) -> bool:
         """
@@ -98,7 +119,6 @@ class FmCallback(BaseCallback):
         print("---------------------------------")
 
         print("num_collected_episodes = ", self.locals["num_collected_episodes"])
-        print("replay_buffer_done = ", np.where((self.locals["replay_buffer"]).dones == 1))
 
         # number of episodes to relabel
         num_relabel = self.locals["num_collected_episodes"] + 1
@@ -130,6 +150,7 @@ class FmCallback(BaseCallback):
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
+                        print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
                         print("new_skill = ", new_skill)
@@ -138,12 +159,10 @@ class FmCallback(BaseCallback):
 
 
                         # replace skill and in all transitions and reward in last transition of episode
-                        print("relabeling now")
                         (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
-                        print("relabeled skill")
-
+                        # change skill in next state
+                        self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
                         (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
-                        print("relabeled reward")
 
                 # always relabel fm transition
                 self.buffer.push(init_empty.flatten(), new_skill, out_empty.flatten())

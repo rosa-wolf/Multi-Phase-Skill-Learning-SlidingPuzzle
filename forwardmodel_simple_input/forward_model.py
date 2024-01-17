@@ -185,67 +185,49 @@ class ForwardModel(nn.Module):
         #return epoch_loss / num_batches, epoch_acc / num_batches
         return epoch_loss, epoch_acc
 
-    def evaluate(self, data):
+    def evaluate(self, data, num_epis=5):
         """
         :param data: data to test on
+        :param num_epis: number of episodes to evaluate for
+
+        :return: mean of loss and accurracy over all episodes
         """
         epoch_loss = 0
         epoch_acc = 0
 
-        self.model.eval()
+        for i in range(num_epis):
+            state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
 
-        num_batches = math.floor(data.shape[0] / self.batch_size)
+            print(state_batch)
+            print(skill_batch)
 
-        with torch.no_grad():
-            if num_batches > 0:
-                for i in range(num_batches):
-                    x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
-                    y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
-                    x = x.to(self.device)
-                    y = y.to(self.device)
+            x = torch.FloatTensor(state_batch).to(self.device)
+            k = torch.FloatTensor(skill_batch).to(self.device)
+            y = torch.FloatTensor(next_state_batch).to(self.device)
 
-                    if self.precision == 'float64':
-                        x = x.to(torch.float64)
-                        y = y.to(torch.float64)
-                    else:
-                        x = x.to(torch.float32)
-                        y = y.to(torch.float64)
+            # input to network is state AND skill
+            x = torch.cat((x, k), 1)
 
-                    y_pred = self.model(x)
+            self.model.eval()
 
-                    # get alpha (probability of state being 1) from y_pred
-                    # alpha = self.calculate_alpha(x, y_pred)
+            with torch.no_grad():
+                if self.precision == 'float64':
+                    x = x.to(torch.float64)
+                    y = y.to(torch.float64)
+                else:
+                    x = x.to(torch.float32)
+                    y = y.to(torch.float64)
 
-                    #loss = self.criterion(alpha, y)
-                    #loss, _, _ = self.criterion(y_pred, y)
-                    loss = self.criterion(y_pred, y)
+                y_pred = self.model(x)
 
-                    acc = self.calculate_accuracy(y_pred, y)
+                loss = self.criterion(y_pred, y)
+                acc = self.calculate_accuracy(y_pred, y)
 
-                    epoch_loss += loss.item()
-                    epoch_acc += acc.item()
+                epoch_loss += loss.item()
+                epoch_acc += acc.item()
 
-                return epoch_loss / num_batches, epoch_acc / num_batches
+        return epoch_loss / float(num_epis), epoch_acc / float(num_epis)
 
-            x = data[:, : self.input_size]
-            y = data[:, self.input_size: ]
-            x = x.to(self.device)
-            y = y.to(self.device)
-            if self.precision == 'float64':
-                x = x.to(torch.float64)
-                y = y.to(torch.float64)
-            else:
-                x = x.to(torch.float32)
-                y = y.to(torch.float64)
-            y_pred = self.model(x)
-            # get alpha (probability of state being 1) from y_pred
-            #alpha = self.calculate_alpha(x, y_pred)
-            loss = self.criterion(y_pred, y)
-            acc = self.calculate_accuracy(y_pred, y)
-            epoch_loss += loss.item()
-            epoch_acc += acc.item()
-
-            return epoch_loss, epoch_acc
 
 
     def calculate_accuracy(self, y_hat, y):
