@@ -330,7 +330,7 @@ class PuzzleEnv(gym.Env):
             - opt position changes when block position changes
 
         """
-        reward = 0
+        reward = 0.
 
         if k is None:
             k = self.skill
@@ -392,23 +392,24 @@ class PuzzleEnv(gym.Env):
         """
         Returns the skill and reward, that gives the maxmimal reward for a given transition
         """
-
+        print("---------------------------\Calculating new skill and reward for relabeling")
         max_reward = reward
         skill = self.skill
-
+        print(f"init skill = {skill}, init_reward = {max_reward}")
         for k in range(self.num_skills):
             if k != self.skill:
                 reward = self._reward(k=k)
+                print("reward type = ", type(reward))
                 print(f"skill = {k}, reward = {reward}")
                 if reward > max_reward:
                     max_reward = reward
                     skill = k
 
-        print(f"max skill = {skill}, max_reward = {max_reward}")
+        print(f"max skill = {skill}, max_reward = {max_reward}\n-----------------------------------------")
 
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
         one_hot_skill[skill] = 1
-
+        print(type(max_reward))
         max_reward = np.array([max_reward], dtype=np.float32)
 
         return one_hot_skill, max_reward

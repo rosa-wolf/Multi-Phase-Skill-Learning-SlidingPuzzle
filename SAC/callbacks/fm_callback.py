@@ -69,11 +69,8 @@ class FmCallback(BaseCallback):
     def _on_step(self) -> bool:
 
         if self.locals["dones"] != 0:
-            print("append infos to buffer")
-            print("infos = ", self.locals["infos"][0])
             self.relabel_buffer["max_reward"].append((self.locals["infos"][0])["max_reward"])
             self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
-            print("buffer = ", self.relabel_buffer)
 
         # only start training after buffer is filled a bit
         if self.n_calls % self.update_freq == 0:
@@ -108,7 +105,6 @@ class FmCallback(BaseCallback):
 
         # for now relabel without caring for skill distribution
         dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
-        print("dones = ", dones)
         for i_episode in range(num_relabel):
             # get start and end idx of episode to relabel
             if dones.shape[0] < (num_relabel + 1) - i_episode:
@@ -136,13 +132,18 @@ class FmCallback(BaseCallback):
                     if np.random.normal() > 0.5:
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
-
+                        print("new_skill = ", new_skill)
+                        print("old reward = ", self.locals["replay_buffer"].rewards[end_idx])
+                        print("new reward = ", new_reward)
 
 
                         # replace skill and in all transitions and reward in last transition of episode
-
+                        print("relabeling now")
                         (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
+                        print("relabeled skill")
+
                         (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
+                        print("relabeled reward")
 
                 # always relabel fm transition
                 self.buffer.push(init_empty, new_skill, out_empty)
