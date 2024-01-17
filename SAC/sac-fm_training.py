@@ -105,7 +105,7 @@ match args.env_name:
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
-                        reward_on_end=args.reward_on_end,
+                        reward_on_end=True,
                         relabel=relabel,
                         snapRatio=args.snap_ratio)
         puzzle_size = [1, 2]

@@ -672,7 +672,7 @@ class ForwardModel(nn.Module):
         #y_pred = y_pred[idx != skill]
 
         # additional bonus if for all other skills fm believes transition to be unlikely
-
-        return - torch.max(torch.log(y_pred))
+        bonus = - torch.max(torch.log(y_pred))
+        return bonus.cpu().detach().numpy()
 
 

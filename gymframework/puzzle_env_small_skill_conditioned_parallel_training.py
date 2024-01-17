@@ -348,8 +348,8 @@ class PuzzleEnv(gym.Env):
             if self.reward_on_end:
                 if not self.starting_epis:
                     reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                       self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                       k)])
+                                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                                    k)])
 
 
                     print("reward_on_end = ", reward)
@@ -375,12 +375,13 @@ class PuzzleEnv(gym.Env):
                                                            self.scene.sym_state.flatten()),
                                                            k)
             if self.reward_on_change:
-                # give this reward every time we are in goal symbolic state
-                # not only when we change to it (such that it is markovian))
-                if not (self.init_sym_state == self.scene.sym_state).all():
-                    reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                       self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                       k)])
+                if not self.reward_on_end:
+                    # give this reward every time we are in goal symbolic state
+                    # not only when we change to it (such that it is markovian))
+                    if not (self.init_sym_state == self.scene.sym_state).all():
+                        reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                                                                   self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                                                                   k)])
 
 
 
@@ -410,7 +411,7 @@ class PuzzleEnv(gym.Env):
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
         one_hot_skill[skill] = 1
         print(type(max_reward))
-        max_reward = np.array([max_reward], dtype=np.float32)
+        max_reward = np.array(max_reward, dtype=np.float32)
 
         return one_hot_skill, max_reward
 
