@@ -132,7 +132,7 @@ match args.env_name:
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         num_skills=args.num_skills,
                         max_steps=100,
-                        verbose=1,
+                        verbose=0,
                         sparse_reward=args.sparse,
                         reward_on_change=args.reward_on_change,
                         neg_dist_reward=args.neg_dist_reward,
@@ -187,7 +187,7 @@ eval_callback = EvalCallback(eval_env,
 callbacks = CallbackList([checkpoint_callback, eval_callback])
 
 # initialize SAC
-model = SAC("MlpPolicy",  # could also use CnnPolicy
+model = SAC("MultiInputPolicy",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,

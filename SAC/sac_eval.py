@@ -144,9 +144,9 @@ match args.env_name:
         from puzzle_env_2x2_skill_conditioned_parallel_training import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                         max_steps=100,
-                        num_skills=8,
+                        num_skills=args.num_skills,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -166,7 +166,7 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_1500000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2/model/model_90000_steps", env=env)
 
 
 
@@ -174,12 +174,12 @@ model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=2)
+obs, _ = env.reset(skill=0)
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     if terminated or truncated:
-        obs, _ = env.reset(skill=2)
+        obs, _ = env.reset(skill=0)
 
 del model
 env.close()

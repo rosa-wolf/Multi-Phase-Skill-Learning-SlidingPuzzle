@@ -1,22 +1,19 @@
 import torch
-import time
 import numpy as np
-import math
-import os
 
 
 from forwardmodel_simple_input.forward_model import ForwardModel
 
 # load model
-num_skills = 8
+num_skills = 2
 fm = ForwardModel(width=2,
-                      height=2,
-                      num_skills=num_skills,
-                      batch_size=10,
-                      learning_rate=0.001)
+                  height=2,
+                  num_skills=num_skills,
+                  batch_size=10,
+                  learning_rate=0.001)
 
 # save model
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
 
 #input_states = [np.array([0, 1]), np.array([1, 0])]
