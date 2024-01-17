@@ -120,7 +120,7 @@ match args.env_name:
                         fm_path=fm_dir + "/fm",
                         sparse_reward=True,
                         reward_on_change=False,
-                        term_on_change=False,
+                        term_on_change=True,
                         reward_on_end=args.reward_on_end,
                         snapRatio=args.snap_ratio)
 
@@ -135,7 +135,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed) + "_num_skills" + str(args.num_skills)
+        args.seed) + "_num_skills" + str(args.num_skills) + "1000000_initsteps"
 
 # initialize callbacks
 # Save a checkpoint every 1000 steps

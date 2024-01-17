@@ -166,7 +166,7 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2/model/model_90000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/skill_conditioned_3x3_num_skills4_neg_distTrue_movementFalse_sparseFalse/model/model_1750000_steps", env=env)
 
 
 
