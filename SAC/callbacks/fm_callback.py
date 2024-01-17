@@ -146,10 +146,11 @@ class FmCallback(BaseCallback):
                         print("relabeled reward")
 
                 # always relabel fm transition
-                self.buffer.push(init_empty, new_skill, out_empty)
+                self.buffer.push(init_empty.flatten(), new_skill, out_empty.flatten())
             else:
                 # always relabel fm transition
-                self.buffer.push(init_empty, old_skill, out_empty)
+                self.buffer.push(init_empty.flatten(), old_skill, out_empty.flatten())
+
 
         print("-------------------------------------------------------")
 
