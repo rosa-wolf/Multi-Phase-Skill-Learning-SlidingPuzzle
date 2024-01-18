@@ -149,6 +149,7 @@ checkpoint_callback = CheckpointCallback(
 
 # callback for updating and training fm
 fm_callback = FmCallback(update_freq=500,
+                         env=env,
                          save_path=log_dir + "/fm",
                          size=puzzle_size,
                          num_skills=args.num_skills,

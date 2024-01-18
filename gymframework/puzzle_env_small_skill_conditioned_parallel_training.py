@@ -186,8 +186,8 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
-        if self.total_env_steps > 15000:
-            self.starting_epis = False
+        #if self.total_env_steps > 15000:
+        #    self.starting_epis = False
 
         if skill is not None:
             self.skill = skill
@@ -206,7 +206,6 @@ class PuzzleEnv(gym.Env):
         # randomly pick the field where no block is initially
         field = np.delete(np.arange(0, self.scene.pieces + 1),
                           np.random.choice(np.arange(0, self.scene.pieces + 1)))
-        print("empty field = ", field)
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
         sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
@@ -216,6 +215,8 @@ class PuzzleEnv(gym.Env):
         self.scene.sym_state = sym_obs
         self.scene.set_to_symbolic_state()
         self.init_sym_state = sym_obs.copy()
+
+        print(f"init_sym_obs = {self.init_sym_state}")
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
@@ -330,6 +331,7 @@ class PuzzleEnv(gym.Env):
             - opt position changes when block position changes
 
         """
+        print("reward scheme self.starting_epis = ", self.starting_epis)
         reward = 0.
 
         if k is None:
@@ -343,7 +345,9 @@ class PuzzleEnv(gym.Env):
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k)
 
+
         if self._termination():
+            print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
                 if not self.starting_epis:

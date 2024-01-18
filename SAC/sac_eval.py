@@ -133,7 +133,7 @@ match args.env_name:
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                         max_steps=100,
                         num_skills=args.num_skills,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_1x2/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_1x2_num_skills2_relabelingTrue/fm/fm",
                         verbose=1,
                         sparse_reward=True,
                         reward_on_change=True,
@@ -146,7 +146,7 @@ match args.env_name:
                         max_steps=100,
                         num_skills=args.num_skills,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2_relabelingFalse/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -166,20 +166,22 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/skill_conditioned_3x3_num_skills4_neg_distTrue_movementFalse_sparseFalse/model/model_1750000_steps", env=env)
+#model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_1x2_num_skills2_relabelingTrue/model/model_400000_steps", env=env)
 
-
-
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/skill_conditioned_3x3_num_skills24_neg_distTrue_movementFalse_reward_on_changeFalse_sparseFalse/model/model_50000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=0)
+obs, _ = env.reset(skill=23)
+num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
-    if terminated or truncated:
-        obs, _ = env.reset(skill=0)
+    num_steps += 1
+    if terminated or truncated or num_steps > 20:
+        obs, _ = env.reset(skill=23)
+        num_steps = 0
 
 del model
 env.close()

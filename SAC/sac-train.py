@@ -187,7 +187,7 @@ eval_callback = EvalCallback(eval_env,
 callbacks = CallbackList([checkpoint_callback, eval_callback])
 
 # initialize SAC
-model = SAC("MultiInputPolicy",  # could also use CnnPolicy
+model = SAC("MultiInputPolicy--env",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,

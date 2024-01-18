@@ -167,7 +167,7 @@ class PuzzleEnv(gym.Env):
                     # give scaled down novelty bonus after some initial time
                     # where we only want to learn to induce change
                     pass
-                if self.total_env_steps > 1000000:
+                if self.total_env_steps > 100000:
                     reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                                     self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                                     self.skill)])

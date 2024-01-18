@@ -132,17 +132,12 @@ class ForwardModel(nn.Module):
         #        x = data[i * self.batch_size: (i + 1) * self.batch_size, : self.input_size]
         #        y = data[i * self.batch_size: (i + 1) * self.batch_size, self.input_size:]
 
-        #x = x.to(self.device)
-        #y = y.to(self.device)
 
         self.model.train()
 
-        if self.precision == 'float64':
-            x = x.to(torch.float64)
-            y = y.to(torch.float64)
-        else:
-            x = x.to(torch.float32)
-            y = y.to(torch.float64)
+        x = self._process_input(x)
+        y = self._process_input(y)
+
         if (torch.isnan(x)).any():
             print("input contains nan values")
 
@@ -201,9 +196,9 @@ class ForwardModel(nn.Module):
             print(state_batch)
             print(skill_batch)
 
-            x = torch.FloatTensor(state_batch).to(self.device)
-            k = torch.FloatTensor(skill_batch).to(self.device)
-            y = torch.FloatTensor(next_state_batch).to(self.device)
+            x = self._process_input(torch.FloatTensor(state_batch))
+            k = self._process_input(torch.FloatTensor(skill_batch))
+            y = self._process_input(torch.FloatTensor(next_state_batch))
 
             # input to network is state AND skill
             x = torch.cat((x, k), 1)
@@ -211,13 +206,6 @@ class ForwardModel(nn.Module):
             self.model.eval()
 
             with torch.no_grad():
-                if self.precision == 'float64':
-                    x = x.to(torch.float64)
-                    y = y.to(torch.float64)
-                else:
-                    x = x.to(torch.float32)
-                    y = y.to(torch.float64)
-
                 y_pred = self.model(x)
 
                 loss = self.criterion(y_pred, y)
@@ -330,7 +318,6 @@ class ForwardModel(nn.Module):
             new_state[box, orig_empty] = 1
 
         return new_state.flatten()
-
 
     def successor(self, state: np.array, skill: np.array) -> np.array:
         """
@@ -493,28 +480,57 @@ class ForwardModel(nn.Module):
         print("Goal Not reachable from start configuration")
         return None, None
 
+    def _process_input(self, x):
+        x = x.to(self.device)
+        if self.precision == 'float64':
+            x = x.to(torch.float64)
+        else:
+            x = x.to(torch.float32)
+
+        return x
+
+    def get_full_pred(self):
+        """Give the output-matrix over all possible inputs"""
+
+        init_empty = torch.eye(self.pieces + 1)
+        skill = torch.eye(self.num_skills)
+
+        input = torch.zeros((self.num_skills, self.pieces + 1, self.pieces + 1 + self.num_skills))
+        input[:, :, self.pieces + 1:] = skill[:, None, :]
+        input[:, :, :self.pieces + 1] = init_empty
+
+        input = input.reshape((self.num_skills * (self.pieces + 1), self.num_skills + self.pieces + 1))
+
+        input = self._process_input(input)
+
+        with torch.no_grad():
+            y_pred = self.model(input)
+
+        y_pred = y_pred.reshape(self.num_skills, self.pieces + 1, self.pieces + 1)
+
+        print(y_pred)
+
+
+        return y_pred.cpu().detach().numpy()
+
     def get_p_matrix(self, state: np.array, skill: np.array) -> np.array:
         """
         Given an input to the forward model, it calculates the probabilities over the successor state
 
         @param state: One-hot encoding of empty field
         @param skill: One-hot encoding of skill
-
         returns: Probabiliy over succssor empty field
         """
 
         input = np.concatenate((state, skill))
 
         input = torch.from_numpy(input)
-        input = input.to(self.device)
-        if self.precision == 'float64':
-            input = input.to(torch.float64)
-        else:
-            input = input.to(torch.float32)
+        input = self._process_input(input)
 
         input = input[None, :]
         # get probability over successor state
-        y_pred = self.model(input)
+        with torch.no_grad():
+            y_pred = self.model(input)
 
         y_pred = y_pred.reshape((self.pieces + 1,))
 
@@ -537,15 +553,13 @@ class ForwardModel(nn.Module):
         input = np.concatenate((state, skill))
 
         input = torch.from_numpy(input)
-        input = input.to(self.device)
-        if self.precision == 'float64':
-            input = input.to(torch.float64)
-        else:
-            input = input.to(torch.float32)
+        input = self._process_input(input)
 
         input = input[None, :]
         # get probability over successor state
-        y_pred = self.model(input)
+
+        with torch.no_grad():
+            y_pred = self.model(input)
 
         y_pred = y_pred.reshape((self.pieces + 1,))
 
@@ -593,13 +607,10 @@ class ForwardModel(nn.Module):
         input = start.repeat(self.num_skills, 1)
         input = torch.concatenate((input, one_hot), axis=1)
 
-        input = input.to(self.device)
-        if self.precision == 'float64':
-            input = input.to(torch.float64)
-        else:
-            input = input.to(torch.float32)
+        input = self._process_input(input)
 
-        y_pred = self.model(input)
+        with torch.no_grad():
+            y_pred = self.model(input)
 
         # calculate probability to transition to state z_T for each skill
         # we are only interested in the probability of the correct field being empty
@@ -612,7 +623,7 @@ class ForwardModel(nn.Module):
 
         return np.log(y_pred[k].item() / sum_of_probs.item())
 
-    def novelty_bonus(self, start, end, skill) -> float:
+    def novelty_bonus(self, start, end, skill, others_only=True) -> float:
         """
         given the transition from start to end, returns
 
@@ -622,6 +633,7 @@ class ForwardModel(nn.Module):
             :param start (z_0) : one-hot encoding of empty field agent starts in
             :param end (z_T): one-hot encoding of empty field agent should end
             :skill: as scalar(NOT as one-hot encoding!!!)
+            :others_only: whether to only calculate the bonus over skills different from k
         """
 
         ####################################################
@@ -638,20 +650,19 @@ class ForwardModel(nn.Module):
         input = start.repeat(self.num_skills, 1)
         input = torch.concatenate((input, one_hot), axis=1)
 
-        input = input.to(self.device)
-        if self.precision == 'float64':
-            input = input.to(torch.float64)
-        else:
-            input = input.to(torch.float32)
+        input = self._process_input(input)
 
-        y_pred = self.model(input)
+        with torch.no_grad():
+            y_pred = self.model(input)
 
         # calculate probability to transition to state z_T for each skill
         # we are only interested in the probability of the correct field being empty
         y_pred = y_pred[:, torch.where(end == 1)[0][0]]
 
         idx = torch.arange(y_pred.shape[0])
-        #y_pred = y_pred[idx != skill]
+
+        if others_only:
+            y_pred = y_pred[idx != skill]
 
         # additional bonus if for all other skills fm believes transition to be unlikely
         bonus = - torch.max(torch.log(y_pred))

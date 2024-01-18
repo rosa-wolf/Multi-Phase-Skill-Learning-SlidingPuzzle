@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import time
 
+from gymnasium.wrappers import TransformReward
+
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -30,6 +32,7 @@ class FmCallback(BaseCallback):
 
     def __init__(self, update_freq: int,
                  save_path: str,
+                 env,
                  seed: float, memory_size=500,
                  sample_size=30,
                  size=[1, 2],
@@ -42,6 +45,7 @@ class FmCallback(BaseCallback):
         super().__init__(verbose)
         self.update_freq = update_freq
         self.save_path = save_path
+        self.env = env  # this is not a copy of the env, but a reference to it
         self.sample_size = sample_size
         self.relabel = relabel
         self.relabel_buffer = {"max_reward": [],
@@ -76,6 +80,9 @@ class FmCallback(BaseCallback):
         torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
     def _on_step(self) -> bool:
+
+        #self.locals["env"].envs[0].starting_epis = False
+        self.env.starting_epis = False
 
         if self.locals["dones"] != 0:
             self.relabel_buffer["max_reward"].append((self.locals["infos"][0])["max_reward"])
@@ -116,9 +123,20 @@ class FmCallback(BaseCallback):
         """
         Update fm
         """
-        print("---------------------------------")
 
-        print("num_collected_episodes = ", self.locals["num_collected_episodes"])
+        ## Look if forward model finds change in symbolic state probable for each skill in at least one state
+        #out = self.fm.get_full_pred()
+        ## out is a num_skills x emtpy_fields x output array
+        ## on the diagonal elements are the prob to stay in the initial field => set these to zero
+        #change_reward_scheme = True
+        #for i in range(out.shape[0]):
+        #    np.fill_diagonal(out[i], 0)
+        #    if not np.any(out[i]) > 0.8:
+        #        change_reward_scheme = False
+        #if change_reward_scheme:
+        #    self.env.starting_epis = False
+
+
 
         # number of episodes to relabel
         num_relabel = self.locals["num_collected_episodes"] + 1
@@ -138,7 +156,7 @@ class FmCallback(BaseCallback):
             init_empty = (self.locals["replay_buffer"]).next_observations["init_empty"][end_idx]
             out_empty = (self.locals["replay_buffer"]).next_observations["curr_empty"][end_idx]
             old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
-            print("old skill = ", old_skill)
+            print(f"init_empty = {init_empty}, out_empty = {out_empty}")
 
             # get skill that maximizes reward
             # TODO: relabeling for now assumes that we terminated on change of symbolic state
@@ -151,11 +169,8 @@ class FmCallback(BaseCallback):
                         print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
-                        print("new_skill = ", new_skill)
-                        print("old reward = ", self.locals["replay_buffer"].rewards[end_idx])
-                        print("new reward = ", new_reward)
 
-
+                        # Todo: check if skill really has right shape
                         # replace skill and in all transitions and reward in last transition of episode
                         (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
                         # change skill in next state
@@ -163,10 +178,10 @@ class FmCallback(BaseCallback):
                         (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
 
                 # always relabel fm transition
-                self.buffer.push(init_empty.flatten(), new_skill, out_empty.flatten())
+                self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
             else:
                 # always relabel fm transition
-                self.buffer.push(init_empty.flatten(), old_skill, out_empty.flatten())
+                self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
 
 
         print("-------------------------------------------------------")
