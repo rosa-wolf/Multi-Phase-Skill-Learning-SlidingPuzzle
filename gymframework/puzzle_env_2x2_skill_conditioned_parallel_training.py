@@ -37,6 +37,7 @@ class PuzzleEnv(gym.Env):
                  reward_on_change=False,
                  reward_on_end=False,
                  term_on_change=False,
+                 relabel=False,
                  verbose=0):
 
         """
@@ -70,6 +71,12 @@ class PuzzleEnv(gym.Env):
             self.term_on_change = True
         else:
             self.term_on_change = term_on_change
+
+        # only do relabeling for sparse reward
+        if not self.sparse_reward or not self.term_on_change:
+            self.relabel = False
+        else:
+            self.relabel = relabel
 
         # has actor fulfilled criteria of termination
         self.terminated = False
