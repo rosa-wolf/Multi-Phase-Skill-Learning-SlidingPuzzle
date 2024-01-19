@@ -82,7 +82,7 @@ class PuzzleEnv(gym.Env):
         self.terminated = False
         self.truncated = False
         self.env_step_counter = 0
-        self.total_env_steps = 0
+        self.total_num_steps = 0
         self._max_episode_steps = max_steps
         self.episode = 0
 
@@ -131,8 +131,6 @@ class PuzzleEnv(gym.Env):
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-
-        self.total_env_steps += 1
         # store current symbolic observation before executing action
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -160,7 +158,7 @@ class PuzzleEnv(gym.Env):
                 max_skill, max_reward = self._get_max_skill_reward(reward)
         else:
             self.env_step_counter += 1
-
+            self.total_num_steps += 1
 
         return (obs,
                 reward,
@@ -176,7 +174,7 @@ class PuzzleEnv(gym.Env):
         """
         Resets the environment (including the agent) to the initial conditions.
         """
-
+        print("resetting total env steps =", self.total_num_steps)
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False

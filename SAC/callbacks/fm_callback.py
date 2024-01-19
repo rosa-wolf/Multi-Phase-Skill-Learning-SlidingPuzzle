@@ -49,7 +49,9 @@ class FmCallback(BaseCallback):
         self.sample_size = sample_size
         self.relabel = relabel
         self.relabel_buffer = {"max_reward": [],
-                                "max_skill": []}
+                                "max_skill": [],
+                                "episode_length": [],
+                                "total_num_steps": []}
 
         # initialize empty replay memory for fm
         self.buffer = FmReplayMemory(memory_size, seed)
@@ -67,6 +69,9 @@ class FmCallback(BaseCallback):
             self.test_acc = []
             self.test_loss = []
             self.eval_freq = eval_freq
+
+        # to keep track of circular replay buffer idx
+        self.last_done = None
 
 
         # get the max number of adjacent fields of any grid cell
@@ -104,7 +109,8 @@ class FmCallback(BaseCallback):
         if self.locals["dones"] != 0:
             self.relabel_buffer["max_reward"].append((self.locals["infos"][0])["max_reward"])
             self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
-
+            self.relabel_buffer["episode_length"].append(((self.locals["infos"][0])["episode"]["l"]))
+            self.relabel_buffer["total_num_steps"].append(self.n_calls)
         # only start training after buffer is filled a bit
         if self.n_calls % self.update_freq == 0:
             # Todo: update fm
@@ -184,18 +190,27 @@ class FmCallback(BaseCallback):
         num_relabel = self.locals["num_collected_episodes"] + 1
 
         # for now relabel without caring for skill distribution
-        dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
+        #dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
+
         for i_episode in range(num_relabel):
-            # get start and end idx of episode to relabel
-            if dones.shape[0] < (num_relabel + 1) - i_episode:
-                start_idx = 0
-            else:
-                start_idx = dones[-(num_relabel + 1) + i_episode] + 1
+            ## get start and end idx of episode to relabel
+            #if dones.shape[0] < (num_relabel + 1) - i_episode:
+            #    start_idx = 0
+            #else:
+            #    start_idx = dones[-(num_relabel + 1) + i_episode] + 1
+#
+            #end_idx = dones[-(num_relabel) + i_episode]
 
-            end_idx = dones[-(num_relabel) + i_episode]
+            print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
 
+            start_idx = self.relabel_buffer["total_num_steps"][i_episode] - self.relabel_buffer["episode_length"][i_episode]
+            end_idx = self.relabel_buffer["total_num_steps"][i_episode] - 1
+
+            print(f"before wrapping: start_idx = {start_idx}, end_idx = {end_idx}")
             start_idx = start_idx % self.locals["replay_buffer"].buffer_size
             end_idx = end_idx % self.locals["replay_buffer"].buffer_size
+
+            # wrap around end of replay buffer
             print(f"start_idx = {start_idx}, end_idx = {end_idx}")
 
             init_empty = (self.locals["replay_buffer"]).next_observations["init_empty"][end_idx]
@@ -203,23 +218,34 @@ class FmCallback(BaseCallback):
             old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
             print(f"init_empty = {init_empty}, out_empty = {out_empty}")
 
-            # get skill that maximizes reward
-            # TODO: relabeling for now assumes that we terminated on change of symbolic state
+            """"""""""""""""""""""""""""""""""""""""""
+            # Wrap around
             if self.relabel:
+                # get skill that maximizes reward
+                # TODO: relabeling for now assumes that we terminated on change of symbolic state
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
-
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
                         print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
+                        if start_idx > end_idx:
+                            # wrap around
+                            # Todo: check if skill really has right shape
+                            # replace skill and in all transitions and reward in last transition of episode
+                            (self.locals["replay_buffer"]).observations["skill"][start_idx:] = new_skill
+                            (self.locals["replay_buffer"]).observations["skill"][: end_idx + 1] = new_skill
+                            # change skill in next state
+                            self.locals["replay_buffer"].next_observations["skill"][start_idx:] = new_skill
+                            self.locals["replay_buffer"].next_observations["skill"][: end_idx + 1] = new_skill
+                        else:
+                            # Todo: check if skill really has right shape
+                            # replace skill and in all transitions and reward in last transition of episode
+                            (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
+                            # change skill in next state
+                            self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
 
-                        # Todo: check if skill really has right shape
-                        # replace skill and in all transitions and reward in last transition of episode
-                        (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
-                        # change skill in next state
-                        self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
                         (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
 
                 # always relabel fm transition
@@ -232,6 +258,8 @@ class FmCallback(BaseCallback):
         print("-------------------------------------------------------")
 
         self.relabel_buffer = {"max_reward": [],
-                               "max_skill": []}
+                               "max_skill": [],
+                               "episode_length": [],
+                               "total_num_steps": []}
 
 

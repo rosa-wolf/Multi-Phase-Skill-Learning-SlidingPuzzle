@@ -114,7 +114,7 @@ match args.env_name:
     case "parallel_2x2":
         from puzzle_env_2x2_skill_conditioned_parallel_training import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                        max_steps=100,
+                        max_steps=10,
                         num_skills=args.num_skills,
                         verbose=0,
                         fm_path=fm_dir + "/fm",
@@ -125,8 +125,6 @@ match args.env_name:
                         snapRatio=args.snap_ratio)
 
         puzzle_size = [2, 2]
-
-check_env(env)
 
 env.seed(args.seed)
 env.action_space.seed(args.seed)
