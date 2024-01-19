@@ -308,7 +308,7 @@ class PuzzleEnv(gym.Env):
             self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
-    def _reward(self) -> float:
+    def _reward(self, k=None) -> float:
         """
         Calculates reward, which is based on symbolic observation change
 
