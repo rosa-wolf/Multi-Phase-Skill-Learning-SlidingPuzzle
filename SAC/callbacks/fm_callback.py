@@ -60,7 +60,7 @@ class FmCallback(BaseCallback):
                           height=size[0],
                           num_skills=self.num_skills,
                           batch_size=sample_size,
-                          learning_rate=0.001)
+                          learning_rate=0.0005)
 
         self.logging = logging
         if self.logging:
@@ -79,6 +79,14 @@ class FmCallback(BaseCallback):
             self.max_neighbors = 2
         elif size.__contains__(2):
             self.max_neighbors = 3
+
+        # minimal number of adjacent fields any field has
+        self.min_neighbors = 2
+        if size.__contains__(1):
+            self.min_neighbors = 1
+
+        # number of fields
+        self.num_cells = size[0] * size[1]
 
     def _init_callback(self) -> None:
         # Create folder if needed
@@ -133,23 +141,41 @@ class FmCallback(BaseCallback):
         Update fm
         """
 
-        # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
-        out = self.fm.get_full_pred()
-        # out is a num_skills x emtpy_fields x output array
-        # on the diagonal elements are the prob to stay in the initial field => set these to zero
-        num_skills_change = 0
-        for i in range(out.shape[0]):
-            # set probabilities to not change empty field to zero
-            np.fill_diagonal(out[i], 0)
+        #if self.env.starting_epis:
+        #    # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
+        #    out = self.fm.get_full_pred()
+        #    # out is a num_skills x emtpy_fields x output array
+        #    # on the diagonal elements are the prob to stay in the initial field => set these to zero
+        #    num_change = 0
+        #    for i in range(out.shape[0]):
+        #        # set probabilities to not change empty field to zero
+        #        np.fill_diagonal(out[i], 0)
+#
+        #        print(f"out[{i}] = {out[i]}")
+        #        # check if the probability to change to any different field is high
+        #        if np.any(out[i] > 0.8):
+        #            num_change += 1
+        #            if num_change >= self.max_neighbors:
+        #                self.env.starting_epis = False
+        #                print("changing reward scheme now")
+        #                break
 
-            print(f"out[{i}] = {out[i]}")
-            # check if the probability to change to any different field is high
-            if np.any(out[i] > 0.8):
-                num_skills_change += 1
-                if num_skills_change >= self.max_neighbors:
-                    self.env.starting_epis = False
-                    print("changing reward scheme now")
-                    break
+        if self.env.starting_epis:
+            # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
+            out = self.fm.get_full_pred()
+            # out is shape empty_fields x num_skill x output array
+            change_reward_scheme = True
+            for i in range(out.shape[0]):
+                # set probabilities to not change empty field to zero, as we are only looking at transitions where change happens
+                out[i, :, i] = 0
+                print(f"out[{i}] = {out[i]}")
+                # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
+                num_change = np.where(out[i] >= 0.8)[0].shape[0]
+                if num_change < self.min_neighbors:
+                        change_reward_scheme = False
+            if change_reward_scheme:
+                print("changing reward scheme")
+                self.env.starting_epis = False
 
 
 

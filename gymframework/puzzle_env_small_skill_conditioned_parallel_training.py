@@ -331,7 +331,6 @@ class PuzzleEnv(gym.Env):
             - opt position changes when block position changes
 
         """
-        print("reward scheme self.starting_epis = ", self.starting_epis)
         reward = 0.
 
         if k is None:

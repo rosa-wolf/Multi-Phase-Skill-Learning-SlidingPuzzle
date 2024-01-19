@@ -495,9 +495,9 @@ class ForwardModel(nn.Module):
         init_empty = torch.eye(self.pieces + 1)
         skill = torch.eye(self.num_skills)
 
-        input = torch.zeros((self.num_skills, self.pieces + 1, self.pieces + 1 + self.num_skills))
-        input[:, :, self.pieces + 1:] = skill[:, None, :]
-        input[:, :, :self.pieces + 1] = init_empty
+        input = torch.zeros((self.pieces + 1, self.num_skills, self.pieces + 1 + self.num_skills))
+        input[:, :, :self.pieces + 1] = init_empty[:, None, :]
+        input[:, :, self.pieces + 1:] = skill
 
         input = input.reshape((self.num_skills * (self.pieces + 1), self.num_skills + self.pieces + 1))
 
@@ -506,7 +506,7 @@ class ForwardModel(nn.Module):
         with torch.no_grad():
             y_pred = self.model(input)
 
-        y_pred = y_pred.reshape(self.num_skills, self.pieces + 1, self.pieces + 1)
+        y_pred = y_pred.reshape(self.pieces + 1, self.num_skills, self.pieces + 1)
 
         return y_pred.cpu().detach().numpy()
 
