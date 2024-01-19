@@ -68,6 +68,18 @@ class FmCallback(BaseCallback):
             self.test_loss = []
             self.eval_freq = eval_freq
 
+
+        # get the max number of adjacent fields of any grid cell
+        self.max_neighbors = 4
+        if size == [1, 2] or size == [2, 1]:
+            self.max_neighbors = 1
+        elif size.__contains__(1):
+            self.max_neighbors = 2
+        elif size == [2, 2]:
+            self.max_neighbors = 2
+        elif size.__contains__(2):
+            self.max_neighbors = 3
+
     def _init_callback(self) -> None:
         # Create folder if needed
         if self.save_path is not None:
@@ -80,9 +92,6 @@ class FmCallback(BaseCallback):
         torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
     def _on_step(self) -> bool:
-
-        #self.locals["env"].envs[0].starting_epis = False
-        self.env.starting_epis = False
 
         if self.locals["dones"] != 0:
             self.relabel_buffer["max_reward"].append((self.locals["infos"][0])["max_reward"])
@@ -124,17 +133,24 @@ class FmCallback(BaseCallback):
         Update fm
         """
 
-        ## Look if forward model finds change in symbolic state probable for each skill in at least one state
-        #out = self.fm.get_full_pred()
-        ## out is a num_skills x emtpy_fields x output array
-        ## on the diagonal elements are the prob to stay in the initial field => set these to zero
-        #change_reward_scheme = True
-        #for i in range(out.shape[0]):
-        #    np.fill_diagonal(out[i], 0)
-        #    if not np.any(out[i]) > 0.8:
-        #        change_reward_scheme = False
-        #if change_reward_scheme:
-        #    self.env.starting_epis = False
+        # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
+        out = self.fm.get_full_pred()
+        # out is a num_skills x emtpy_fields x output array
+        # on the diagonal elements are the prob to stay in the initial field => set these to zero
+        num_skills_change = 0
+        for i in range(out.shape[0]):
+            # set probabilities to not change empty field to zero
+            np.fill_diagonal(out[i], 0)
+
+            print(f"out[{i}] = {out[i]}")
+            # check if the probability to change to any different field is high
+            if np.any(out[i] > 0.8):
+                num_skills_change += 1
+                if num_skills_change >= self.max_neighbors:
+                    self.env.starting_epis = False
+                    print("changing reward scheme now")
+                    break
+
 
 
 

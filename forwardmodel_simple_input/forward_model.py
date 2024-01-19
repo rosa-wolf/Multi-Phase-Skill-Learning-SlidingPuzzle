@@ -508,9 +508,6 @@ class ForwardModel(nn.Module):
 
         y_pred = y_pred.reshape(self.num_skills, self.pieces + 1, self.pieces + 1)
 
-        print(y_pred)
-
-
         return y_pred.cpu().detach().numpy()
 
     def get_p_matrix(self, state: np.array, skill: np.array) -> np.array:
