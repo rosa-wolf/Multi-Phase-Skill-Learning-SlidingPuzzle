@@ -193,6 +193,9 @@ class FmCallback(BaseCallback):
                 start_idx = dones[-(num_relabel + 1) + i_episode] + 1
 
             end_idx = dones[-(num_relabel) + i_episode]
+
+            start_idx = start_idx % self.locals["replay_buffer"].buffer_size
+            end_idx = end_idx % self.locals["replay_buffer"].buffer_size
             print(f"start_idx = {start_idx}, end_idx = {end_idx}")
 
             init_empty = (self.locals["replay_buffer"]).next_observations["init_empty"][end_idx]

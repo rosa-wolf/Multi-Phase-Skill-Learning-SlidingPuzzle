@@ -143,9 +143,6 @@ class PuzzleEnv(gym.Env):
 
         obs = self._get_observation()
 
-        # before resetting store symbolic state (forward model needs this information)
-        current_sym_state = self.scene.sym_state.copy()
-
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # for episode termination on change of symbolic observation
@@ -185,9 +182,6 @@ class PuzzleEnv(gym.Env):
         self.skill_possible = True
         self.env_step_counter = 0
         self.episode += 1
-
-        #if self.total_env_steps > 15000:
-        #    self.starting_epis = False
 
         if skill is not None:
             self.skill = skill
@@ -385,9 +379,6 @@ class PuzzleEnv(gym.Env):
                         reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                                                                    k)])
-
-
-
             print("reward = ", reward)
 
         return reward

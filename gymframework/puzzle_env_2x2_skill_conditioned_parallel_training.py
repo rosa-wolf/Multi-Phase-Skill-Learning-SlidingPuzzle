@@ -138,42 +138,22 @@ class PuzzleEnv(gym.Env):
 
         obs = self._get_observation()
 
-        # before resetting store symbolic state (forward model needs this information)
-        current_sym_state = self.scene.sym_state.copy()
+        # check if symbolic observation changed
+        if not (self._old_sym_obs == self.scene.sym_state).all():
+            # for episode termination on change of symbolic observation
+            self.terminated = self.term_on_change
 
         # get reward (if we don't only want to give reward on last step of episode)
         reward = self._reward()
 
-        print("obs = ", obs)
-        print("--------------------------------------------")
-
-        # check if symbolic observation changed
-        if not (self._old_sym_obs == self.scene.sym_state).all():
-            # for episode termination on change of symbolic observation
-                self.terminated = self.term_on_change
-
-        # look whether conditions for termination are met
-        # make sure to reset env in trainings loop if done
-        done = self._termination()
-        if not done:
-            self.env_step_counter += 1
+        max_reward = None
+        max_skill = None
+        if self._termination():
+            if self.relabel:
+                max_skill, max_reward = self._get_max_skill_reward(reward)
         else:
-            # if we want to always give a reward on the last episode, even if the symbolic observation did not change
-            if self.reward_on_end:
-                # give reward calculated by forward model, in a well trained fm this should only be positive if skill
-                # execution was no possible
-                # only add reward if we did not yet do this when calculating reward
-                if (self._old_sym_obs == self.scene.sym_state).all():
-                    # give scaled down novelty bonus after some initial time
-                    # where we only want to learn to induce change
-                    pass
-                if self.total_env_steps > 100000:
-                    reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                                    self.skill)])
+            self.env_step_counter += 1
 
-
-                    print("reward_on_end = ", reward)
 
         return (obs,
                 reward,
@@ -197,9 +177,6 @@ class PuzzleEnv(gym.Env):
         self.skill_possible = True
         self.env_step_counter = 0
         self.episode += 1
-
-        #if self.episode > 5000:
-        #    self.starting_epis = False
 
         # sample skill
         if skill is not None:
@@ -345,21 +322,33 @@ class PuzzleEnv(gym.Env):
             - opt position changes when block position changes
 
         """
-        reward = 0
+        reward = 0.
+
+        if k is None:
+            k = self.skill
+
+        if not (self.init_sym_state == self.scene.sym_state).all():
+            # always give novelty bonus when state changes
+            print("SYM STATE CHANGED !!!")
+            # add novelty bonus (min + 0)
+            reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+                                                self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                k)
+
+        if self._termination():
+            print("terminating")
+            # if we want to always give a reward on the last episode, even if the symbolic observation did not change
+            if self.reward_on_end:
+                if not self.starting_epis:
+                    reward += np.max(
+                        [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                       self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                       k)])
+
+                    print("reward_on_end = ", reward)
 
         if self.starting_epis:
-            # reward for any change in sym state independent of skill
-            if not (self._old_sym_obs == self.scene.sym_state).all():
-                print("SYM STATE CHANGED !!!")
-                #reward += 1
-
-                # add novelty bonus (min + 0)
-                reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
-                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                    self.skill)
-
-                print("reward = ", reward)
-
+            # if we just started training
             if not self.sparse_reward:
                 # penalize being far away from all boxes
                 # penalty is negative distance to closest box
@@ -371,32 +360,50 @@ class PuzzleEnv(gym.Env):
                         min_dist = dist[0]
 
                 reward += 0.1 * min_dist
-
         else:
             if not self.sparse_reward:
                 # give a small reward calculated by the forward model in every step
                 reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                            self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                            self.skill)
-
-
-            # optionally give reward of one when box was successfully pushed to other field
+                                                           self.fm.sym_state_to_input(
+                                                               self.scene.sym_state.flatten()),
+                                                           k)
             if self.reward_on_change:
-                # give this reward every time we are in goal symbolic state
-                # not only when we change to it (such that it is markovian))
-                if not (self.init_sym_state == self.scene.sym_state).all():
-                    reward += 20 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                            self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                            self.skill)
-
-                    print("reward on change = ", reward)
-                    # if reward is --negative give a small negative reward instead
-                    if reward < -0.1:
-                        reward = -0.1
-                    else:
-                        reward += 10
+                if not self.reward_on_end:
+                    # give this reward every time we are in goal symbolic state
+                    # not only when we change to it (such that it is markovian))
+                    if not (self.init_sym_state == self.scene.sym_state).all():
+                        reward += np.max(
+                            [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                           self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                           k)])
+            print("reward = ", reward)
 
         return reward
+
+
+    def _get_max_skill_reward(self, reward):
+        """
+        Returns the skill and reward, that gives the maxmimal reward for a given transition
+        """
+        print("---------------------------\nCalculating new skill and reward for relabeling")
+        max_reward = reward
+        skill = self.skill
+        print(f"init skill = {skill}, init_reward = {max_reward}")
+        for k in range(self.num_skills):
+            if k != self.skill:
+                reward = self._reward(k=k)
+                print(f"skill = {k}, reward = {reward}")
+                if reward > max_reward:
+                    max_reward = reward
+                    skill = k
+
+        print(f"max skill = {skill}, max_reward = {max_reward}\n-----------------------------------------")
+
+        one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
+        one_hot_skill[skill] = 1
+        max_reward = np.array(max_reward, dtype=np.float32)
+
+        return one_hot_skill, max_reward
 
     def relabeling(self, episodes):
         """
