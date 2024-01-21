@@ -84,74 +84,71 @@ else:
 
 
 # Environment
-match args.env_name:
-    case "skill_conditioned_1x2":
-        from puzzle_env_small_skill_conditioned import PuzzleEnv
-
-        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                        max_steps=100,
-                        verbose=0,
-                        sparse_reward=True,
-                        reward_on_change=True,
-                        term_on_change=False,
-                        reward_on_end=False,
-                        snapRatio=args.snap_ratio)
-        eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                        max_steps=100,
-                        verbose=0,
-                        sparse_reward=True,
-                        reward_on_change=True,
-                        term_on_change=False,
-                        reward_on_end=False,
-                        snapRatio=args.snap_ratio,
-                        seed=98765)
-
-    case "skill_conditioned_2x2":
-        from puzzle_env_2x2_skill_conditioned import PuzzleEnv
-        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                        max_steps=100,
-                        verbose=0,
-                        sparse_reward=args.sparse,
-                        reward_on_change=args.reward_on_change,
-                        neg_dist_reward=False,
-                        term_on_change=False,
-                        reward_on_end=False,
-                        snapRatio=args.snap_ratio)
-        eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                        max_steps=100,
-                        verbose=0,
-                        sparse_reward=args.sparse,
-                        reward_on_change=args.reward_on_change,
-                        neg_dist_reward=False,
-                        term_on_change=False,
-                        reward_on_end=False,
-                        seed=98765,
-                        snapRatio=args.snap_ratio)
-    case "skill_conditioned_3x3":
-        from puzzle_env_3x3_skill_conditioned import PuzzleEnv
-        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
-                        num_skills=args.num_skills,
-                        max_steps=100,
-                        verbose=0,
-                        sparse_reward=args.sparse,
-                        reward_on_change=args.reward_on_change,
-                        neg_dist_reward=args.neg_dist_reward,
-                        movement_reward=args.movement_reward,
-                        term_on_change=False,
-                        reward_on_end=False,
-                        snapRatio=args.snap_ratio)
-        eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
-                        num_skills=args.num_skills,
-                        max_steps=100,
-                        verbose=0,
-                        sparse_reward=args.sparse,
-                        reward_on_change=args.reward_on_change,
-                        neg_dist_reward=args.neg_dist_reward,
-                        movement_reward=args.movement_reward,
-                        term_on_change=False,
-                        reward_on_end=False,
-                        seed=98765,
-                        snapRatio=args.snap_ratio)
+if args.env_name.__contains__("skill_conditioned_1x2"):
+    from puzzle_env_small_skill_conditioned import PuzzleEnv
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=True,
+                    reward_on_change=True,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio)
+    eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=True,
+                    reward_on_change=True,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio,
+                    seed=98765)
+elif args.env_name.__contains__("skill_conditioned_2x2"):
+    from puzzle_env_2x2_skill_conditioned import PuzzleEnv
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=False,
+                    term_on_change=args.term_on_change,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio)
+    eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=False,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    seed=98765,
+                    snapRatio=args.snap_ratio)
+elif args.env_name.__contains__("skill_conditioned_3x3"):
+    from puzzle_env_3x3_skill_conditioned import PuzzleEnv
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                    num_skills=args.num_skills,
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=args.neg_dist_reward,
+                    movement_reward=args.movement_reward,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio)
+    eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                    num_skills=args.num_skills,
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=args.neg_dist_reward,
+                    movement_reward=args.movement_reward,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    seed=98765,
+                    snapRatio=args.snap_ratio)
 
 check_env(env)
 
@@ -180,14 +177,14 @@ checkpoint_callback = CheckpointCallback(
 
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
-                             log_path=log_dir, eval_freq=500,
-                             n_eval_episodes=5,
+                             log_path=log_dir, eval_freq=1000,
+                             n_eval_episodes=10,
                              deterministic=True, render=False)
 
 callbacks = CallbackList([checkpoint_callback, eval_callback])
 
 # initialize SAC
-model = SAC("MultiInputPolicy--env",  # could also use CnnPolicy
+model = SAC("MlpPolicy",  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,

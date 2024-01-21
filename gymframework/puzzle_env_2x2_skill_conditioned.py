@@ -153,9 +153,12 @@ class PuzzleEnv(gym.Env):
 
         # check if joints are outside observation_space
         # if so set back to last valid position
-        in_limits = self.scene.check_limits()
-        if not in_limits:
-            reward -= 0.5
+        self.scene.check_limits()
+
+        # check if symbolic observation changed
+        if not (self._old_sym_obs == self.scene.sym_state).all():
+            # for episode termination on change of symbolic observation
+            self.terminated = self.term_on_change
 
         obs = self._get_observation()
 
@@ -164,9 +167,10 @@ class PuzzleEnv(gym.Env):
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
-        self._termination()
+        done = self._termination()
 
-        self.env_step_counter += 1
+        if not done:
+            self.env_step_counter += 1
 
         return obs, reward, self.terminated, self.truncated, {}
 
