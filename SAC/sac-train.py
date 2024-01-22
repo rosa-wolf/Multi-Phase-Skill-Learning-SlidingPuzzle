@@ -108,11 +108,12 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
                     verbose=0,
-                    sparse_reward=args.sparse,
-                    reward_on_change=args.reward_on_change,
+                    sparse_reward=True,
+                    reward_on_change=True,
                     neg_dist_reward=False,
-                    term_on_change=args.term_on_change,
+                    term_on_change=True,
                     reward_on_end=False,
+                    seed=args.seed,
                     snapRatio=args.snap_ratio)
     eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
@@ -181,7 +182,7 @@ eval_callback = EvalCallback(eval_env,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 
-callbacks = CallbackList([checkpoint_callback, eval_callback])
+callbacks = CallbackList([checkpoint_callback])#, eval_callback])
 
 # initialize SAC
 model = SAC("MlpPolicy",  # could also use CnnPolicy
