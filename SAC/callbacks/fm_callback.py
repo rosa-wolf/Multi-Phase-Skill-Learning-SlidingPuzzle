@@ -34,7 +34,7 @@ class FmCallback(BaseCallback):
                  save_path: str,
                  env,
                  seed: float, memory_size=500,
-                 sample_size=30,
+                 sample_size=40,
                  size=[1, 2],
                  num_skills=2,
                  relabel=False,
@@ -62,7 +62,7 @@ class FmCallback(BaseCallback):
                           height=size[0],
                           num_skills=self.num_skills,
                           batch_size=sample_size,
-                          learning_rate=0.0005)
+                          learning_rate=0.001)
 
         self.logging = logging
         if self.logging:

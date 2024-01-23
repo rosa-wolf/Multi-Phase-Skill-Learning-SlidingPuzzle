@@ -123,6 +123,7 @@ match args.env_name:
                         reward_on_change=False,
                         term_on_change=True,
                         reward_on_end=args.reward_on_end,
+                        relabel=args.relabeling,
                         snapRatio=args.snap_ratio)
         puzzle_size = [2, 2]
     case "parallel_3x3":

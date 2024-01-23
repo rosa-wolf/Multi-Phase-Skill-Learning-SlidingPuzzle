@@ -9,10 +9,10 @@ import torch.optim as optim
 import torch.utils.data as data
 from torch.utils.tensorboard import SummaryWriter
 
-from mlp import MLP
-from nllloss import NLLLoss_customized
+from .mlp import MLP
+from .nllloss import NLLLoss_customized
 
-from visualize_transitions import visualize_transition
+from .visualize_transitions import visualize_transition
 
 
 
@@ -109,139 +109,112 @@ class ForwardModel(nn.Module):
         :param data: data to train on
         """
 
+        state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
+
+        print(state_batch)
+        print(skill_batch)
+
+        x = torch.FloatTensor(state_batch)
+        k = torch.FloatTensor(skill_batch)
+        y = torch.FloatTensor(next_state_batch)
+
+        # input to network is state AND skill
+        x = torch.cat((x, k), 1)
+
         epoch_loss = 0
         epoch_acc = 0
 
-        num_batches = math.ceil(data.shape[0]/self.batch_size)
-
         self.model.train()
 
-        # go through all batches
-        for i in range(num_batches):
-            if i == num_batches - 1:
-                # if we are in last batch take rest of data
-                x = data[i * self.batch_size: , : self.input_size]
-                y = data[i * self.batch_size: , self.input_size:]
-            else:
-                # take one batch of data
-                x = data[i * self.batch_size: (i + 1) * self.batch_size, : self.input_size]
-                y = data[i * self.batch_size: (i + 1) * self.batch_size, self.input_size:]
-
-            x = x.to(self.device)
-            y = y.to(self.device)
-
-            if self.precision == 'float64':
-                x = x.to(torch.float64)
-                y = y.to(torch.float64)
-            else:
-                x = x.to(torch.float32)
-                y = y.to(torch.float64)
-
-            if (torch.isnan(x)).any():
-                print("input contains nan values")
-
-            # set all gradients to zero
-            self.optimizer.zero_grad()
-            # get y_pred (multiclass classification)
-            y_pred = self.model(x)
 
 
-            # get alpha (probability of state being 1) from y_pred
-            #alpha = self.calculate_alpha(x, y_pred)
+        x = x.to(self.device)
+        y = y.to(self.device)
+        if self.precision == 'float64':
+            x = x.to(torch.float64)
+            y = y.to(torch.float64)
+        else:
+            x = x.to(torch.float32)
+            y = y.to(torch.float64)
 
-            #loss, max_loss, max_ep = self.criterion(y_pred, y)
-            loss = self.criterion(y_pred, y)
+        if (torch.isnan(x)).any():
+            print("input contains nan values")
 
+        # set all gradients to zero
+        self.optimizer.zero_grad()
 
-            #print("loss = ", loss)
+        # get y_pred (multiclass classification)
+        y_pred = self.model(x)
+        # get alpha (probability of state being 1) from y_pred
+        #alpha = self.calculate_alpha(x, y_pred)
+        #loss, max_loss, max_ep = self.criterion(y_pred, y)
 
-            #print("=========================================")
-            #print("transition with max loss : ", max_loss)
-            #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
-            #print("prediction ", y_pred[max_ep].reshape((5, 6)))
-            #print("=========================================")
-#
-            if torch.isnan(loss).any():
-                print("loss is nan")
+        loss = self.criterion(y_pred, y)
+        #print("loss = ", loss)
+        #print("=========================================")
+        #print("transition with max loss : ", max_loss)
+        #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
+        #print("prediction ", y_pred[max_ep].reshape((5, 6)))
+        #print("=========================================")
 
-            loss.backward()
-            self.optimizer.step()
+        if torch.isnan(loss).any():
+            print("loss is nan")
+        loss.backward()
 
-            acc = self.calculate_accuracy(y_pred, y)
+        self.optimizer.step()
 
-            epoch_loss += loss.item()
-            epoch_acc += acc.item()
+        acc = self.calculate_accuracy(y_pred, y)
 
-            # check if weights contain nan of inf values
-            for p in self.model.parameters():
-                if torch.isinf(p).any():
-                    print('weights contain inf values, ', p)
-                if torch.isnan(p).any():
-                    print('weights contain nan values, ', p)
+        epoch_loss += loss.item()
+        epoch_acc += acc.item()
 
-        return epoch_loss / num_batches, epoch_acc / num_batches
+        # check if weights contain nan of inf values
+        for p in self.model.parameters():
+            if torch.isinf(p).any():
+                print('weights contain inf values, ', p)
+            if torch.isnan(p).any():
+                print('weights contain nan values, ', p)
 
-    def evaluate(self, data):
+        return epoch_loss, epoch_acc
+
+    def _process_input(self, x):
+        x = x.to(self.device)
+        if self.precision == 'float64':
+            x = x.to(torch.float64)
+        else:
+            x = x.to(torch.float32)
+
+        return x
+
+    def evaluate(self, data, num_epis=5):
         """
         :param data: data to test on
         """
         epoch_loss = 0
         epoch_acc = 0
 
-        self.model.eval()
+        for i in range(num_epis):
+            state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
 
-        num_batches = math.floor(data.shape[0] / self.batch_size)
+            x = self._process_input(torch.FloatTensor(state_batch))
+            k = self._process_input(torch.FloatTensor(skill_batch))
+            y = self._process_input(torch.FloatTensor(next_state_batch))
 
-        with torch.no_grad():
-            if num_batches > 0:
-                for i in range(num_batches):
-                    x = data[i * self.batch_size: i * self.batch_size + self.batch_size, : self.input_size]
-                    y = data[i * self.batch_size: i * self.batch_size + self.batch_size, self.input_size:]
-                    x = x.to(self.device)
-                    y = y.to(self.device)
+            # input to network is state AND skill
+            x = torch.cat((x, k), 1)
 
-                    if self.precision == 'float64':
-                        x = x.to(torch.float64)
-                        y = y.to(torch.float64)
-                    else:
-                        x = x.to(torch.float32)
-                        y = y.to(torch.float64)
+            self.model.eval()
 
-                    y_pred = self.model(x)
+            with torch.no_grad():
+                y_pred = self.model(x)
 
-                    # get alpha (probability of state being 1) from y_pred
-                    # alpha = self.calculate_alpha(x, y_pred)
+                loss = self.criterion(y_pred, y)
+                acc = self.calculate_accuracy(y_pred, y)
 
-                    #loss = self.criterion(alpha, y)
-                    #loss, _, _ = self.criterion(y_pred, y)
-                    loss = self.criterion(y_pred, y)
+                epoch_loss += loss.item()
+                epoch_acc += acc.item()
 
-                    acc = self.calculate_accuracy(y_pred, y)
-
-                    epoch_loss += loss.item()
-                    epoch_acc += acc.item()
-
-                return epoch_loss / num_batches, epoch_acc / num_batches
-
-            x = data[:, : self.input_size]
-            y = data[:, self.input_size: ]
-            x = x.to(self.device)
-            y = y.to(self.device)
-            if self.precision == 'float64':
-                x = x.to(torch.float64)
-                y = y.to(torch.float64)
-            else:
-                x = x.to(torch.float32)
-                y = y.to(torch.float64)
-            y_pred = self.model(x)
-            # get alpha (probability of state being 1) from y_pred
-            #alpha = self.calculate_alpha(x, y_pred)
-            loss = self.criterion(y_pred, y)
-            acc = self.calculate_accuracy(y_pred, y)
-            epoch_loss += loss.item()
-            epoch_acc += acc.item()
-
-            return epoch_loss, epoch_acc
+        return epoch_loss / float(num_epis), epoch_acc / float(num_epis)
 
 
     def calculate_accuracy(self, y_hat, y):

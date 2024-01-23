@@ -118,9 +118,6 @@ class ForwardModel(nn.Module):
 
         state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
 
-        print(state_batch)
-        print(skill_batch)
-
         x = torch.FloatTensor(state_batch)
         k = torch.FloatTensor(skill_batch)
         y = torch.FloatTensor(next_state_batch)
@@ -162,7 +159,6 @@ class ForwardModel(nn.Module):
         #alpha = self.calculate_alpha(x, y_pred)
         #loss, max_loss, max_ep = self.criterion(y_pred, y)
         loss = self.criterion(y_pred, y)
-        print(f"y = {y}, y_pred = {y_pred}")
 
         #print("loss = ", loss)
         #print("=========================================")
@@ -204,9 +200,6 @@ class ForwardModel(nn.Module):
 
         for i in range(num_epis):
             state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
-
-            print(state_batch)
-            print(skill_batch)
 
             x = self._process_input(torch.FloatTensor(state_batch))
             k = self._process_input(torch.FloatTensor(skill_batch))
@@ -301,7 +294,6 @@ class ForwardModel(nn.Module):
             out[empty] = 1
             return out
 
-        print("empty = ", empty)
         return empty
 
 
