@@ -7,13 +7,15 @@ from forwardmodel_simple_input.visualize_transitions import visualize_transition
 
 from forwardmodel_simple_input.forward_model import ForwardModel
 
+from FmReplayMemory import FmReplayMemory
+
 #SKILLS = np.array([[0, 1], [0, 3], [2, 1], [2, 5], [3, 0], [3, 4], [5, 2],
 #                   [5, 4], [1, 0], [1, 2], [1, 4], [4, 1], [4, 3], [4, 5]])
 
 SKILLS = np.array([[1, 0], [3, 0], [0, 1], [2, 1], [4, 1], [1, 2], [5, 2],
                    [0, 3], [4, 3], [1, 4], [3, 4], [5, 4], [2, 5], [4, 5]])
 
-SKILLS = np.array([[1, 0], [0, 1]])
+#SKILLS = np.array([[1, 0], [0, 1]])
 def visualize_result(states, skills):
      states = np.array(states)
      states = states.reshape((states.shape[0], 5, 6))
@@ -31,8 +33,7 @@ def visualize_result(states, skills):
             print("------------------------------------------")
 
 
-def gather_data(num_data):
-    dataset = []
+def gather_data(dataset, num_data):
     for i in range(num_data):
         # gather data
         # sample skill
@@ -58,12 +59,7 @@ def gather_data(num_data):
             input[empty] = 1
             output[empty] = 1
 
-        dataset.append(np.concatenate((input, k, output)))
-
-    dataset = np.array(dataset)
-    dataset = torch.from_numpy(dataset)
-
-    return dataset
+        dataset.push(input, k, output)
 
 
 if __name__ == "__main__":
@@ -74,8 +70,12 @@ if __name__ == "__main__":
     num_train_data = 300
     num_test_data = 100
 
+    train_data = FmReplayMemory(1000, 12345)
+    test_data = FmReplayMemory(100, 98765)
+
     # get forward model
-    my_forwardmodel = ForwardModel(batch_size=50, learning_rate=0.001, precision='float64')
+    my_forwardmodel = ForwardModel(batch_size=2,
+                                   learning_rate=0.001)
     print(my_forwardmodel.model)
 
     for epoch in range(EPOCHS):
@@ -84,8 +84,11 @@ if __name__ == "__main__":
         #train_set = torch.concatenate((data[: epoch * test_set_size], data[epoch * test_set_size + test_set_size:]))
         start_time = time.monotonic()
 
-        train_data = gather_data(num_train_data)
-        test_data = gather_data(num_test_data)
+        # append new data to buffer
+        gather_data(train_data, num_train_data)
+        gather_data(test_data, num_test_data)
+
+        #print("sample = ", train_data.sample(2))
 
         # train with data for 4 steps
         for _ in range(4):

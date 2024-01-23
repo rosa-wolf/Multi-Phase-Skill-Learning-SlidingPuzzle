@@ -101,8 +101,6 @@ class PuzzleEnv(gym.Env):
         # if true we are in the starting episodes where the environment may reward differently
         self.starting_epis = True
 
-        ## load fully trained forward model
-
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
         self.fm = ForwardModel(width=puzzlesize[1],
@@ -164,17 +162,16 @@ class PuzzleEnv(gym.Env):
                 reward,
                 self.terminated,
                 self.truncated,
-                {"max_reward": None, "max_skill": None})
+                {"max_reward": max_reward, "max_skill": max_skill})
 
     def reset(self,
               *,
               seed: Optional[int] = None,
-              skill = None,
+              skill=None,
               options: Optional[dict] = None, ) -> tuple[dict[str, Any], dict[Any, Any]]:
         """
         Resets the environment (including the agent) to the initial conditions.
         """
-        print("resetting total env steps =", self.total_num_steps)
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False
@@ -200,7 +197,6 @@ class PuzzleEnv(gym.Env):
         # randomly pick the field where no block is initially
         field = np.delete(np.arange(0, self.scene.pieces + 1),
                           np.random.choice(np.arange(0, self.scene.pieces + 1)))
-        print("empty field = ", field)
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
         sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
@@ -210,6 +206,8 @@ class PuzzleEnv(gym.Env):
         self.scene.sym_state = sym_obs
         self.scene.set_to_symbolic_state()
         self.init_sym_state = sym_obs.copy()
+
+        print(f"init_sym_obs = {self.init_sym_state}")
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
@@ -284,7 +282,7 @@ class PuzzleEnv(gym.Env):
     @property
     def observation_space(self):
         """
-        Defines bounds of the observation space
+        Defines bounds and shape of the observation space
         """
         obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
                      "init_empty": MultiBinary(self.num_pieces + 1), # Box(low=-1, high=1, shape=(self.num_pieces + 1,)),
@@ -300,10 +298,6 @@ class PuzzleEnv(gym.Env):
         :param action: desired x-y-z position
         """
         # do velocity control for 100 steps
-        # set velocity to go in that direction
-        # (vel[0] - velocity in x-direction, vel[1] - velocity in y-direction)
-        # vel[2] - velocity in z-direction (set to zero)
-        # vel[3] - orientation, set to zero
         for _ in range(100):
             # get current position
             act = self.scene.q[:3]
@@ -370,7 +364,7 @@ class PuzzleEnv(gym.Env):
                 # give a small reward calculated by the forward model in every step
                 reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                            self.fm.sym_state_to_input(
-                                                               self.scene.sym_state.flatten()),
+                                                           self.scene.sym_state.flatten()),
                                                            k)
             if self.reward_on_change:
                 if not self.reward_on_end:
@@ -384,7 +378,6 @@ class PuzzleEnv(gym.Env):
             print("reward = ", reward)
 
         return reward
-
 
     def _get_max_skill_reward(self, reward):
         """

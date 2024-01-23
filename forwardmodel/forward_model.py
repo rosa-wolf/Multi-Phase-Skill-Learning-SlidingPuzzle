@@ -152,6 +152,7 @@ class ForwardModel(nn.Module):
             #loss, max_loss, max_ep = self.criterion(y_pred, y)
             loss = self.criterion(y_pred, y)
 
+
             #print("loss = ", loss)
 
             #print("=========================================")

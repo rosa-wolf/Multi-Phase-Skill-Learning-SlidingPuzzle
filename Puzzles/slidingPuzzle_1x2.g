@@ -10,7 +10,7 @@ bound2(center): { Q:[-.12 0 -.025], shape:ssBox, size:[.05 .1125 .05 .01], color
 bound3(center): { Q:[+.12 0 -.025], shape:ssBox, size:[.05 .1125 .05 .01], color:[.8] }
 
         
-box0: { X:[-.05 .0 .11], shape:ssBox, size:[.1 .1 .1 .01], color:[1 1 0], mass: .1 }
+box0: { X:[.05 .0 .11], shape:ssBox, size:[.1 .1 .1 .01], color:[1 1 0], mass: .1 }
 
 base { X:[0 0 .2], motors }
 fake(base){}

@@ -8,6 +8,7 @@ from forwardmodel_simple_input.visualize_transitions import visualize_transition
 from forwardmodel_simple_input.forward_model import ForwardModel
 
 
+
 SKILLS = np.array([[1, 0], [0, 1]])
 def visualize_result(states, skills):
      states = np.array(states)

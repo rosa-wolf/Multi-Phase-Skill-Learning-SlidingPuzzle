@@ -6,7 +6,7 @@ import time
 from gymnasium.core import ObsType, ActType
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
-from puzzle_scene import PuzzleScene
+from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
 import torch
 from scipy import optimize
@@ -33,11 +33,11 @@ class PuzzleEnv(gym.Env):
                  skill=0,
                  max_steps=100,
                  puzzlesize = [1, 2],
-                 relabel=False,
                  sparse_reward=False,
                  reward_on_change=False,
                  reward_on_end=False,
                  term_on_change=False,
+                 relabel=False,
                  verbose=0):
 
         """
@@ -82,7 +82,7 @@ class PuzzleEnv(gym.Env):
         self.terminated = False
         self.truncated = False
         self.env_step_counter = 0
-        self.total_env_steps = 0
+        self.total_num_steps = 0
         self._max_episode_steps = max_steps
         self.episode = 0
 
@@ -101,18 +101,18 @@ class PuzzleEnv(gym.Env):
         # if true we are in the starting episodes where the environment may reward differently
         self.starting_epis = True
 
-        ## load fully trained forward model
-        self.fm = ForwardModel(width=2,
-                               height=1,
-                               num_skills=self.num_skills,
-                               batch_size=10,
-                               learning_rate=0.001)
+        # initially dummy environment (we will not train this, so learning parameters are irrelevant)
+        # only used for loading saved fm into
+        self.fm = ForwardModel(width=puzzlesize[1],
+                               height=puzzlesize[0],
+                               num_skills=self.num_skills)
 
         self.fm_path = fm_path
         if self.fm_path is None:
             self.fm.model.load_state_dict(
                 torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
         else:
+            "initial save of fm"
             torch.save(self.fm.model.state_dict(), fm_path)
 
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
@@ -129,8 +129,6 @@ class PuzzleEnv(gym.Env):
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-
-        self.total_env_steps += 1
         # store current symbolic observation before executing action
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -148,7 +146,6 @@ class PuzzleEnv(gym.Env):
             # for episode termination on change of symbolic observation
             self.terminated = self.term_on_change
 
-
         # get reward (if we don't only want to give reward on last step of episode)
         reward = self._reward()
 
@@ -159,6 +156,7 @@ class PuzzleEnv(gym.Env):
                 max_skill, max_reward = self._get_max_skill_reward(reward)
         else:
             self.env_step_counter += 1
+            self.total_num_steps += 1
 
         return (obs,
                 reward,
@@ -174,7 +172,6 @@ class PuzzleEnv(gym.Env):
         """
         Resets the environment (including the agent) to the initial conditions.
         """
-
         super().reset(seed=seed)
         self.scene.reset()
         self.terminated = False
@@ -183,10 +180,10 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
+        # sample skill
         if skill is not None:
             self.skill = skill
         else:
-            # sample skill
             self.skill = np.random.randint(0, self.num_skills, 1)[0]
         print("skill = ", self.skill)
         # orientation of end-effector is always same
@@ -243,7 +240,8 @@ class PuzzleEnv(gym.Env):
 
     def _get_observation(self):
         """
-        Returns normalized observation
+        Returns the observation:    Robot joint states and velocites and symbolic observation
+                                    Executed Skill is also encoded in observation/state
         """
         # actor joint cooridinates
         q, _, _ = self.scene.state
@@ -284,12 +282,10 @@ class PuzzleEnv(gym.Env):
     @property
     def observation_space(self):
         """
-        Bounds and shape of observation space
+        Defines bounds and shape of the observation space
         """
-
         obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
-                     "init_empty": MultiBinary(self.num_pieces + 1),
-                     # Box(low=-1, high=1, shape=(self.num_pieces + 1,)),
+                     "init_empty": MultiBinary(self.num_pieces + 1), # Box(low=-1, high=1, shape=(self.num_pieces + 1,)),
                      "curr_empty": MultiBinary(self.num_pieces + 1),
                      "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,)),
                      "skill": MultiBinary(self.num_skills)}  # Box(low=-1, high=1, shape=(self.num_skills,))}
@@ -338,16 +334,15 @@ class PuzzleEnv(gym.Env):
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k)
 
-
         if self._termination():
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
                 if not self.starting_epis:
-                    reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                                    k)])
-
+                    reward += np.max(
+                        [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                       self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                       k)])
 
                     print("reward_on_end = ", reward)
 
@@ -376,9 +371,10 @@ class PuzzleEnv(gym.Env):
                     # give this reward every time we are in goal symbolic state
                     # not only when we change to it (such that it is markovian))
                     if not (self.init_sym_state == self.scene.sym_state).all():
-                        reward += np.max([-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                                                                   self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                                                                   k)])
+                        reward += np.max(
+                            [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                                           self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                           k)])
             print("reward = ", reward)
 
         return reward
@@ -406,7 +402,6 @@ class PuzzleEnv(gym.Env):
         max_reward = np.array(max_reward, dtype=np.float32)
 
         return one_hot_skill, max_reward
-
 
     def relabeling(self, episodes):
         """

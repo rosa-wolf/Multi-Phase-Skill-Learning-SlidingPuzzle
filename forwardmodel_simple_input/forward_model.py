@@ -67,6 +67,8 @@ class ForwardModel(nn.Module):
         # set to float64
         if self.precision == 'float64':
             torch.set_default_tensor_type(torch.DoubleTensor)
+        else:
+            torch.set_default_tensor_type(torch.FloatTensor)
 
         # get random seeds for python, numpy and pytorch (for reproducible results)
         random.seed(seed)
@@ -100,6 +102,15 @@ class ForwardModel(nn.Module):
         self.criterion = self.criterion.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)#, weight_decay=0.00005)
 
+    def _process_input(self, x):
+        x = x.to(self.device)
+        if self.precision == 'float64':
+            x = x.to(torch.float64)
+        else:
+            x = x.to(torch.float32)
+
+        return x
+
     def train(self, data):
         """
         :param data: data to train on
@@ -110,9 +121,9 @@ class ForwardModel(nn.Module):
         print(state_batch)
         print(skill_batch)
 
-        x = torch.FloatTensor(state_batch).to(self.device)
-        k = torch.FloatTensor(skill_batch).to(self.device)
-        y = torch.FloatTensor(next_state_batch).to(self.device)
+        x = torch.FloatTensor(state_batch)
+        k = torch.FloatTensor(skill_batch)
+        y = torch.FloatTensor(next_state_batch)
 
         # input to network is state AND skill
         x = torch.cat((x, k), 1)
@@ -151,6 +162,7 @@ class ForwardModel(nn.Module):
         #alpha = self.calculate_alpha(x, y_pred)
         #loss, max_loss, max_ep = self.criterion(y_pred, y)
         loss = self.criterion(y_pred, y)
+        print(f"y = {y}, y_pred = {y_pred}")
 
         #print("loss = ", loss)
         #print("=========================================")
@@ -479,15 +491,6 @@ class ForwardModel(nn.Module):
 
         print("Goal Not reachable from start configuration")
         return None, None
-
-    def _process_input(self, x):
-        x = x.to(self.device)
-        if self.precision == 'float64':
-            x = x.to(torch.float64)
-        else:
-            x = x.to(torch.float32)
-
-        return x
 
     def get_full_pred(self):
         """Give the output-matrix over all possible inputs"""
