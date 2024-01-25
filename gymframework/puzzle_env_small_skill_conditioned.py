@@ -6,7 +6,7 @@ import time
 from gymnasium.core import ObsType, ActType
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
-from puzzle_scene import PuzzleScene
+from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
 import torch
 from scipy import optimize
@@ -330,37 +330,58 @@ class PuzzleEnv(gym.Env):
         """
         Returns the observation:    Robot joint states and velocites and symbolic observation                                      Executed Skill is also encoded in observation/state
         """
-        q, q_dot, sym_obs = self.scene.state
-        obs = q[:3] * 4
+        q, _, _ = self.scene.state
+        q = q[:3] * 4.
+        q = q.astype(np.float32)
 
-        # not only add position of relevant puzzle piece, but of all puzzle pieces
-        for i in range(self.num_pieces):
-            obs = np.concatenate((obs, ((self.scene.C.getFrame("box" + str(i)).getPosition()).copy())[:2] * 4))
+        # one-hot encoding of initially empty field
+        empty = np.where(np.sum(self.init_sym_state, axis=0) == 0)[0][0]
+        one_hot_empty = np.zeros((self.num_pieces + 1,), dtype=np.float32)
+        one_hot_empty[empty] = 1
 
-        # add executed skill to obervation/state (as one-hot encoding)
-        one_hot = np.zeros(shape=self.num_skills)
-        one_hot[self.skill] = 1
-        obs = np.concatenate((obs, one_hot))
+        # coordinates of boxes on the fields, with encoding whether field is empty (1) or occupied (0)
+        pos = np.empty((self.num_pieces + 1, 2), dtype=np.float32)
+        curr_empty = np.zeros((self.num_pieces + 1,), dtype=np.float32)
+        for i in range(self.scene.sym_state.shape[1]):
+            box_idx = np.where(self.scene.sym_state[:, i] == 1)[0]
+            if box_idx.shape[0] == 0:
+                curr_empty[i] = 1  # encode whether field is empty
+                pos[i] = self.scene.discrete_pos[i, :2] * 4
+            else:
+                box_idx = box_idx[0]
+                pos[i] = (self.scene.C.getFrame("box" + str(box_idx)).getPosition()[:2] * 4).copy()
 
-        return obs
+        pos = pos.flatten()
+
+        # one-hot encoding of skill
+        one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.float32)
+        one_hot_skill[self.skill] = 1
+
+        # print("obs = ", np.concatenate((q, one_hot_empty, curr_empty, pos, one_hot_skill)))
+
+        return np.concatenate((q, one_hot_empty, curr_empty, pos, one_hot_skill))
 
     @property
     def observation_space(self):
         """
         Defines bounds of the observation space (Hard coded for now)
         """
-        # Todo: implement reading out actual limits from file
         # observation space as 1D array instead
         # joint configuration (3) + skill (1)
         shape = 3  # 5 #+ self.scene.sym_state.shape[0] * self.scene.sym_state.shape[1]
 
+        # for init empty field
+        shape += self.num_pieces + 1
+        # for current empty field
+        shape += self.num_pieces + 1
+
         # add dimensions for position of all (relevant) puzzle pieces (x, y-position)
-        shape += self.num_pieces * 2
+        shape += (self.num_pieces + 1) * 2
 
         # add space needed for one-hot encoding of skill
         shape += self.num_skills
 
-        return Box(low=-1, high=1, shape=(shape,), dtype=np.float64)
+        return Box(low=-1., high=1., shape=(shape,), dtype=np.float64)
 
     def apply_action(self, action):
         """

@@ -141,17 +141,33 @@ match args.env_name:
                         reward_on_end=False,
                         snapRatio=args.snap_ratio)
     case "parallel_2x2":
-        from puzzle_env_2x2_skill_conditioned_parallel_training import PuzzleEnv
+        from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                         max_steps=100,
                         num_skills=args.num_skills,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills4_relabelingFalse/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2_relabelingTrue/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
                         reward_on_end=args.reward_on_end,
                         snapRatio=args.snap_ratio)
+
+    case "parallel_3x3":
+        from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+
+        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                        max_steps=100,
+                        num_skills=args.num_skills,
+                        puzzlesize=[3, 3],
+                        verbose=1,
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_3x3_num_skills2_relabelingFalse/fm/fm",
+                        sparse_reward=True,
+                        reward_on_change=True,
+                        term_on_change=True,
+                        reward_on_end=args.reward_on_end,
+                        snapRatio=args.snap_ratio)
+
 
 # use different seed than in training
 seed = 398199
@@ -166,21 +182,21 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-#model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_1x2_num_skills2_relabelingTrue/model/model_400000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_3x3_num_skills2_relabelingFalse/model/model_491000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/skill_conditioned_2x2_eval03_num_skills8_neg_distFalse_movementFalse_reward_on_changeTrue_sparseTrue/model/model_100000_steps", env=env)
+#model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset()
+obs, _ = env.reset(skill=0)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
-    if terminated or truncated or num_steps > 20:
-        obs, _ = env.reset()
+    if terminated or truncated:
+        obs, _ = env.reset(skill=0)
         num_steps = 0
 
 del model

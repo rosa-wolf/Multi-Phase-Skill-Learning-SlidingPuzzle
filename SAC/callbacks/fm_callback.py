@@ -224,7 +224,8 @@ class FmCallback(BaseCallback):
                 # get skill that maximizes reward
                 # TODO: relabeling for now assumes that we terminated on change of symbolic state
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
-                if not (new_skill == old_skill).all():
+                # never relabel policy transitions
+                if not (new_skill == old_skill).all() and False:
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
                         print("Relabeling RL transitions")

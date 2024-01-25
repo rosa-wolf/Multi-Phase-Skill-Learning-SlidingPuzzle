@@ -50,9 +50,9 @@ parser.add_argument('--policy', default="Gaussian",
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
-parser.add_argument('--tau', type=float, default=0.1, metavar='G',
+parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
 parser.add_argument('--lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
@@ -91,7 +91,7 @@ if args.env_name.__contains__("skill_conditioned_1x2"):
                     verbose=0,
                     sparse_reward=True,
                     reward_on_change=True,
-                    term_on_change=False,
+                    term_on_change=True,
                     reward_on_end=False,
                     snapRatio=args.snap_ratio)
     eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',

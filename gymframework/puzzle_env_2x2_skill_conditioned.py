@@ -158,6 +158,7 @@ class PuzzleEnv(gym.Env):
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # for episode termination on change of symbolic observation
+            print("terminating")
             self.terminated = self.term_on_change
 
         obs = self._get_observation()
