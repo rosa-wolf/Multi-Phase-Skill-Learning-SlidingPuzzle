@@ -96,51 +96,50 @@ os.makedirs(fm_dir, exist_ok=True)
 relabel = True
 
 
-match args.env_name:
-    case "parallel_1x2":
-        from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
-        puzzle_size = [1, 2]
-        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                        max_steps=100,
-                        num_skills=args.num_skills,
-                        verbose=0,
-                        fm_path=fm_dir + "/fm",
-                        puzzlesize=puzzle_size,
-                        sparse_reward=True,
-                        reward_on_change=True,
-                        term_on_change=True,
-                        reward_on_end=True,
-                        relabel=args.relabeling,
-                        snapRatio=args.snap_ratio)
-    case "parallel_2x2":
-        from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
-        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                        max_steps=10,
-                        num_skills=args.num_skills,
-                        verbose=0,
-                        fm_path=fm_dir + "/fm",
-                        sparse_reward=True,
-                        reward_on_change=False,
-                        term_on_change=True,
-                        reward_on_end=args.reward_on_end,
-                        relabel=args.relabeling,
-                        snapRatio=args.snap_ratio)
-        puzzle_size = [2, 2]
-    case "parallel_3x3":
-        from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
-        puzzle_size = [3, 3]
-        env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
-                        max_steps=100,
-                        num_skills=args.num_skills,
-                        verbose=0,
-                        fm_path=fm_dir + "/fm",
-                        puzzlesize=puzzle_size,
-                        sparse_reward=True,
-                        reward_on_change=True,
-                        term_on_change=True,
-                        reward_on_end=True,
-                        relabel=args.relabeling,
-                        snapRatio=args.snap_ratio)
+if args.env_name.__contains__("parallel_1x2"):
+    from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+    puzzle_size = [1, 2]
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                    max_steps=100,
+                    num_skills=args.num_skills,
+                    verbose=0,
+                    fm_path=fm_dir + "/fm",
+                    puzzlesize=puzzle_size,
+                    sparse_reward=True,
+                    reward_on_change=True,
+                    term_on_change=True,
+                    reward_on_end=True,
+                    relabel=args.relabeling,
+                    snapRatio=args.snap_ratio)
+elif args.env_name.__contains__("parallel_2x2"):
+    from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+                    max_steps=10,
+                    num_skills=args.num_skills,
+                    verbose=0,
+                    fm_path=fm_dir + "/fm",
+                    sparse_reward=True,
+                    reward_on_change=False,
+                    term_on_change=True,
+                    reward_on_end=args.reward_on_end,
+                    relabel=args.relabeling,
+                    snapRatio=args.snap_ratio)
+    puzzle_size = [2, 2]
+elif args.env_name.__contains__("parallel_3x3"):
+    from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+    puzzle_size = [3, 3]
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                    max_steps=100,
+                    num_skills=args.num_skills,
+                    verbose=0,
+                    fm_path=fm_dir + "/fm",
+                    puzzlesize=puzzle_size,
+                    sparse_reward=True,
+                    reward_on_change=True,
+                    term_on_change=True,
+                    reward_on_end=True,
+                    relabel=args.relabeling,
+                    snapRatio=args.snap_ratio)
 
 
 
