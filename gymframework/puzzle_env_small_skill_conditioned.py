@@ -353,6 +353,8 @@ class PuzzleEnv(gym.Env):
 
         pos = pos.flatten()
 
+        #pos = (self.scene.C.getFrame("box0").getPosition()[:2] * 4).copy()
+
         # one-hot encoding of skill
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.float32)
         one_hot_skill[self.skill] = 1
@@ -360,6 +362,8 @@ class PuzzleEnv(gym.Env):
         # print("obs = ", np.concatenate((q, one_hot_empty, curr_empty, pos, one_hot_skill)))
 
         return np.concatenate((q, one_hot_empty, curr_empty, pos, one_hot_skill))
+
+        #return np.concatenate((q, pos, one_hot_skill))
 
     @property
     def observation_space(self):
@@ -378,6 +382,7 @@ class PuzzleEnv(gym.Env):
         # add dimensions for position of all (relevant) puzzle pieces (x, y-position)
         shape += (self.num_pieces + 1) * 2
 
+        #shape += 2
         # add space needed for one-hot encoding of skill
         shape += self.num_skills
 
@@ -470,8 +475,6 @@ class PuzzleEnv(gym.Env):
                     # add a constant reward to encourage state change early on in training
                     reward -= 1
                     print("SYM STATE CHANGED BUT SHOULD NOT HAVE")
-
-        print("reward = ", reward)
 
         return reward
 

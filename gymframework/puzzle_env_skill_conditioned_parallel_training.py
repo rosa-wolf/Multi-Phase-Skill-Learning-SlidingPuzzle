@@ -66,6 +66,8 @@ class PuzzleEnv(gym.Env):
         # is skill execution possible?
         self.skill_possible = None
 
+        self.neighborlist = self._get_neighbors(puzzlesize)
+
         # if we only give reward on last episode then we should terminate on change of symbolic observation
         if self.reward_on_end:
             self.term_on_change = True
@@ -114,6 +116,34 @@ class PuzzleEnv(gym.Env):
         else:
             "initial save of fm"
             torch.save(self.fm.model.state_dict(), fm_path)
+
+    def _get_neighbors(self, puzzle_size):
+        """
+        Calculates the neibhors of each field, depending on the puzzle size
+        """
+        neighborlist = {}
+        for i in range(puzzle_size[0]):
+            for j in range(puzzle_size[1]):
+                # look on which side we have a neighor and mark it in array
+                neighbors = []
+                field = j + (i * puzzle_size[1])
+                if i != 0:
+                    # a neighbor above
+                    neighbors.append(field - puzzle_size[1])
+                if j != 0:
+                    # no neighbor on left
+                    neighbors.append(field - 1)
+                if j != puzzle_size[1] - 1:
+                    # a neighbors on right
+                    neighbors.append(field + 1)
+                if i != puzzle_size[0] - 1:
+                    # a neighbor below
+                    neighbors.append(field + puzzle_size[1])
+
+                print(f"neighbors of {j + (i * puzzle_size[1])} = {neighbors}")
+                neighborlist[str(j + (i * puzzle_size[1]))] = neighbors
+
+        return neighborlist
 
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
         """
@@ -357,8 +387,19 @@ class PuzzleEnv(gym.Env):
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
                     if dist[0] > min_dist:
                         min_dist = dist[0]
-
                 reward += 0.1 * min_dist
+
+            # penalize being away from all fields where the adjacent field is empty
+            min_dist = -np.inf
+            # get empty field
+            empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
+            neighbors = self.neighborlist[str(empty)]
+            for i in range(len(neighbors)):
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
+                if dist[0] > min_dist:
+                    min_dist = dist[0]
+
+
         else:
             if not self.sparse_reward:
                 # give a small reward calculated by the forward model in every step

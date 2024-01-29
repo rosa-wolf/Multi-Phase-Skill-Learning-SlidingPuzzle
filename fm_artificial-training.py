@@ -5,8 +5,8 @@ import math
 import os
 from forwardmodel_simple_input.visualize_transitions import visualize_transition
 
-#from forwardmodel.forward_model import ForwardModel
-from forwardmodel_simple_input.forward_model import ForwardModel
+from forwardmodel.forward_model import ForwardModel
+#from forwardmodel_simple_input.forward_model import ForwardModel
 
 from FmReplayMemory import FmReplayMemory
 
@@ -93,14 +93,14 @@ def gather_data_sym(dataset, num_data):
         # sample empty field
         # sample whether we want to make sure that skill execution is possible
         poss = np.random.uniform()
-        if poss > 0.7:
+        if poss > 0.5:
             # field we want to push to is empty
             empty = SKILLS[skill, effect, 1]
         else:
             # random field is empty
             # but not the field we want to push to
             fields = np.arange(NUM_FIELDS)
-            fields = np.delete(fields, SKILLS[skill, effect, 1])
+            fields = np.delete(fields, SKILLS[skill, :, 1])
             empty = np.random.choice(fields)
 
         # occupied fields
@@ -144,7 +144,7 @@ def gather_data_empty(dataset, num_data):
         poss = np.random.uniform()
         input = np.zeros((NUM_FIELDS,))
         output = np.zeros((NUM_FIELDS,))
-        if poss > 0.7:
+        if poss > 0.5:
             # field we want to push to is empty
             input[SKILLS[skill, effect, 1]] = 1
             output[SKILLS[skill, effect, 0]] = 1
@@ -153,7 +153,7 @@ def gather_data_empty(dataset, num_data):
             # random field is empty
             # but not the field that has to be empty to be able to execute the skill
             fields = np.arange(NUM_FIELDS)
-            fields = np.delete(fields, SKILLS[skill, effect, 1])
+            fields = np.delete(fields, SKILLS[skill, :, 1])
             empty = np.random.choice(fields)
             input[empty] = 1
             output[empty] = 1
@@ -175,11 +175,11 @@ if __name__ == "__main__":
     test_data = FmReplayMemory(100000, 98765)
 
     np.random.seed(98765)
-    gather_data_empty(test_data, 100000)
-    #gather_data_sym(test_data, 100000)
+    #gather_data_empty(test_data, 100000)
+    gather_data_sym(test_data, 100000)
     np.random.seed(12345)
-    gather_data_empty(train_data, 1000)
-    #gather_data_sym(train_data, 1000)
+    #gather_data_empty(train_data, 1000)
+    gather_data_sym(train_data, 1000)
 
     # get forward model
     my_forwardmodel = ForwardModel(width=3,
@@ -201,8 +201,8 @@ if __name__ == "__main__":
         start_time = time.monotonic()
 
         # append new data to buffer
-        gather_data_empty(train_data, num_train_data)
-        #gather_data_sym(train_data, num_train_data)
+        #gather_data_empty(train_data, num_train_data)
+        gather_data_sym(train_data, num_train_data)
 
         #print("sample = ", train_data.sample(2))
 
@@ -233,7 +233,7 @@ if __name__ == "__main__":
             test_loss_list.append(valid_loss)
             test_acc_list.append(valid_acc)
 
-            np.savez("fm_eval_empty_input_4skills", train_loss=train_loss_list, train_acc=train_acc_list, test_loss=test_loss_list, test_acc=test_acc_list)
+            np.savez("fm_eval_sym_input_4skills", train_loss=train_loss_list, train_acc=train_acc_list, test_loss=test_loss_list, test_acc=test_acc_list)
 
     # load best model
     #my_forwardmodel.model.load_state_dict(torch.load("models/best_model_change"))

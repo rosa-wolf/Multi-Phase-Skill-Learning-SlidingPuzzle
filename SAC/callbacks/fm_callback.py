@@ -174,16 +174,15 @@ class FmCallback(BaseCallback):
             for i in range(out.shape[0]):
                 # set probabilities to not change empty field to zero, as we are only looking at transitions where change happens
                 out[i, :, i] = 0
-                print(f"out[{i}] = {out[i]}")
+                #print(f"out[{i}] = {out[i]}")
                 # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
                 num_change = np.where(out[i] >= 0.8)[0].shape[0]
-                if num_change < self.min_neighbors:
+                #print(f"neighborlist = {self.env.neighborlist[str(i)]}")
+                if num_change < len(self.env.neighborlist[str(i)]): #self.min_neighbors:
                         change_reward_scheme = False
             if change_reward_scheme:
-                print("changing reward scheme")
+                #print("changing reward scheme")
                 self.env.starting_epis = False
-
-
 
 
         # number of episodes to relabel
