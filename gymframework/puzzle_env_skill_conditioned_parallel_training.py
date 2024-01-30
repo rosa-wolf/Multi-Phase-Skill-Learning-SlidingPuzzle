@@ -140,7 +140,6 @@ class PuzzleEnv(gym.Env):
                     # a neighbor below
                     neighbors.append(field + puzzle_size[1])
 
-                print(f"neighbors of {j + (i * puzzle_size[1])} = {neighbors}")
                 neighborlist[str(j + (i * puzzle_size[1]))] = neighbors
 
         return neighborlist

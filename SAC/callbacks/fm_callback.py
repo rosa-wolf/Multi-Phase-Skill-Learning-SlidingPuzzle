@@ -3,6 +3,7 @@ import os
 import gymnasium as gym
 import numpy as np
 import torch
+import logging
 import time
 
 from gymnasium.wrappers import TransformReward
@@ -104,6 +105,8 @@ class FmCallback(BaseCallback):
         # don't save whole model, but only parameters
         torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
+        logging.basicConfig(filename=self.save_path + '/logging.log', level=logging.INFO, filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+
     def _on_step(self) -> bool:
 
         if self.locals["dones"] != 0:
@@ -183,6 +186,7 @@ class FmCallback(BaseCallback):
             if change_reward_scheme:
                 #print("changing reward scheme")
                 self.env.starting_epis = False
+                logging.info("Changing reward scheme after {0} steps".format(self.n_calls))
 
 
         # number of episodes to relabel
@@ -197,7 +201,7 @@ class FmCallback(BaseCallback):
             #    start_idx = 0
             #else:
             #    start_idx = dones[-(num_relabel + 1) + i_episode] + 1
-#
+
             #end_idx = dones[-(num_relabel) + i_episode]
 
             print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
@@ -226,7 +230,7 @@ class FmCallback(BaseCallback):
                 # never relabel policy transitions
                 if not (new_skill == old_skill).all() and False:
                     # relabel policy transitions with 50% probability
-                    if np.random.normal() > 0.5:
+                    if np.random.normal() > 0.8:
                         print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
