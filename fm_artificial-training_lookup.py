@@ -1,6 +1,7 @@
 import numpy as np
 from FmReplayMemory import FmReplayMemory
 from forwardmodel_lookup.forward_model import ForwardModel
+import os
 
 SKILLS = np.array([[[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]],
                    [[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]],
@@ -35,7 +36,7 @@ SKILLS = np.array([[[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]],
 
 
 NUM_FIELDS = 9
-NUM_SKILLS = 24
+NUM_SKILLS = 4
 
 def gather_data_empty(dataset, num_data):
     for i in range(num_data):
@@ -106,11 +107,11 @@ def gather_datapoint():
 
 if __name__ == "__main__":
 
-    EPOCHS = 100
+    EPOCHS = 500
     print("Epochs = ", EPOCHS)
 
-    num_train_data = 100
-    num_test_data = 30
+    num_train_data = 10
+    num_test_data = 50
 
     test_data = FmReplayMemory(num_test_data, 98765)
     gather_data_empty(test_data, 1000)
@@ -121,10 +122,19 @@ if __name__ == "__main__":
                       num_skills=NUM_SKILLS,
                       seed=12345)
 
+    test_loss_list = []
+    test_acc_list = []
+    train_loss_list = []
+    train_acc_list = []
+
+    log_dir = "fm_eval"
+    os.makedirs(log_dir, exist_ok=True)
+    filename = log_dir + f"/fm_eval_lookup_{NUM_SKILLS}"
+
     for i in range(EPOCHS):
         # append new data to buffer,
         # get 10 new data points
-        for _ in range(300):
+        for _ in range(num_train_data):
             one_hot_input, one_hot_skill, one_hot_output = gather_datapoint()
             one_hot_input = one_hot_input[None, :]
             one_hot_skill = one_hot_skill[None, :]
@@ -134,10 +144,19 @@ if __name__ == "__main__":
                               fm.one_hot_to_scalar(one_hot_output)[0])
         #print(f"table = \n {fm.table}")
 
-        # get accurracy over n randomly sampled transitions
-        train_loss, train_acc = fm.evaluate(test_data, num_trans=num_test_data)
-        print(f'\tEpoch: {i}, Train Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
+        # test novelty bonus
+        skill = np.where(one_hot_skill == 1)[0][0]
+        fm.calculate_reward(one_hot_input, one_hot_output, skill)
 
+        # get accurracy over n randomly sampled transitions
+        valid_loss, valid_acc = fm.evaluate(test_data, num_trans=num_test_data)
+        print(f'\tEpoch: {i}, Train Loss: {valid_loss:.3f} | Train Acc: {valid_acc * 100:.2f}%')
+
+        test_loss_list.append(valid_loss)
+        test_acc_list.append(valid_acc)
+
+        np.savez(filename, train_loss=train_loss_list, train_acc=train_acc_list, test_loss=test_loss_list,
+                 test_acc=test_acc_list)
 
 
 

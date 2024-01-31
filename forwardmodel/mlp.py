@@ -18,9 +18,9 @@ class MLP(nn.Module):
         output_size = self.width * self.height * self.pieces
         input_size = output_size + self.num_skills
 
-        self.input = nn.Linear(input_size, 512)
-        self.hidden = nn.Linear(512, 512)
-        self.output = nn.Linear(512, output_size)
+        self.input = nn.Linear(input_size, 256)
+        self.hidden = nn.Linear(256, 256)
+        self.output = nn.Linear(256, output_size)
 
     def forward(self, x):
         """

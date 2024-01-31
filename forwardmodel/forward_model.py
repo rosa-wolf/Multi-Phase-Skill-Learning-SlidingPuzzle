@@ -111,9 +111,6 @@ class ForwardModel(nn.Module):
 
         state_batch, skill_batch, next_state_batch = data.sample(batch_size=self.batch_size)
 
-        print(state_batch)
-        print(skill_batch)
-
         x = torch.FloatTensor(state_batch)
         k = torch.FloatTensor(skill_batch)
         y = torch.FloatTensor(next_state_batch)

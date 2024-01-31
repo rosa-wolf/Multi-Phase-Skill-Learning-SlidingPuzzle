@@ -3,12 +3,18 @@ import time
 import numpy as np
 import math
 import os
+import argparse
 from forwardmodel_simple_input.visualize_transitions import visualize_transition
 
-from forwardmodel.forward_model import ForwardModel
-#from forwardmodel_simple_input.forward_model import ForwardModel
-
 from FmReplayMemory import FmReplayMemory
+
+parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
+# args for env
+parser.add_argument('--input_type', default="empty",
+                    help='Input type either "empty" or "sym"')
+parser.add_argument('--seed', type=int, default=12345,
+                    help='seed for forward model')
+args = parser.parse_args()
 
 #SKILLS = np.array([[[1, 0]],
 #                   [[3, 0]],
@@ -24,7 +30,7 @@ from FmReplayMemory import FmReplayMemory
 #                   [[5, 4]],
 #                   [[2, 5]],
 #                   [[4, 5]]])
-
+#
 SKILLS = np.array([[[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]],
                    [[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]],
                    [[0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]],
@@ -165,28 +171,48 @@ def gather_data_empty(dataset, num_data):
 
 if __name__ == "__main__":
 
-    EPOCHS = 100
+    log_dir = "fm"
+    os.makedirs(log_dir, exist_ok=True)
+    if args.input_type == "empty":
+        empty = True
+        from forwardmodel_simple_input.forward_model import ForwardModel
+        filename = log_dir + f"/fm_eval_empty_input_{NUM_SKILLS}skills_seed{args.seed}"
+    else:
+        empty = False
+        from forwardmodel.forward_model import ForwardModel
+        filename = log_dir + f"/fm_eval_sym_input_{NUM_SKILLS}skills_seed{args.seed}"
+
+
+
+
+    EPOCHS = 500
     print("Epochs = ", EPOCHS)
 
-    num_train_data = 100
-    num_test_data = 20
+    num_train_data = 30
+    num_test_data = 50
 
-    train_data = FmReplayMemory(10000, 12345)
+    train_data = FmReplayMemory(10000, seed=args.seed)
     test_data = FmReplayMemory(100000, 98765)
 
     np.random.seed(98765)
-    #gather_data_empty(test_data, 100000)
-    gather_data_sym(test_data, 100000)
-    np.random.seed(12345)
-    #gather_data_empty(train_data, 1000)
-    gather_data_sym(train_data, 1000)
+    if empty:
+        gather_data_empty(test_data, 100000)
+    else:
+        gather_data_sym(test_data, 100000)
+    np.random.seed(args.seed)
+
+    if empty:
+        gather_data_empty(train_data, 50)
+    else:
+        gather_data_sym(train_data, 50)
 
     # get forward model
     my_forwardmodel = ForwardModel(width=3,
                                    height=3,
                                    num_skills=NUM_SKILLS,
-                                   batch_size=45,
-                                   learning_rate=0.01)
+                                   batch_size=20,
+                                   seed=12345,
+                                   learning_rate=0.001)
     print(my_forwardmodel.model)
 
     test_loss_list = []
@@ -201,8 +227,10 @@ if __name__ == "__main__":
         start_time = time.monotonic()
 
         # append new data to buffer
-        #gather_data_empty(train_data, num_train_data)
-        gather_data_sym(train_data, num_train_data)
+        if empty:
+            gather_data_empty(train_data, num_train_data)
+        else:
+            gather_data_sym(train_data, num_train_data)
 
         #print("sample = ", train_data.sample(2))
 
@@ -213,13 +241,12 @@ if __name__ == "__main__":
             valid_loss, valid_acc = my_forwardmodel.evaluate(test_data)
 
             # save model
-            if not os.path.exists('models/'):
+            if not os.path.exists('forwardmodel_simple_input/models/'):
 
-                os.makedirs('models/')
-            path = "forwardmodel_simple_input/models/best_model_change"
+                os.makedirs('forwardmodel_simple_input/models/')
             print("saving model now")
             # dont save whole model, but only parameters
-            torch.save(my_forwardmodel.model.state_dict(), path)
+            torch.save(my_forwardmodel.model.state_dict(), filename + "_model")
 
             end_time = time.monotonic()
             epoch_mins, epoch_secs = my_forwardmodel.epoch_time(start_time, end_time)
@@ -233,7 +260,7 @@ if __name__ == "__main__":
             test_loss_list.append(valid_loss)
             test_acc_list.append(valid_acc)
 
-            np.savez("fm_eval_sym_input_4skills", train_loss=train_loss_list, train_acc=train_acc_list, test_loss=test_loss_list, test_acc=test_acc_list)
+            np.savez(filename, train_loss=train_loss_list, train_acc=train_acc_list, test_loss=test_loss_list, test_acc=test_acc_list)
 
     # load best model
     #my_forwardmodel.model.load_state_dict(torch.load("models/best_model_change"))

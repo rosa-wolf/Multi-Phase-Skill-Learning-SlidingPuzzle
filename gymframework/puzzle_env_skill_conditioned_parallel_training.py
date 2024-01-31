@@ -386,7 +386,8 @@ class PuzzleEnv(gym.Env):
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
                     if dist[0] > min_dist:
                         min_dist = dist[0]
-                reward += 0.1 * min_dist
+                reward += 5 * min([min_dist, 0.])
+
 
             # penalize being away from all fields where the adjacent field is empty
             min_dist = -np.inf
@@ -399,23 +400,23 @@ class PuzzleEnv(gym.Env):
                     min_dist = dist[0]
 
 
-        else:
-            if not self.sparse_reward:
-                # give a small reward calculated by the forward model in every step
-                reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                           self.fm.sym_state_to_input(
-                                                           self.scene.sym_state.flatten()),
-                                                           k)
-            if self.reward_on_change:
-                if not self.reward_on_end:
-                    # give this reward every time we are in goal symbolic state
-                    # not only when we change to it (such that it is markovian))
-                    if not (self.init_sym_state == self.scene.sym_state).all():
-                        reward += np.max(
-                            [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                           self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                           k)])
-            print("reward = ", reward)
+       #else:
+       #    if not self.sparse_reward:
+       #        # give a small reward calculated by the forward model in every step
+       #        reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+       #                                                   self.fm.sym_state_to_input(
+       #                                                   self.scene.sym_state.flatten()),
+       #                                                   k)
+       #    if self.reward_on_change:
+       #        if not self.reward_on_end:
+       #            # give this reward every time we are in goal symbolic state
+       #            # not only when we change to it (such that it is markovian))
+       #            if not (self.init_sym_state == self.scene.sym_state).all():
+       #                reward += np.max(
+       #                    [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+       #                                                   self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+       #                                                   k)])
+        print("reward = ", reward)
 
         return reward
 

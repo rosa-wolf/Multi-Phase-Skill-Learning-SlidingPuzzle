@@ -29,6 +29,7 @@ class PuzzleEnv(gym.Env):
                  path='slidingPuzzle_small.g',
                  snapRatio=4.,
                  fm_path=None,
+                 train_fm=True,
                  num_skills=2,
                  skill=0,
                  max_steps=100,
@@ -107,12 +108,16 @@ class PuzzleEnv(gym.Env):
                                height=puzzlesize[0],
                                num_skills=self.num_skills)
 
+        self.train_fm = train_fm
         self.fm_path = fm_path
-        if self.fm_path is None:
-            self.fm.model.load_state_dict(
-                torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
+        if not train_fm:
+            if self.fm_path is None:
+                raise ValueError("Fm path is None, Can't load trained fm model")
+            # load pretrained fm model
+            self.fm.model.load_state_dict(torch.load(fm_path))
+            self.starting_epis = False
         else:
-            "initial save of fm"
+            print("initial save of fm")
             torch.save(self.fm.model.state_dict(), fm_path)
 
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
@@ -211,7 +216,7 @@ class PuzzleEnv(gym.Env):
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
-        if self.fm_path is not None:
+        if self.train_fm:
             print("Reloading fm")
             self.fm.model.load_state_dict(torch.load(self.fm_path))
 
@@ -349,6 +354,7 @@ class PuzzleEnv(gym.Env):
         if self.starting_epis:
             # if we just started training
             if not self.sparse_reward:
+                print("give neg dist reward")
                 # penalize being far away from all boxes
                 # penalty is negative distance to closest box
                 min_dist = - np.inf
@@ -358,24 +364,37 @@ class PuzzleEnv(gym.Env):
                     if dist[0] > min_dist:
                         min_dist = dist[0]
 
-                reward += 0.1 * min_dist
+
+                reward += 0.1 * min(min_dist, 0)
         else:
             if not self.sparse_reward:
-                # give a small reward calculated by the forward model in every step
-                reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                           self.fm.sym_state_to_input(
-                                                           self.scene.sym_state.flatten()),
-                                                           k)
-            if self.reward_on_change:
-                if not self.reward_on_end:
-                    # give this reward every time we are in goal symbolic state
-                    # not only when we change to it (such that it is markovian))
-                    if not (self.init_sym_state == self.scene.sym_state).all():
-                        reward += np.max(
-                            [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                           self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                           k)])
-            print("reward = ", reward)
+                # reward being close to puzzle box on field predicted we want to push from by fm
+                skill = np.zeros((self.num_skills,))
+                skill[k] = 1
+                empty_out = self.fm.successor(self.init_sym_state, skill, sym_output=False)
+                # get the box that is currently on the empty_out field
+                empty_out = np.where(empty_out == 1)[0][0]
+                box = np.where(self.init_sym_state[:, empty_out] == 1)
+                print(f"init_sym = \n {self.init_sym_state}\n box = {box}, skill = {k}, empty_out = {empty_out}")
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(box), "wedge"])
+                reward += 0.1 * dist
+
+            #if not self.sparse_reward:
+            #    # give a small reward calculated by the forward model in every step
+            #    reward += 0.001 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+            #                                               self.fm.sym_state_to_input(
+            #                                               self.scene.sym_state.flatten()),
+            #                                               k)
+            #if self.reward_on_change:
+            #    if not self.reward_on_end:
+            #        # give this reward every time we are in goal symbolic state
+            #        # not only when we change to it (such that it is markovian))
+            #        if not (self.init_sym_state == self.scene.sym_state).all():
+            #            reward += np.max(
+            #                [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+            #                                               self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+            #                                               k)])
+        print("reward = ", reward)
 
         return reward
 

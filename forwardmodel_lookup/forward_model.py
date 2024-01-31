@@ -23,6 +23,26 @@ class ForwardModel():
     def one_hot_to_scalar(self, one_hot):
         return np.where(one_hot == 1)[1]
 
+    def sym_state_to_input(self, state, one_hot=True):
+        """
+        Looks up which puzzle field is empty in given symbolic observation
+        and returns it either as number or as one-hot encoding
+
+        :param state: symbolic state we want to translate
+        :param one_hot: if true return one-hot encoding of empty field
+
+        returns: empty field in given symbolic state
+        """
+        state = np.reshape(state, (self.pieces, self.pieces + 1))
+        empty = np.where(np.sum(state, axis=0) == 0)[0][0]
+
+        if one_hot:
+            out = np.zeros((self.pieces + 1,))
+            out[empty] = 1
+            return out
+
+        return empty
+
     def add_transition(self, skill, init_empty, out_empty) -> None:
         """
         :param skill: skill in range [0, self.num_skills -1]
@@ -81,11 +101,74 @@ class ForwardModel():
         l = - np.nansum(out_empty_batch * np.log(prob))
         return l / skill_batch.shape[0]
 
+    def calculate_reward(self, start, end, k, normalize=True) -> float:
+        """
+        Calculate the reward, that the skill-conditioned policy optimization gets when it does a successful transition
+        from state start to state end using skill k
 
-    def compute_reward(self, skill, init_empty, out_empty):
-        # get probabilities to go from init_empty to out_empty for all skills
-        probs = np.array((self.num_skills, ))
-        probs = self.table[:, init_empty, out_empty] / np.sum(self.table[:, init_empty], axis=1)
+        R(k) = log q(z_T | z_0, k) / sum_k' q(z_T | z_0, k') + log K
 
-        return probs[skill] / np.sum(probs)
+        K: number of states
+
+        Args:
+            :param start (z_0) : one-hot encoding of empty field agent starts in
+            :param end (z_T): one-hot encoding of empty field agent should end
+            :param k: skill agent executes (not as a one_hot_encoding)
+            :param normalize: if true we add log K, else we do not add it
+        Returns:
+            reward: R(k)
+        """
+        ####################################################
+        # go through all skills and get sum of likelihoods #
+        ####################################################
+        init_state = np.where(start == 1)[0][0]
+        end_state = np.where(end == 1)[0][0]
+
+        # get probability of going from init_state to end_state for all skills
+        y_pred = self.table[:, init_state, end_state] / np.sum(self.table[:, init_state], axis=1)
+
+        sum_of_probs = np.sum(y_pred)
+
+        if normalize:
+            return np.log(y_pred[k] / sum_of_probs) + np.log(self.num_skills)
+
+        return np.log(y_pred[k] / sum_of_probs)
+
+    def novelty_bonus(self, start, end, skill, others_only=True) -> float:
+        """
+        given the transition from start to end, returns
+
+                max_k' q(z_end | z_start, k')
+
+        Args:
+            :param start (z_0) : one-hot encoding of empty field agent starts in
+            :param end (z_T): one-hot encoding of empty field ended in
+            :skill: skill as scalar(NOT as one-hot encoding!!!)
+            :others_only: whether to only calculate the bonus over skills different from k
+        """
+
+        ####################################################
+        # go through all skills and get sum of likelihoods #
+        ####################################################
+        init_state = np.where(start == 1)[0][0]
+        end_state = np.where(end == 1)[0][0]
+
+        # get of going from init_state to end_state for all skills
+        y_pred = self.table[:, init_state, end_state] / np.sum(self.table[:, init_state], axis=1)
+
+
+        idx = np.arange(y_pred.shape[0])
+        if others_only:
+            y_pred = y_pred[idx != skill]
+
+        # additional bonus if for all other skills fm believes transition to be unlikely
+        bonus = - np.max(np.log(y_pred))
+        return bonus
+
+    def save(self):
+        # save the table
+        pass
+    def load(self):
+        # load a table from a file
+        pass
 

@@ -5,23 +5,32 @@ import numpy as np
 from forwardmodel_simple_input.forward_model import ForwardModel
 
 # load model
-num_skills = 2
-fm = ForwardModel(width=2,
-                  height=2,
+num_skills = 4
+fm = ForwardModel(width=3,
+                  height=3,
                   num_skills=num_skills,
                   batch_size=10,
                   learning_rate=0.001)
 
 # save model
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2_num_skills2_relabelingTrue/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/fm/fm_eval_empty_input_4skills_seed12345_model"
 fm.model.load_state_dict(torch.load(fm_path))
 
 #input_states = [np.array([0, 1]), np.array([1, 0])]
 #input_skills = [0, 1]
 
 
-input_states = [np.array([1, 0, 0, 0]), np.array([0, 1, 0, 0]), np.array([0, 0, 1, 0]), np.array([0, 0, 0, 1])]
+#input_states = [np.array([1, 0, 0, 0]), np.array([0, 1, 0, 0]), np.array([0, 0, 1, 0]), np.array([0, 0, 0, 1])]
 
+input_states = [np.array([1, 0, 0, 0, 0, 0, 0, 0, 0]),
+                np.array([0, 1, 0, 0, 0, 0, 0, 0, 0]),
+                np.array([0, 0, 1, 0, 0, 0, 0, 0, 0]),
+                np.array([0, 0, 0, 1, 0, 0, 0, 0, 0]),
+                np.array([0, 0, 0, 0, 1, 0, 0, 0, 0]),
+                np.array([0, 0, 0, 0, 0, 1, 0, 0, 0]),
+                np.array([0, 0, 0, 0, 0, 0, 1, 0, 0]),
+                np.array([0, 0, 0, 0, 0, 0, 0, 1, 0]),
+                np.array([0, 0, 0, 0, 0, 0, 0, 0, 1])]
 for k in range(num_skills):
     print(f"====================\nskill = {k}")
     for state in input_states:

@@ -306,7 +306,7 @@ class ForwardModel(nn.Module):
         @param state: symbolic state we transition from
         @param empty: field that is empty after transitioning
         """
-
+        # TODO: implement to work when several boxes are pushed at once
         # look up which field is empty in state
         orig_empty = self.sym_state_to_input(state, one_hot=False)
 
@@ -323,12 +323,12 @@ class ForwardModel(nn.Module):
 
         return new_state.flatten()
 
-    def successor(self, state: np.array, skill: np.array) -> np.array:
+    def successor(self, state: np.array, skill: np.array, sym_output=True) -> np.array:
         """
         Returns successor nodes of a given node
         Args:
             :param state: node to find successor to (symbolic observation, falttened)
-            :param skill: skill to apply
+            :param skill: skill to apply as one-hot encoding
         Returns:
             succ: most likely successor when applying skill in state
         """
@@ -355,7 +355,6 @@ class ForwardModel(nn.Module):
         return state.flatten()
         ######################################################################
         """
-        init_shape = state.shape
         # concatenate state and skill to get input to mlp
         one_hot_input = self.sym_state_to_input(state)
 
@@ -366,9 +365,10 @@ class ForwardModel(nn.Module):
         # formulate succesor symbolic state given initial one and knowledge of empty field
         # if new field is empty, then box that was on it is now on previous empty field
         # even if those fields are not neighbors
-        new_state = self.pred_to_sym_state(state, empty)
+        if sym_output:
+            return self.pred_to_sym_state(state, empty)
 
-        return new_state
+        return self.succ
 
     def valid_state(self, state) -> bool:
         """

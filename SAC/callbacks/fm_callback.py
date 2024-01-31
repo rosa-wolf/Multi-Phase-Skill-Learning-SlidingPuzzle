@@ -119,6 +119,7 @@ class FmCallback(BaseCallback):
             # Todo: update fm
             if len(self.buffer) >= self.sample_size:
                 # update fm several times
+                # TODO: for lookup table not necessarry
                 for _ in range(2):
 
                     # put sampling batch(es) from buffer into forward model train function
@@ -253,8 +254,10 @@ class FmCallback(BaseCallback):
                         (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
 
                 # always relabel fm transition
+                # TODO: for lookup tabel add transitions directly to table instead
                 self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
             else:
+                # TODO: for lookup tabel add transitions directly to table instead
                 # always relabel fm transition
                 self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
 

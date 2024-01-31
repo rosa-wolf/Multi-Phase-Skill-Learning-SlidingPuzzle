@@ -95,6 +95,9 @@ os.makedirs(fm_dir, exist_ok=True)
 # TODO: make this a parameter
 relabel = True
 
+# get fm path
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/fm/fm_eval_empty_input_4skills_seed12345_model"
+
 
 if args.env_name.__contains__("parallel_1x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
@@ -103,7 +106,8 @@ if args.env_name.__contains__("parallel_1x2"):
                     max_steps=100,
                     num_skills=args.num_skills,
                     verbose=0,
-                    fm_path=fm_dir + "/fm",
+                    fm_path=fm_path,
+                    train_fm=False,
                     puzzlesize=puzzle_size,
                     sparse_reward=True,
                     reward_on_change=True,
@@ -117,7 +121,8 @@ elif args.env_name.__contains__("parallel_2x2"):
                     max_steps=10,
                     num_skills=args.num_skills,
                     verbose=0,
-                    fm_path=fm_dir + "/fm",
+                    train_fm=False,
+                    fm_path=fm_path,
                     sparse_reward=True,
                     reward_on_change=False,
                     term_on_change=True,
@@ -131,10 +136,11 @@ elif args.env_name.__contains__("parallel_3x3"):
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                     max_steps=100,
                     num_skills=args.num_skills,
-                    verbose=1,
-                    fm_path=fm_dir + "/fm",
+                    verbose=0,
+                    train_fm=False,
+                    fm_path=fm_path,
                     puzzlesize=puzzle_size,
-                    sparse_reward=args.sparse,
+                    sparse_reward=True,
                     reward_on_change=True,
                     term_on_change=True,
                     reward_on_end=True,
@@ -150,7 +156,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed) + "_num_skills" + str(args.num_skills) + "1000000_initsteps"
+        args.seed) + "_num_skills" + str(args.num_skills)
 
 # initialize callbacks
 # Save a checkpoint every 1000 steps
@@ -162,16 +168,7 @@ checkpoint_callback = CheckpointCallback(
   save_vecnormalize=True,
 )
 
-# callback for updating and training fm
-fm_callback = FmCallback(update_freq=500,
-                         env=env,
-                         save_path=log_dir + "/fm",
-                         size=puzzle_size,
-                         num_skills=args.num_skills,
-                         seed=args.seed,
-                         relabel=args.relabeling)
-
-callback = CallbackList([checkpoint_callback, fm_callback])
+callback = CallbackList([checkpoint_callback])
 
 # initialize SAC
 model = SAC("MultiInputPolicy",

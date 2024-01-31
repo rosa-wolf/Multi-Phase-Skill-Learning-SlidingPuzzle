@@ -27,3 +27,5 @@ models/
 skills/
 runs/
 SAC/checkpoints/
+fm_eval/
+Plots/
