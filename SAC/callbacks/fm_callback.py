@@ -41,7 +41,7 @@ class FmCallback(BaseCallback):
                  relabel=False,
                  logging=True,
                  eval_freq=500,
-                 verbose=1):
+                 verbose=0):
 
         super().__init__(verbose)
         self.update_freq = update_freq
@@ -136,7 +136,7 @@ class FmCallback(BaseCallback):
         if self.logging:
             if self.n_calls % self.eval_freq == 0:
                 if len(self.buffer) >= self.sample_size:
-                    if self.verbose:
+                    if self.verbose > 0:
                         print("Evaluate now")
                     test_loss, test_acc = self.fm.evaluate(self.buffer)
                     self.test_acc.append(test_acc)
@@ -205,22 +205,22 @@ class FmCallback(BaseCallback):
 
             #end_idx = dones[-(num_relabel) + i_episode]
 
-            print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
+            #print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
 
             start_idx = self.relabel_buffer["total_num_steps"][i_episode] - self.relabel_buffer["episode_length"][i_episode]
             end_idx = self.relabel_buffer["total_num_steps"][i_episode] - 1
 
-            print(f"before wrapping: start_idx = {start_idx}, end_idx = {end_idx}")
+            #print(f"before wrapping: start_idx = {start_idx}, end_idx = {end_idx}")
             start_idx = start_idx % self.locals["replay_buffer"].buffer_size
             end_idx = end_idx % self.locals["replay_buffer"].buffer_size
 
             # wrap around end of replay buffer
-            print(f"start_idx = {start_idx}, end_idx = {end_idx}")
+            #print(f"start_idx = {start_idx}, end_idx = {end_idx}")
 
             init_empty = (self.locals["replay_buffer"]).next_observations["init_empty"][end_idx]
             out_empty = (self.locals["replay_buffer"]).next_observations["curr_empty"][end_idx]
             old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
-            print(f"init_empty = {init_empty}, out_empty = {out_empty}")
+            #print(f"init_empty = {init_empty}, out_empty = {out_empty}")
 
             """"""""""""""""""""""""""""""""""""""""""
             # Wrap around
@@ -228,11 +228,13 @@ class FmCallback(BaseCallback):
                 # get skill that maximizes reward
                 # TODO: relabeling for now assumes that we terminated on change of symbolic state
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
+
+                #print(f"old_skill = {old_skill}, new_skill = {new_skill}")
                 # never relabel policy transitions
-                if not (new_skill == old_skill).all() and False:
+                if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.8:
-                        print("Relabeling RL transitions")
+                        #print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_reward = self.relabel_buffer["max_reward"][i_episode]
                         if start_idx > end_idx:
@@ -258,11 +260,10 @@ class FmCallback(BaseCallback):
                 self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
             else:
                 # TODO: for lookup tabel add transitions directly to table instead
-                # always relabel fm transition
                 self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
 
 
-        print("-------------------------------------------------------")
+        #print("-------------------------------------------------------")
 
         self.relabel_buffer = {"max_reward": [],
                                "max_skill": [],

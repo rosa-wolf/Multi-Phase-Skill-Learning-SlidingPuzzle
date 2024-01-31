@@ -101,6 +101,7 @@ if args.env_name.__contains__("parallel_1x2"):
     puzzle_size = [1, 2]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                     max_steps=100,
+                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     fm_path=fm_dir + "/fm",
@@ -114,7 +115,8 @@ if args.env_name.__contains__("parallel_1x2"):
 elif args.env_name.__contains__("parallel_2x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                    max_steps=10,
+                    max_steps=100,
+                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     fm_path=fm_dir + "/fm",
@@ -129,9 +131,10 @@ elif args.env_name.__contains__("parallel_3x3"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     puzzle_size = [3, 3]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
-                    max_steps=100,
+                    max_steps=200,
+                    log_dir=log_dir,
                     num_skills=args.num_skills,
-                    verbose=1,
+                    verbose=0,
                     fm_path=fm_dir + "/fm",
                     puzzlesize=puzzle_size,
                     sparse_reward=args.sparse,
