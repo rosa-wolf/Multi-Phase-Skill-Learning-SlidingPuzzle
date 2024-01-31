@@ -96,7 +96,7 @@ os.makedirs(fm_dir, exist_ok=True)
 relabel = True
 
 # get fm path
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/fm/fm_eval_empty_input_4skills_seed12345_model"
+fm_path = "../fm/fm_eval_empty_input_4skills_seed12345_model"
 
 
 if args.env_name.__contains__("parallel_1x2"):
@@ -105,11 +105,12 @@ if args.env_name.__contains__("parallel_1x2"):
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                     max_steps=100,
                     num_skills=args.num_skills,
+                    log_dir=log_dir,
                     verbose=0,
                     fm_path=fm_path,
                     train_fm=False,
                     puzzlesize=puzzle_size,
-                    sparse_reward=True,
+                    sparse_reward=args.sparse,
                     reward_on_change=True,
                     term_on_change=True,
                     reward_on_end=True,
@@ -119,14 +120,15 @@ elif args.env_name.__contains__("parallel_2x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=10,
+                    log_dir=log_dir,
                     num_skills=args.num_skills,
-                    verbose=0,
+                    verbose=1,
                     train_fm=False,
                     fm_path=fm_path,
-                    sparse_reward=True,
-                    reward_on_change=False,
+                    sparse_reward=args.sparse,
+                    reward_on_change=True,
                     term_on_change=True,
-                    reward_on_end=args.reward_on_end,
+                    reward_on_end=True,
                     relabel=args.relabeling,
                     snapRatio=args.snap_ratio)
     puzzle_size = [2, 2]
@@ -135,12 +137,13 @@ elif args.env_name.__contains__("parallel_3x3"):
     puzzle_size = [3, 3]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                     max_steps=100,
+                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     train_fm=False,
                     fm_path=fm_path,
                     puzzlesize=puzzle_size,
-                    sparse_reward=True,
+                    sparse_reward=args.sparse,
                     reward_on_change=True,
                     term_on_change=True,
                     reward_on_end=True,

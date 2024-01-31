@@ -31,6 +31,7 @@ class PuzzleEnv(gym.Env):
                  path='slidingPuzzle_2x2.g',
                  snapRatio=4.,
                  fm_path=None,
+                 train_fm=True,
                  num_skills=2,
                  skill=0,
                  max_steps=100,
@@ -105,18 +106,23 @@ class PuzzleEnv(gym.Env):
         # if true we are in the starting episodes where the environment may reward differently
         self.starting_epis = True
 
+        self.box = None
+
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
         self.fm = ForwardModel(width=puzzlesize[1],
                                height=puzzlesize[0],
                                num_skills=self.num_skills)
 
+        self.train_fm = train_fm
         self.fm_path = fm_path
-        if self.fm_path is None:
-            self.fm.model.load_state_dict(
-                torch.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
+        if not self.train_fm:
+            if self.fm_path is None:
+                raise ValueError("No path for pretrained forward model given")
+            self.fm.model.load_state_dict(torch.load(fm_path))
+            self.starting_epis = False
         else:
-            "initial save of fm"
+            print("initial save of fm")
             torch.save(self.fm.model.state_dict(), fm_path)
 
 
@@ -249,11 +255,26 @@ class PuzzleEnv(gym.Env):
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
-        if self.fm_path is not None:
+        if self.train_fm:
             #print("Reloading fm")
             self.fm.model.load_state_dict(torch.load(self.fm_path))
 
         self._old_sym_obs = self.scene.sym_state.copy()
+
+        # get box forward model predicts we should push
+        # penalize being far away from box fm predicts we should push
+        skill = np.zeros((self.num_skills,))
+        skill[self.skill] = 1
+        empty_out = self.fm.successor(self.init_sym_state, skill, sym_output=False)
+        # get the box that is currently on the empty_out field
+        empty_out = np.where(empty_out == 1)[0]
+
+        self.box = np.where(self.init_sym_state[:, empty_out[0]] == 1)[0]
+        if self.box.shape == (0,):
+            self.skill_possible = False
+            self.box = None
+        else:
+            self.box = self.box[0]
 
         return self._get_observation(), {}
 
@@ -384,9 +405,8 @@ class PuzzleEnv(gym.Env):
 
                     print("reward_on_end = ", reward)
 
-        if self.starting_epis:
-            # if we just started training
-            if not self.sparse_reward:
+        if not self.sparse_reward:
+            if self.starting_epis:
                 # penalize being away from all fields where the adjacent field is empty
                 min_dist = -np.inf
                 # get empty field
@@ -398,7 +418,10 @@ class PuzzleEnv(gym.Env):
                         min_dist = dist[0]
 
                 reward += 5 * min([min_dist, 0.])
-
+            else:
+                if self.skill_possible:
+                    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+                    reward += 5 * min([dist[0], 0.])
 
        #else:
        #    if not self.sparse_reward:
@@ -416,7 +439,7 @@ class PuzzleEnv(gym.Env):
        #                    [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
        #                                                   self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
        #                                                   k)])
-        #print("reward = ", reward)
+        print("reward = ", reward)
 
         return reward
 

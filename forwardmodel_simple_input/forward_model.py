@@ -368,7 +368,7 @@ class ForwardModel(nn.Module):
         if sym_output:
             return self.pred_to_sym_state(state, empty)
 
-        return self.succ
+        return succ
 
     def valid_state(self, state) -> bool:
         """

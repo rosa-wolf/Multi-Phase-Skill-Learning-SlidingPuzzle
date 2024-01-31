@@ -365,7 +365,7 @@ class PuzzleEnv(gym.Env):
                         min_dist = dist[0]
 
 
-                reward += 0.1 * min(min_dist, 0)
+                reward += 5 * min(min_dist, 0)
         else:
             if not self.sparse_reward:
                 # reward being close to puzzle box on field predicted we want to push from by fm
