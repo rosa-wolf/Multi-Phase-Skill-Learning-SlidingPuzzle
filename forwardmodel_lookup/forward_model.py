@@ -21,6 +21,7 @@ class ForwardModel():
         return [seed]
 
     def one_hot_to_scalar(self, one_hot):
+        print(one_hot)
         return np.where(one_hot == 1)[1]
 
     def sym_state_to_input(self, state, one_hot=True):
@@ -43,7 +44,7 @@ class ForwardModel():
 
         return empty
 
-    def add_transition(self, skill, init_empty, out_empty) -> None:
+    def add_transition(self, init_empty, skill, out_empty) -> None:
         """
         :param skill: skill in range [0, self.num_skills -1]
         :param init_empty: field (not as one_hot encoding)
@@ -56,8 +57,19 @@ class ForwardModel():
         else:
             self.table[skill, init_empty, out_empty] += 1
 
-    def _accuracy(self, skills, states, next_states):
-        pass
+    def get_full_pred(self):
+        """
+        Gets the probabilities for all possible transitions
+        """
+        norm = np.sum(self.table, axis=2).reshape((self.table.shape[0] * self.table.shape[1]))
+        norm = norm[None, :]
+        norm = np.tile(norm, (self.table.shape[2], 1)).T
+        norm = norm.reshape(self.table.shape)
+
+        pred = self.table / norm
+        pred = np.swapaxes(pred, 0, 1)
+
+        return pred
 
     def evaluate(self, data, num_trans=10):
         """
@@ -165,10 +177,15 @@ class ForwardModel():
         bonus = - np.max(np.log(y_pred))
         return bonus
 
-    def save(self):
+    def save(self, path):
         # save the table
-        pass
-    def load(self):
+        print("save path = ", path)
+        np.save(path, self.table)
+    def load(self, path):
         # load a table from a file
-        pass
+        table = np.load(path)
+        if not self.table.shape == table.shape:
+            raise ValueError(f"Shape of loaded lookup table does not match shape of this instance,\
+             loaded shape: {table.shape}, instance shape: {self.table.shape}")
 
+        self.table = table

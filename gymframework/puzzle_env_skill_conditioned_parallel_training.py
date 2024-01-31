@@ -12,9 +12,6 @@ import torch
 from scipy import optimize
 import logging
 
-from forwardmodel_simple_input.forward_model import ForwardModel
-
-
 class PuzzleEnv(gym.Env):
     """
     Custom environment for the sliding puzzle
@@ -29,6 +26,7 @@ class PuzzleEnv(gym.Env):
     def __init__(self,
                  log_dir,
                  path='slidingPuzzle_2x2.g',
+                 lookup=False,
                  snapRatio=4.,
                  fm_path=None,
                  train_fm=True,
@@ -110,6 +108,12 @@ class PuzzleEnv(gym.Env):
 
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
+        self.lookup = lookup
+        if self.lookup:
+            from forwardmodel_lookup.forward_model import ForwardModel
+        else:
+            from forwardmodel_simple_input.forward_model import ForwardModel
+
         self.fm = ForwardModel(width=puzzlesize[1],
                                height=puzzlesize[0],
                                num_skills=self.num_skills)
@@ -117,13 +121,18 @@ class PuzzleEnv(gym.Env):
         self.train_fm = train_fm
         self.fm_path = fm_path
         if not self.train_fm:
+            if self.lookup:
+                raise "Loading pretrained model not yet implemented for lookup table"
             if self.fm_path is None:
                 raise ValueError("No path for pretrained forward model given")
             self.fm.model.load_state_dict(torch.load(fm_path))
             self.starting_epis = False
         else:
-            print("initial save of fm")
-            torch.save(self.fm.model.state_dict(), fm_path)
+            if self.lookup:
+                self.fm.save(fm_path)
+            else:
+                print("initial save of fm")
+                torch.save(self.fm.model.state_dict(), fm_path)
 
 
         logging.basicConfig(filename=log_dir + '/change.log', level=logging.INFO, filemode='w',
@@ -256,8 +265,11 @@ class PuzzleEnv(gym.Env):
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
         if self.train_fm:
+            if self.lookup:
+                self.fm.load(self.fm_path)
             #print("Reloading fm")
-            self.fm.model.load_state_dict(torch.load(self.fm_path))
+            else:
+                self.fm.model.load_state_dict(torch.load(self.fm_path))
 
         self._old_sym_obs = self.scene.sym_state.copy()
 

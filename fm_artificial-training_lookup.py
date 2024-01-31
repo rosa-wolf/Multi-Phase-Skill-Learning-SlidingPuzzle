@@ -144,9 +144,6 @@ if __name__ == "__main__":
                               fm.one_hot_to_scalar(one_hot_output)[0])
         #print(f"table = \n {fm.table}")
 
-        # test novelty bonus
-        skill = np.where(one_hot_skill == 1)[0][0]
-        fm.calculate_reward(one_hot_input, one_hot_output, skill)
 
         # get accurracy over n randomly sampled transitions
         valid_loss, valid_acc = fm.evaluate(test_data, num_trans=num_test_data)
