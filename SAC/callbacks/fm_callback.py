@@ -3,7 +3,7 @@ import os
 import gymnasium as gym
 import numpy as np
 import torch
-import logging
+import logging as lg
 import time
 
 from gymnasium.wrappers import TransformReward
@@ -39,7 +39,7 @@ class FmCallback(BaseCallback):
                  size=[1, 2],
                  num_skills=2,
                  relabel=False,
-                 logging=True,
+                 logging=False,
                  eval_freq=500,
                  verbose=0):
 
@@ -105,8 +105,6 @@ class FmCallback(BaseCallback):
         # don't save whole model, but only parameters
         torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
-        logging.basicConfig(filename=self.save_path + '/logging.log', level=logging.INFO, filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-
     def _on_step(self) -> bool:
 
         if self.locals["dones"] != 0:
@@ -149,6 +147,7 @@ class FmCallback(BaseCallback):
     def _on_rollout_end(self) -> bool:
         """
         Update fm
+        This function is called before the sac networks are updated
         """
 
         #if self.env.starting_epis:
@@ -187,7 +186,7 @@ class FmCallback(BaseCallback):
             if change_reward_scheme:
                 #print("changing reward scheme")
                 self.env.starting_epis = False
-                logging.info("Changing reward scheme after {0} steps".format(self.n_calls))
+                lg.info("Changing reward scheme after {0} steps".format(self.n_calls))
 
 
         # number of episodes to relabel
@@ -222,14 +221,13 @@ class FmCallback(BaseCallback):
             old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
             #print(f"init_empty = {init_empty}, out_empty = {out_empty}")
 
-            """"""""""""""""""""""""""""""""""""""""""
-            # Wrap around
             if self.relabel:
                 # get skill that maximizes reward
                 # TODO: relabeling for now assumes that we terminated on change of symbolic state
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
 
                 #print(f"old_skill = {old_skill}, new_skill = {new_skill}")
+                print(f"start_idx = {start_idx}, end_idx = {end_idx}")
                 # never relabel policy transitions
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
@@ -246,6 +244,16 @@ class FmCallback(BaseCallback):
                             # change skill in next state
                             self.locals["replay_buffer"].next_observations["skill"][start_idx:] = new_skill
                             self.locals["replay_buffer"].next_observations["skill"][: end_idx + 1] = new_skill
+
+                            # assumes that we have sparse reward, does not work for neg dist reward
+                            if not self.env.sparse_reward:
+                                # we give a reward in every step that also has to be changed
+                                # rerun episode with new skill
+                                # set reward of all non-final transition to zero, which is the max reward we can get here
+                                # TODO: this is not really the correct reward we would get here
+                                if not self.env.starting_epis:
+                                    (self.locals["replay_buffer"]).rewards[start_idx:] = 0.
+                                    (self.locals["replay_buffer"]).rewards[: end_idx + 1] = 0.
                         else:
                             # Todo: check if skill really has right shape
                             # replace skill and in all transitions and reward in last transition of episode
@@ -253,17 +261,28 @@ class FmCallback(BaseCallback):
                             # change skill in next state
                             self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
 
+                            # assumes that we have sparse reward, does not work for neg dist reward
+                            if not self.env.sparse_reward:
+                                # we give a reward in every step that also has to be changed
+                                # rerun episode with new skill
+                                # set reward of all non-final transition to zero, which is the max reward we can get here
+                                # TODO: this is not really the correct reward we would get here
+                                if not self.env.starting_epis:
+                                    (self.locals["replay_buffer"]).rewards[start_idx: end_idx + 1] = 0.
+
                         (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
 
                 # always relabel fm transition
                 # TODO: for lookup tabel add transitions directly to table instead
                 self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
+                #print(f"init = {init_empty.flatten()}, new_skill = {new_skill.flatten()}, old_skill = {old_skill.flatten()}, out_empty = {out_empty.flatten()}")
+
             else:
                 # TODO: for lookup tabel add transitions directly to table instead
                 self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
 
 
-        #print("-------------------------------------------------------")
+        print("-------------------------------------------------------")
 
         self.relabel_buffer = {"max_reward": [],
                                "max_skill": [],

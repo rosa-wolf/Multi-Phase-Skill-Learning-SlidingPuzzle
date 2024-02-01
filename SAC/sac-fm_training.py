@@ -4,6 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 import argparse
 import torch
 import numpy as np
+import logging as lg
 
 from stable_baselines3.common import noise
 from stable_baselines3.common.env_checker import check_env
@@ -101,7 +102,6 @@ if args.env_name.__contains__("parallel_1x2"):
     puzzle_size = [1, 2]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
                     max_steps=100,
-                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     fm_path=fm_dir + "/fm",
@@ -116,7 +116,6 @@ elif args.env_name.__contains__("parallel_2x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
-                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     fm_path=fm_dir + "/fm",
@@ -132,7 +131,6 @@ elif args.env_name.__contains__("parallel_3x3"):
     puzzle_size = [3, 3]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                     max_steps=200,
-                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     fm_path=fm_dir + "/fm",
@@ -154,6 +152,9 @@ np.random.seed(args.seed)
 
 checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" + str(
         args.seed) + "_num_skills" + str(args.num_skills) + "1000000_initsteps"
+
+lg.basicConfig(filename=log_dir + "/change.log", level=lg.INFO, filemode='w',
+                                format='%(name)s - %(levelname)s - %(message)s')
 
 # initialize callbacks
 # Save a checkpoint every 1000 steps
@@ -181,7 +182,7 @@ model = SAC("MultiInputPolicy",
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=1000, # when learning should start to prevent learning on little data
+            learning_starts=0, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate

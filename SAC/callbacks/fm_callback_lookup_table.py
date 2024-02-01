@@ -100,7 +100,7 @@ class FmCallback(BaseCallback):
         if self.verbose > 0:
             print("Saving initial model now")
         # don't save whole model, but only parameters
-        self.fm.save(self.save_path + "/fm.npy")
+        self.fm.save(self.save_path + "/fm")
 
         logging.basicConfig(filename=self.save_path + '/logging.log', level=logging.INFO, filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
@@ -224,9 +224,12 @@ class FmCallback(BaseCallback):
                 self.fm.add_transition(self.fm.one_hot_to_scalar(init_empty),
                                        self.fm.one_hot_to_scalar(old_skill),
                                        self.fm.one_hot_to_scalar(out_empty))
+
                 # TODO: for lookup tabel add transitions directly to table instead
                 if self.logging:
                     self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
+
+            self.fm.save(self.save_path + "/fm")
 
 
         #print("-------------------------------------------------------")

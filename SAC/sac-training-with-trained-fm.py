@@ -103,7 +103,7 @@ if args.env_name.__contains__("parallel_1x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     puzzle_size = [1, 2]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                    max_steps=100,
+                    max_steps=200,
                     num_skills=args.num_skills,
                     log_dir=log_dir,
                     verbose=0,

@@ -25,12 +25,12 @@ class PuzzleEnv(gym.Env):
     """
 
     def __init__(self,
-                 path='slidingPuzzle_2x2.g',
+                 path,
+                 skills,
+                 puzzlesize,
                  seed=12345,
-                 num_skills=24,
                  snapRatio=4.,
                  max_steps=100,
-                 puzzlesize = [3, 3],
                  sparse_reward=False,
                  reward_on_change=False,
                  neg_dist_reward=True,
@@ -64,16 +64,27 @@ class PuzzleEnv(gym.Env):
         #                        [5, 8], [7, 8]])  # 22, 23
         #self.skills = self.skills[None, :]
 
-        self.skills = np.array([[[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]],
-                          [[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]],
-                          [[0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]],
-                          [[3, 0], [6, 3], [4, 1], [7, 4], [5, 2], [8, 5]]])
-        self.num_skills = num_skills
+        #self.skills = np.array([[[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]],
+        #                  [[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]],
+        #                  [[0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]],
+        #                  [[3, 0], [6, 3], [4, 1], [7, 4], [5, 2], [8, 5]]])
+
+        self.skills = np.array([[[0, 1], [1, 0], [2, 3], [3, 2]],
+                                [[0, 2], [2, 0], [1, 3], [3, 1]]])
+
+
+        self.skills = skills
+
+        if self.skills.ndim != 3:
+            raise ValueError("The shape of the predefined skill array must be 3")
+
+        self.num_skills = self.skills.shape[0]
 
         self.seed(seed=seed)
 
         # which policy are we currently training? (Influences reward)
         self.skill = None
+        self.effect = None
 
         self.num_pieces = puzzlesize[0] * puzzlesize[1] - 1
 
@@ -168,7 +179,7 @@ class PuzzleEnv(gym.Env):
 
     def reset(self,
               *,
-              skill = None,
+              skill=None,
               seed: Optional[int] = None,
               options: Optional[dict] = None) -> tuple[dict[str, Any], dict[Any, Any]]:
         """
@@ -186,6 +197,8 @@ class PuzzleEnv(gym.Env):
         else:
             # sample skill
             self.skill = np.random.randint(0, self.num_skills, 1)[0]
+            # sample effect
+            self.effect = np.random.randint(0, self.skills[self.skill].shape[0], 1)[0]
 
         # Set agent to random initial position inside a box
         init_pos = np.random.uniform(-self.lim[:2], self.lim[:2])
@@ -193,7 +206,7 @@ class PuzzleEnv(gym.Env):
 
         # should it be possible to apply skill on initial board configuration?
         # take initial empty field such that skill execution is possible
-        field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill, 1])
+        field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill, self.effect, 1])
 
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
@@ -208,7 +221,7 @@ class PuzzleEnv(gym.Env):
 
         # look which box is in the field we want to push from
         # important for reward shaping
-        field = self.skills[self.skill, 0]
+        field = self.skills[self.skill, self.effect, 0]
         # get box that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
@@ -216,14 +229,16 @@ class PuzzleEnv(gym.Env):
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
         # set init and goal position of box
-        self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill, 0]]
-        self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
+        self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill, self.effect, 0]]
+        self.box_goal = self.scene.discrete_pos[self.skills[self.skill, self.effect, 1]]
 
         # calculate goal sym_state
         self.goal_sym_state = self.init_sym_state.copy()
+        print(f"skill = {self.skill}, effect = {self.effect}")
+        print(f"from {self.skills[self.skill, self.effect, 0]} to {self.skills[self.skill, self.effect, 1]}")
         # box we want to push should move to field we want to push to
-        self.goal_sym_state[self.box, self.skills[self.skill, 0]] = 0
-        self.goal_sym_state[self.box, self.skills[self.skill, 1]] = 1
+        self.goal_sym_state[self.box, self.skills[self.skill, self.effect, 0]] = 0
+        self.goal_sym_state[self.box, self.skills[self.skill, self.effect, 1]] = 1
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -299,7 +314,7 @@ class PuzzleEnv(gym.Env):
                      # Box(low=-1, high=1, shape=(self.num_pieces + 1,)),
                      "curr_empty": MultiBinary(self.num_pieces + 1),
                      "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,)),
-                     "skill": MultiBinary(self.num_skills)}  # Box(low=-1, high=1, shape=(self.num_skills,))}
+                     "skill": MultiBinary(self.num_skills)}  # Box(low=-1, high=1, shape=(self.num_skills,))}W
 
         return Dict(obs_space)
 
