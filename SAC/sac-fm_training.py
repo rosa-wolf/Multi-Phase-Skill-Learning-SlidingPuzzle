@@ -151,7 +151,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed) + "_num_skills" + str(args.num_skills) + "1000000_initsteps"
+        args.seed) + "_num_skills" + str(args.num_skills) + "_relabeling" + str(args.relabeling)
 
 lg.basicConfig(filename=log_dir + "/change.log", level=lg.INFO, filemode='w',
                                 format='%(name)s - %(levelname)s - %(message)s')
@@ -182,7 +182,7 @@ model = SAC("MultiInputPolicy",
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=0, # when learning should start to prevent learning on little data
+            learning_starts=1000, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
@@ -190,6 +190,7 @@ model = SAC("MultiInputPolicy",
             train_freq=(args.num_episodes, "episode"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
+            target_entropy=-4.5,
             #use_sde=True, # use state dependent exploration
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
