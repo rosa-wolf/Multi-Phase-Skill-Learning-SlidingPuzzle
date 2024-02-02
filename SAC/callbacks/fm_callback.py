@@ -39,6 +39,7 @@ class FmCallback(BaseCallback):
                  size=[1, 2],
                  num_skills=2,
                  relabel=False,
+                 train_fm=True,
                  logging=False,
                  eval_freq=500,
                  verbose=0):
@@ -49,7 +50,7 @@ class FmCallback(BaseCallback):
         self.env = env  # this is not a copy of the env, but a reference to it
         self.sample_size = sample_size
         self.relabel = relabel
-        self.relabel_buffer = {"max_reward": [],
+        self.relabel_buffer = {"max_rewards": [],
                                 "max_skill": [],
                                 "episode_length": [],
                                 "total_num_steps": []}
@@ -58,6 +59,7 @@ class FmCallback(BaseCallback):
         self.buffer = FmReplayMemory(memory_size, seed)
         self.verbose = verbose
         self.num_skills = num_skills
+        self.train_fm = train_fm
         # initialize forward model (untrained)
         self.fm = ForwardModel(width=size[1],
                           height=size[0],
@@ -75,24 +77,24 @@ class FmCallback(BaseCallback):
         self.last_done = None
 
 
-        # get the max number of adjacent fields of any grid cell
-        self.max_neighbors = 4
-        if size == [1, 2] or size == [2, 1]:
-            self.max_neighbors = 1
-        elif size.__contains__(1):
-            self.max_neighbors = 2
-        elif size == [2, 2]:
-            self.max_neighbors = 2
-        elif size.__contains__(2):
-            self.max_neighbors = 3
-
-        # minimal number of adjacent fields any field has
-        self.min_neighbors = 2
-        if size.__contains__(1):
-            self.min_neighbors = 1
+        ## get the max number of adjacent fields of any grid cell
+        #self.max_neighbors = 4
+        #if size == [1, 2] or size == [2, 1]:
+        #    self.max_neighbors = 1
+        #elif size.__contains__(1):
+        #    self.max_neighbors = 2
+        #elif size == [2, 2]:
+        #    self.max_neighbors = 2
+        #elif size.__contains__(2):
+        #    self.max_neighbors = 3
+#
+        ## minimal number of adjacent fields any field has
+        #self.min_neighbors = 2
+        #if size.__contains__(1):
+        #    self.min_neighbors = 1
 
         # number of fields
-        self.num_cells = size[0] * size[1]
+        #self.num_cells = size[0] * size[1]
 
     def _init_callback(self) -> None:
         # Create folder if needed
@@ -103,72 +105,61 @@ class FmCallback(BaseCallback):
         if self.verbose > 0:
             print("Saving initial model now")
         # don't save whole model, but only parameters
-        torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
+        # if we train fm save initial model
+        if self.train_fm:
+            torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
-    def _on_step(self) -> bool:
+    def _train_fm(self):
+        if len(self.buffer) >= self.sample_size:
+            for _ in range(2):
+
+                # put sampling batch(es) from buffer into forward model train function
+                train_loss, train_acc = self.fm.train(self.buffer)
+
+                if self.verbose > 0:
+                    print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
+
+            if self.verbose > 0:
+                print("Saving updated model now")
+            # don't save whole model, but only parameters
+            torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
+
+    def _eval_fm(self):
+        if len(self.buffer) >= self.sample_size:
+            if self.verbose > 0:
+                print("Evaluate now")
+            test_loss, test_acc = self.fm.evaluate(self.buffer)
+            self.test_acc.append(test_acc)
+            self.test_loss.append(test_loss)
+            np.savez(self.save_path + "log_data", test_acc=test_acc, train_acc=train_acc)
+
+            if self.verbose > 0:
+                print(f'\tEval Loss: {test_loss:.3f} | Eval Acc: {test_acc * 100:.2f}%')
+
+
+    def _on_step(self):
 
         if self.locals["dones"] != 0:
-            self.relabel_buffer["max_reward"].append((self.locals["infos"][0])["max_reward"])
+            self.relabel_buffer["max_rewards"].append((self.locals["infos"][0])["max_rewards"])
             self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
             self.relabel_buffer["episode_length"].append(((self.locals["infos"][0])["episode"]["l"]))
             self.relabel_buffer["total_num_steps"].append(self.n_calls)
+
         # only start training after buffer is filled a bit
-        if self.n_calls % self.update_freq == 0:
-            # Todo: update fm
-            if len(self.buffer) >= self.sample_size:
-                # update fm several times
-                # TODO: for lookup table not necessarry
-                for _ in range(2):
+        if self.train_fm:
+            if self.n_calls % self.update_freq == 0:
+                self._train_fm()
 
-                    # put sampling batch(es) from buffer into forward model train function
-                    train_loss, train_acc = self.fm.train(self.buffer)
+            if self.logging:
+                if self.n_calls % self.eval_freq == 0:
+                    self._eval_fm()
 
-                    if self.verbose > 0:
-                        print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
 
-                if self.verbose > 0:
-                    print("Saving updated model now")
-                # don't save whole model, but only parameters
-                torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
-
-        if self.logging:
-            if self.n_calls % self.eval_freq == 0:
-                if len(self.buffer) >= self.sample_size:
-                    if self.verbose > 0:
-                        print("Evaluate now")
-                    test_loss, test_acc = self.fm.evaluate(self.buffer)
-                    self.test_acc.append(test_acc)
-                    self.test_loss.append(test_loss)
-                    np.savez(self.save_path + "log_data", test_acc=test_acc, train_acc=train_acc)
-
-                    if self.verbose > 0:
-                        print(f'\tEval Loss: {test_loss:.3f} | Eval Acc: {test_acc * 100:.2f}%')
-
-    def _on_rollout_end(self) -> bool:
+    def _check_reward_criterion(self) -> bool:
         """
-        Update fm
-        This function is called before the sac networks are updated
+        Checks if reward scheme should be changed and does so if necessarry
+        :return: True if scheme has been changed, else False
         """
-
-        #if self.env.starting_epis:
-        #    # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
-        #    out = self.fm.get_full_pred()
-        #    # out is a num_skills x emtpy_fields x output array
-        #    # on the diagonal elements are the prob to stay in the initial field => set these to zero
-        #    num_change = 0
-        #    for i in range(out.shape[0]):
-        #        # set probabilities to not change empty field to zero
-        #        np.fill_diagonal(out[i], 0)
-#
-        #        print(f"out[{i}] = {out[i]}")
-        #        # check if the probability to change to any different field is high
-        #        if np.any(out[i] > 0.8):
-        #            num_change += 1
-        #            if num_change >= self.max_neighbors:
-        #                self.env.starting_epis = False
-        #                print("changing reward scheme now")
-        #                break
-
         if self.env.starting_epis:
             # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
             out = self.fm.get_full_pred()
@@ -187,6 +178,36 @@ class FmCallback(BaseCallback):
                 #print("changing reward scheme")
                 self.env.starting_epis = False
                 lg.info("Changing reward scheme after {0} steps".format(self.n_calls))
+                return True
+
+        return False
+
+            # if self.env.starting_epis:
+            #    # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
+            #    out = self.fm.get_full_pred()
+            #    # out is a num_skills x emtpy_fields x output array
+            #    # on the diagonal elements are the prob to stay in the initial field => set these to zero
+            #    num_change = 0
+            #    for i in range(out.shape[0]):
+            #        # set probabilities to not change empty field to zero
+            #        np.fill_diagonal(out[i], 0)
+            #
+            #        print(f"out[{i}] = {out[i]}")
+            #        # check if the probability to change to any different field is high
+            #        if np.any(out[i] > 0.8):
+            #            num_change += 1
+            #            if num_change >= self.max_neighbors:
+            #                self.env.starting_epis = False
+            #                print("changing reward scheme now")
+            #                break
+
+    def _on_rollout_end(self) -> bool:
+        """
+        Update fm
+        This function is called before the sac networks are updated
+        """
+        if self.train_fm:
+            self._check_reward_criterion()
 
 
         # number of episodes to relabel
@@ -227,64 +248,58 @@ class FmCallback(BaseCallback):
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
 
                 #print(f"old_skill = {old_skill}, new_skill = {new_skill}")
-                print(f"start_idx = {start_idx}, end_idx = {end_idx}")
+                #print(f"start_idx = {start_idx}, end_idx = {end_idx}")
                 # never relabel policy transitions
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
-                    if np.random.normal() > 0.8:
+                    if np.random.normal() > 0.5:
                         #print("Relabeling RL transitions")
                         # relabel all transitions in episode
-                        new_reward = self.relabel_buffer["max_reward"][i_episode]
+                        new_rewards = self.relabel_buffer["max_rewards"][i_episode][None, :]
+                        #print(f"episode length = {end_idx + 1 - start_idx}, rewards length = {new_rewards.shape}")
                         if start_idx > end_idx:
                             # wrap around
                             # Todo: check if skill really has right shape
                             # replace skill and in all transitions and reward in last transition of episode
-                            (self.locals["replay_buffer"]).observations["skill"][start_idx:] = new_skill
-                            (self.locals["replay_buffer"]).observations["skill"][: end_idx + 1] = new_skill
+                            self.locals["replay_buffer"].observations["skill"][start_idx:] = new_skill
+                            self.locals["replay_buffer"].observations["skill"][: end_idx + 1] = new_skill
                             # change skill in next state
                             self.locals["replay_buffer"].next_observations["skill"][start_idx:] = new_skill
                             self.locals["replay_buffer"].next_observations["skill"][: end_idx + 1] = new_skill
+                            # change rewards
+                            #print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
+                            #                           {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
+                            self.locals["replay_buffer"].rewards[start_idx:] = new_rewards
+                            self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards
 
-                            # assumes that we have sparse reward, does not work for neg dist reward
-                            if not self.env.sparse_reward:
-                                # we give a reward in every step that also has to be changed
-                                # rerun episode with new skill
-                                # set reward of all non-final transition to zero, which is the max reward we can get here
-                                # TODO: this is not really the correct reward we would get here
-                                if not self.env.starting_epis:
-                                    (self.locals["replay_buffer"]).rewards[start_idx:] = 0.
-                                    (self.locals["replay_buffer"]).rewards[: end_idx + 1] = 0.
+                            #print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
+                            #                          {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
+
                         else:
                             # Todo: check if skill really has right shape
                             # replace skill and in all transitions and reward in last transition of episode
-                            (self.locals["replay_buffer"]).observations["skill"][start_idx: end_idx + 1] = new_skill
+                            self.locals["replay_buffer"].observations["skill"][start_idx: end_idx + 1] = new_skill
                             # change skill in next state
                             self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
+                            # change rewards
+                            #print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
+                            self.locals["replay_buffer"].rewards[start_idx: end_idx + 1] = new_rewards
 
-                            # assumes that we have sparse reward, does not work for neg dist reward
-                            if not self.env.sparse_reward:
-                                # we give a reward in every step that also has to be changed
-                                # rerun episode with new skill
-                                # set reward of all non-final transition to zero, which is the max reward we can get here
-                                # TODO: this is not really the correct reward we would get here
-                                if not self.env.starting_epis:
-                                    (self.locals["replay_buffer"]).rewards[start_idx: end_idx + 1] = 0.
-
-                        (self.locals["replay_buffer"]).rewards[end_idx] = new_reward
+                            #print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
 
                 # always relabel fm transition
-                # TODO: for lookup tabel add transitions directly to table instead
-                self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
-                #print(f"init = {init_empty.flatten()}, new_skill = {new_skill.flatten()}, old_skill = {old_skill.flatten()}, out_empty = {out_empty.flatten()}")
+                if self.train_fm:
+                    self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
+                    #print(f"init = {init_empty.flatten()}, new_skill = {new_skill.flatten()}, old_skill = {old_skill.flatten()}, out_empty = {out_empty.flatten()}")
 
             else:
-                # TODO: for lookup tabel add transitions directly to table instead
-                self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
+                if self.train_fm:
+                    self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
 
 
-        print("-------------------------------------------------------")
+        #print("-------------------------------------------------------")
 
-        self.relabel_buffer = {"max_reward": [],
+        self.relabel_buffer = {"max_rewards": [],
                                "max_skill": [],
                                "episode_length": [],
                                "total_num_steps": []}

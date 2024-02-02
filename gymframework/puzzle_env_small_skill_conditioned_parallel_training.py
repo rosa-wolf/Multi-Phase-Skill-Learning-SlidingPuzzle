@@ -46,12 +46,12 @@ class PuzzleEnv(gym.Env):
         :param path: path to scene file
         :param max_steps: Maximum number of steps per episode
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
-        :param reward_on_change:    whether to give additional reward when box is successfully pushed (default false)
+        :param reward_on_change:    whether to give additional reward when boxes is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param verbose:      _       whether to render scene (default false)
         """
         # ground truth skills
-        # we have only one box, so there are 2 skills
+        # we have only one boxes, so there are 2 skills
         self.num_skills = num_skills
 
         # which policy are we currently training? (Influences reward)
@@ -194,7 +194,7 @@ class PuzzleEnv(gym.Env):
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
 
-        # Set agent to random initial position inside a box
+        # Set agent to random initial position inside a boxes
         init_pos = np.random.uniform(-0.25, .25, (2,))
         self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         print("current pos = ", self.scene.q)
@@ -268,7 +268,7 @@ class PuzzleEnv(gym.Env):
                 pos[i] = self.scene.discrete_pos[i, :2] * 4
             else:
                 box_idx = box_idx[0]
-                pos[i] = (self.scene.C.getFrame("box" + str(box_idx)).getPosition()[:2] * 4).copy()
+                pos[i] = (self.scene.C.getFrame("boxes" + str(box_idx)).getPosition()[:2] * 4).copy()
 
         pos = pos.flatten()
 
@@ -356,11 +356,11 @@ class PuzzleEnv(gym.Env):
             if not self.sparse_reward:
                 print("give neg dist reward")
                 # penalize being far away from all boxes
-                # penalty is negative distance to closest box
+                # penalty is negative distance to closest boxes
                 min_dist = - np.inf
                 for i in range(self.num_pieces):
-                    # minimal negative distance between box and actor
-                    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
+                    # minimal negative distance between boxes and actor
+                    dist, _ = self.scene.C.eval(ry.FS.distance, ["boxes" + str(i), "wedge"])
                     if dist[0] > min_dist:
                         min_dist = dist[0]
 
@@ -368,15 +368,15 @@ class PuzzleEnv(gym.Env):
                 reward += 5 * min(min_dist, 0)
         else:
             if not self.sparse_reward:
-                # reward being close to puzzle box on field predicted we want to push from by fm
+                # reward being close to puzzle boxes on field predicted we want to push from by fm
                 skill = np.zeros((self.num_skills,))
                 skill[k] = 1
                 empty_out = self.fm.successor(self.init_sym_state, skill, sym_output=False)
-                # get the box that is currently on the empty_out field
+                # get the boxes that is currently on the empty_out field
                 empty_out = np.where(empty_out == 1)[0][0]
                 box = np.where(self.init_sym_state[:, empty_out] == 1)
-                print(f"init_sym = \n {self.init_sym_state}\n box = {box}, skill = {k}, empty_out = {empty_out}")
-                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(box), "wedge"])
+                print(f"init_sym = \n {self.init_sym_state}\n boxes = {box}, skill = {k}, empty_out = {empty_out}")
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["boxes" + str(box), "wedge"])
                 reward += 0.1 * dist
 
             #if not self.sparse_reward:

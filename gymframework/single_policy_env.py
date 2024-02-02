@@ -183,7 +183,7 @@ class PuzzleEnv(gym.Env):
         self.episode += 1
 
         if self.random_init_pos:
-            # Set agent to random initial position inside a box
+            # Set agent to random initial position inside a boxes
             init_pos = np.random.uniform(-0.3, .3, (2,))
             self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         if self.random_init_config:

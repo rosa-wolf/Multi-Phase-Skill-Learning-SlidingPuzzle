@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
                     help='custom gym environment')
 parser.add_argument('--snap_ratio', default=4., type=float,
-                    help='1/Ratio of when symbolic state changes, if box is pushed')
+                    help='1/Ratio of when symbolic state changes, if boxes is pushed')
 parser.add_argument('--num_skills', default=8, type=int,
                     help='Number of skills policy should learn')
 parser.add_argument('--num_steps', default=100, type=int,
@@ -39,7 +39,7 @@ parser.add_argument('--movement_reward', action='store_true', default=False,
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--reward_on_change', action='store_true', default=False,
-                    help='Whether to give additional reward when box is pushed')
+                    help='Whether to give additional reward when boxes is pushed')
 parser.add_argument('--term_on_change', action='store_true', default=False,
                     help='Terminate on change of symbolic state')
 parser.add_argument('--random_init_board', action='store_true', default=False,

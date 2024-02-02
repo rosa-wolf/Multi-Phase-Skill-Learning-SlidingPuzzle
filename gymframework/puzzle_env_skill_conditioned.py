@@ -46,13 +46,13 @@ class PuzzleEnv(gym.Env):
         :param num_skills: How many skills do we want to condition our policy on
         :param random_init_board:   whether to NOT ensure that skill execution is possible in initial board configuration (default false)
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
-        :param reward_on_change:    whether to give additional reward when box is successfully pushed (default false)
+        :param reward_on_change:    whether to give additional reward when boxes is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param verbose:      _       whether to render scene (default false)
         """
 
         # ground truth skills
-        # we have only one box, so there is only one skill
+        # we have only one boxes, so there is only one skill
         #self.skills = np.array([[1, 0], [3, 0],  # 0, 1
         #                        [0, 1], [2, 1], [4, 1],  # 2, 3, 4
         #                        [1, 2], [5, 2],  # 5, 6
@@ -77,7 +77,7 @@ class PuzzleEnv(gym.Env):
 
         self.num_pieces = puzzle_size[0] * puzzle_size[1] - 1
 
-        # store which box we will push with current skill
+        # store which boxes we will push with current skill
         self.box = None
 
         # parameters to control different versions of observation and reward
@@ -119,7 +119,7 @@ class PuzzleEnv(gym.Env):
         # and for calculating reward based on forward model
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        # set init and goal position of box for calculating reward
+        # set init and goal position of boxes for calculating reward
         self.box_init = None
         self.box_goal = None
 
@@ -189,7 +189,7 @@ class PuzzleEnv(gym.Env):
             # sample effect
             self.effect = np.random.randint(0, self.skills[self.skill].shape[0], 1)[0]
 
-        # Set agent to random initial position inside a box
+        # Set agent to random initial position inside a boxes
         init_pos = np.random.uniform(-self.lim[:2], self.lim[:2])
         self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
@@ -208,16 +208,16 @@ class PuzzleEnv(gym.Env):
         self.scene.set_to_symbolic_state(hard=True)
         self.init_sym_state = sym_obs.copy()
 
-        # look which box is in the field we want to push from
+        # look which boxes is in the field we want to push from
         # important for reward shaping
         field = self.skills[self.skill][self.effect, 0]
-        # get box that is currently on that field
+        # get boxes that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-        #self.box = 0
+        #self.boxes = 0
 
-        curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
-        # set init and goal position of box
+        curr_pos = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
+        # set init and goal position of boxes
         self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill][self.effect, 0]]
         self.box_goal = self.scene.discrete_pos[self.skills[self.skill][self.effect, 1]]
 
@@ -225,7 +225,7 @@ class PuzzleEnv(gym.Env):
         self.goal_sym_state = self.init_sym_state.copy()
         print(f"skill = {self.skill}, effect = {self.effect}")
         print(f"from {self.skills[self.skill][self.effect, 0]} to {self.skills[self.skill][self.effect, 1]}")
-        # box we want to push should move to field we want to push to
+        # boxes we want to push should move to field we want to push to
         self.goal_sym_state[self.box, self.skills[self.skill][self.effect, 0]] = 0
         self.goal_sym_state[self.box, self.skills[self.skill][self.effect, 1]] = 1
 
@@ -279,7 +279,7 @@ class PuzzleEnv(gym.Env):
                 pos[i] = self.scene.discrete_pos[i, :2] * 4
             else:
                 box_idx = box_idx[0]
-                pos[i] = (self.scene.C.getFrame("box" + str(box_idx)).getPosition()[:2] * 4).copy()
+                pos[i] = (self.scene.C.getFrame("boxes" + str(box_idx)).getPosition()[:2] * 4).copy()
 
         pos = pos.flatten()
 
@@ -346,29 +346,29 @@ class PuzzleEnv(gym.Env):
         """
         reward = 0
         if not self.sparse_reward:
-            # read out position of box that should be pushed
-            box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+            # read out position of boxes that should be pushed
+            box_pos = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
 
             # give additional reward for pushing puzzle piece towards its goal position
             if self.movement_reward:
                 #if self.env_step_counter == 0:
-                #    self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+                #    self.box_init = (self.scene.C.getFrame("boxes" + str(self.boxes)).getPosition()).copy()
                 print("give movement reward")
                 #max_dist = np.linalg.norm(self.box_goal - self.box_init)
                 #box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
                 #reward += box_reward
 
-                # give neg dist of current box pos to goal box pos as reward
+                # give neg dist of current boxes pos to goal boxes pos as reward
                 reward -= max([np.linalg.norm(self.box_goal - box_pos), 0.])
 
-            # minimal negative distance between box and actor
+            # minimal negative distance between boxes and actor
             if self.neg_dist_reward:
                 print("give neg dist reward")
-                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["boxes" + str(self.box), "wedge"])
                 reward += 5 * min([dist[0], 0.])
 
 
-        # optionally give reward of one when box was successfully pushed to other field
+        # optionally give reward of one when boxes was successfully pushed to other field
         if self.reward_on_change:
             # give this reward every time we are in goal symbolic state
             # not only when we change to it (such that it is markovian)

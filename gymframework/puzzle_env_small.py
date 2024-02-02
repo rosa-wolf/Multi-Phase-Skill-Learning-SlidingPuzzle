@@ -46,12 +46,12 @@ class PuzzleEnv(gym.Env):
         :param evaluate: evaluation mode (default false)
         :param random_init_board:   whether to NOT ensure that skill execution is possible in initial board configuration (default false)
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
-        :param reward_on_change:    whether to give additional reward when box is successfully pushed (default false)
+        :param reward_on_change:    whether to give additional reward when boxes is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param verbose:      _       whether to render scene (default false)
         """
         # ground truth skills
-        # we have only one box, so there is only one skill
+        # we have only one boxes, so there is only one skill
         self.skills = np.array([[1, 0], [0, 1]])
 
         # which policy are we currently training? (Influences reward)
@@ -68,7 +68,7 @@ class PuzzleEnv(gym.Env):
         # if 0 no offset in that direction
         # -1/1: negative/positive offset in that direction
         self.opt_pos_dir = np.array([[1, 0]])
-        # store which box we will push with current skill
+        # store which boxes we will push with current skill
         self.box = None
 
         # opt push position for all 14 skills (for calculating reward)
@@ -76,7 +76,7 @@ class PuzzleEnv(gym.Env):
         #                         [-0.05, -0.09]])
 
         # TODO: we cannot hardcode a position where the actor will have the maximal distance to the optimal position
-        # as the optimal position changes with the position of the box
+        # as the optimal position changes with the position of the boxes
         # However, we can hardcode a maximal distance using the
         self.max = np.array([-0.25, 0.25, 0.25])
         self.max_dist = None
@@ -114,7 +114,7 @@ class PuzzleEnv(gym.Env):
 
         self.init_sym_state = None
 
-        # set init and goal position of box for calculating reward
+        # set init and goal position of boxes for calculating reward
         self.box_init = None
         self.box_goal = None
 
@@ -178,7 +178,7 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
-        # Set agent to random initial position inside a box
+        # Set agent to random initial position inside a boxes
         init_pos = np.random.uniform(self.scene.q_lim[0, 0], self.scene.q_lim[0, 1], (2,))
         self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], np.pi/2.]
         # should it be possible to apply skill on initial board configuration?
@@ -198,18 +198,18 @@ class PuzzleEnv(gym.Env):
             self.scene.sym_state = sym_obs
             self.scene.set_to_symbolic_state()
 
-        # look which box is in the field we want to push from
+        # look which boxes is in the field we want to push from
         # important for reward shaping
         field = self.skills[self.skill][0]
-        # get box that is currently on that field
+        # get boxes that is currently on that field
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        self.max_dist = np.linalg.norm((self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy() - self.max)
+        self.max_dist = np.linalg.norm((self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy() - self.max)
 
-        # set init and goal position of box
-        self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+        # set init and goal position of boxes
+        self.box_init = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
         self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
 
         self.init_sym_state = self.scene.sym_state.copy()
@@ -242,11 +242,11 @@ class PuzzleEnv(gym.Env):
         q, _, _ = self.scene.state
 
         # normalize state space (has influence on policy, because of the added noise)
-        # joint angles and box position are all in range [-0.25, 0.25]
+        # joint angles and boxes position are all in range [-0.25, 0.25]
         obs = q[:3] * 4
 
         # add x-and y-position of relevant puzzle piece
-        pos = ((self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy())[:2]
+        pos = ((self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy())[:2]
 
         return np.concatenate((obs, pos * 4))
 
@@ -302,14 +302,14 @@ class PuzzleEnv(gym.Env):
         # TODO: change max to correct value
         reward = 0
         if not self.sparse_reward:
-            # read out position of box that should be pushed
-            box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+            # read out position of boxes that should be pushed
+            box_pos = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
 
             # always some y and z-offset because of the way the wedge and the boxes were placed
             opt = box_pos.copy()
             opt[2] -= 0.3
             # additional offset in x-direction and y-direction dependent on skill
-            # (which side do we want to push box from?)
+            # (which side do we want to push boxes from?)
             opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
             opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
 
@@ -318,14 +318,14 @@ class PuzzleEnv(gym.Env):
             # reward: max distance - current distance
             reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
 
-            dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+            dist, _ = self.scene.C.eval(ry.FS.distance, ["boxes" + str(self.box), "wedge"])
             reward += 0.1 * dist[0]
 
             # give additional reward for pushing puzzle piece into correct direction
             # line from start to goal goes only in x-direction for this skill
             reward += (box_pos[0] - self.box_init[0]) / (self.box_goal[0] - self.box_init[0])
 
-        # optionally give reward of one when box was successfully pushed to other field
+        # optionally give reward of one when boxes was successfully pushed to other field
         if self.reward_on_change:
             if not (self.init_sym_state == self.scene.sym_state).all():
                 print("SYM STATE CHANGED!!!")

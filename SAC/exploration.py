@@ -35,7 +35,7 @@ parser.add_argument('--seed', type=int, default=123456, metavar='N',
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
 parser.add_argument('--reward_on_change', action='store_true', default=False,
-                    help='Whether to give additional reward when box is pushed')
+                    help='Whether to give additional reward when boxes is pushed')
 parser.add_argument('--term_on_change', action='store_true', default=False,
                     help='Terminate on change of symbolic state')
 parser.add_argument('--random_init_board', action='store_true', default=False,
@@ -43,7 +43,7 @@ parser.add_argument('--random_init_board', action='store_true', default=False,
 parser.add_argument('--reward_on_end', action='store_true', default=False,
                     help='Always give a reward on the terminating episode')
 parser.add_argument('--snap_ratio', default=4., type=int,
-                    help='1/Ratio of when symbolic state changes, if box is pushed')
+                    help='1/Ratio of when symbolic state changes, if boxes is pushed')
 
 # args for SAC
 parser.add_argument('--policy', default="Gaussian",

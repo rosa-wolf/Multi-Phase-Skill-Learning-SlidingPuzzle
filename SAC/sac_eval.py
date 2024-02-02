@@ -29,7 +29,7 @@ parser.add_argument('--seed', type=int, default=123456, metavar='N',
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
 parser.add_argument('--reward_on_change', action='store_true', default=False,
-                    help='Whether to give additional reward when box is pushed')
+                    help='Whether to give additional reward when boxes is pushed')
 parser.add_argument('--neg_dist_reward', action='store_true', default=False,
                     help='Give negative distance reward')
 parser.add_argument('--movement_reward', action='store_true', default=False,
@@ -41,7 +41,7 @@ parser.add_argument('--random_init_board', action='store_true', default=False,
 parser.add_argument('--reward_on_end', action='store_true', default=False,
                     help='Always give a reward on the terminating episode')
 parser.add_argument('--snap_ratio', default=4., type=int,
-                    help='1/Ratio of when symbolic state changes, if box is pushed')
+                    help='1/Ratio of when symbolic state changes, if boxes is pushed')
 
 # args for SAC
 parser.add_argument('--policy', default="Gaussian",
@@ -186,21 +186,21 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_3x3_newcondition_negdist_num_skills4_relabelingFalse/model/model_1579000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_3x3_neg_dist_with-pretrained-fm_num_skills4_relabelingFalse/model/model_1686000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=1)
+obs, _ = env.reset(skill=0)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
     if terminated or truncated:
-        obs, _ = env.reset(skill=1)
+        obs, _ = env.reset(skill=0)
         num_steps = 0
 
 del model

@@ -39,7 +39,7 @@ parser.add_argument('--seed', type=int, default=123456, metavar='N',
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
 parser.add_argument('--reward_on_change', action='store_true', default=False,
-                    help='Whether to give additional reward when box is pushed')
+                    help='Whether to give additional reward when boxes is pushed')
 parser.add_argument('--term_on_change', action='store_true', default=False,
                     help='Terminate on change of symbolic state')
 parser.add_argument('--random_init_board', action='store_true', default=False,
@@ -47,7 +47,7 @@ parser.add_argument('--random_init_board', action='store_true', default=False,
 parser.add_argument('--reward_on_end', action='store_true', default=False,
                     help='Always give a reward on the terminating episode')
 parser.add_argument('--snap_ratio', default=4., type=int,
-                    help='1/Ratio of when symbolic state changes, if box is pushed')
+                    help='1/Ratio of when symbolic state changes, if boxes is pushed')
 
 # args for SAC
 parser.add_argument('--policy', default="Gaussian",
@@ -120,7 +120,6 @@ elif args.env_name.__contains__("parallel_2x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=10,
-                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=1,
                     train_fm=False,
@@ -137,7 +136,6 @@ elif args.env_name.__contains__("parallel_3x3"):
     puzzle_size = [3, 3]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                     max_steps=100,
-                    log_dir=log_dir,
                     num_skills=args.num_skills,
                     verbose=0,
                     train_fm=False,
@@ -171,7 +169,17 @@ checkpoint_callback = CheckpointCallback(
   save_vecnormalize=True,
 )
 
-callback = CallbackList([checkpoint_callback])
+# callback for updating and training fm
+relabel_callback = FmCallback(update_freq=500,
+                              env=env,
+                              save_path=log_dir + "/fm",
+                              size=puzzle_size,
+                              train_fm=False,
+                              num_skills=args.num_skills,
+                              seed=args.seed,
+                              relabel=args.relabeling)
+
+callback = CallbackList([checkpoint_callback, relabel_callback])
 
 # initialize SAC
 model = SAC("MultiInputPolicy",
@@ -184,6 +192,7 @@ model = SAC("MultiInputPolicy",
             gamma=args.gamma,  # learning rate
             gradient_steps=-1, # do as many gradient steps as steps done in the env
             train_freq=(args.num_episodes, "episode"),
+            target_entropy=-3.75,
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
             #use_sde=True, # use state dependent exploration

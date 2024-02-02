@@ -103,7 +103,7 @@ if __name__ == '__main__':
             choice = np.delete(fields, SKILLS[skill, 1])
             while count < 200:
                 count += 1
-                # pick number where no box is initially
+                # pick number where no boxes is initially
                 pick = np.random.choice(choice)
                 print("pick = ", pick)
 

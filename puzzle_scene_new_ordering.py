@@ -81,7 +81,7 @@ class PuzzleScene:
             self.discrete_pos[i] = self.C.getFrame(name).getPosition()
             self._sym_state[i, i] = 1
 #
-        ## TODO: change discrete position of initially empty field for new box order
+        ## TODO: change discrete position of initially empty field for new boxes order
         ## TODO: just change to + 0.1 for old ordering of puzzle fields
         # beware: doesn't fit for the trained policies of the 1x2 puzzle
         # determine position of place which is initially empty
@@ -289,10 +289,10 @@ class PuzzleScene:
         # set all pieces to their current symbolic state positions
         for i in range(self.pieces):
             name = "box" + str(i)
-            # get position of box in current symbolic state
+            # get position of boxes in current symbolic state
             idx = np.where(self._sym_state[i] == 1)[0]
             pos = self.discrete_pos[idx]
-            # set position and orientation of box in Config
+            # set position and orientation of boxes in Config
             self.C.getFrame(name).setQuaternion(self.quat0)
             self.C.getFrame(name).setPosition(pos)
             #new_pos = self.C.getFrame(name).getPosition()

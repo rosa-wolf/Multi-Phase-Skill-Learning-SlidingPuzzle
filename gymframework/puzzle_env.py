@@ -77,7 +77,7 @@ class PuzzleEnv(gym.Env):
         # -1/1: negative/positive offset in that direction
         self.opt_pos_dir = np.array([[1, 0], [0, 1], [-1, 0], [1, 0], [0, 1], [-1, 0], [0, 1],
                                      [0, -1], [1, 0], [0, -1], [-1, 0], [1, 0], [0, -1], [-1, 0]])
-        # store which box we will push with current skill
+        # store which boxes we will push with current skill
         self.box = None
 
         # opt push position for all 14 skills (for calculating reward)
@@ -134,7 +134,7 @@ class PuzzleEnv(gym.Env):
         # and for calculating reward based on forward model
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        # store initial and goal position of box for reward shaping
+        # store initial and goal position of boxes for reward shaping
         self.box_init = None
         self.box_goal = None
 
@@ -226,7 +226,7 @@ class PuzzleEnv(gym.Env):
             self.scene.q0[3] = np.pi / 2.
 
         if self.random_init_pos:
-            # Set agent to random initial position inside a box
+            # Set agent to random initial position inside a boxes
             init_pos = np.random.uniform(-0.3, .3, (2,))
             self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         if self.random_init_config:
@@ -247,14 +247,14 @@ class PuzzleEnv(gym.Env):
             self.scene.sym_state = sym_obs
             self.scene.set_to_symbolic_state()
 
-        # look which box is in the field we want to push from
+        # look which boxes is in the field we want to push from
         # important for reward shaping
         field = self.skills[self.skill][0]
-        # get box that is currently on that field
+        # get boxes that is currently on that field
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
 
-        # set init and goal position of box
-        self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+        # set init and goal position of boxes
+        self.box_init = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
         self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
 
         self._old_sym_obs = self.scene.sym_state.copy()
@@ -286,7 +286,7 @@ class PuzzleEnv(gym.Env):
         obs = q[:3]
 
         # add position of relevant puzzle piece
-        obs = np.concatenate((obs, (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()))
+        obs = np.concatenate((obs, (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()))
 
         if self.give_sym_obs:
             # should agent be informed about symbolic observation?
@@ -382,14 +382,14 @@ class PuzzleEnv(gym.Env):
 
             # define place of highest reward for each skill (optimal position)
             # as outer edge of current position of block we want to push
-            # read out position of box that should be pushed
-            box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+            # read out position of boxes that should be pushed
+            box_pos = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
             # always some y and z-offset because of the way the wedge and the boxes were placed
             opt = box_pos.copy()
             opt[2] -= 0.3
             opt[1] -= self.offset / 2
             # additional offset in x-direction and y-direction dependent on skill
-            # (which side do we want to push box from?)
+            # (which side do we want to push boxes from?)
             opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
             opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
             # max = np.array([-0.2, 0.2, self.scene.q0[2], self.scene.q0[3]])#  location with the lowest reward (lower right corner)

@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Dict
 
 import gymnasium as gym
 import numpy as np
@@ -6,6 +6,7 @@ import time
 from gymnasium.core import ObsType, ActType
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
+
 from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
 import torch
@@ -46,12 +47,10 @@ class PuzzleEnv(gym.Env):
         :param path: path to scene file
         :param max_steps: Maximum number of steps per episode
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
-        :param reward_on_change:    whether to give additional reward when box is successfully pushed (default false)
+        :param reward_on_change:    whether to give additional reward when boxes is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param verbose:      _       whether to render scene (default false)
         """
-        # ground truth skills
-        # we have only one box, so there are 2 skills
         self.num_skills = num_skills
 
         # which policy are we currently training? (Influences reward)
@@ -64,10 +63,7 @@ class PuzzleEnv(gym.Env):
         self.reward_on_change = reward_on_change
         self.reward_on_end = reward_on_end
 
-        # is skill execution possible?
-        self.skill_possible = None
-
-        self.neighborlist = self._get_neighbors(puzzlesize)
+        self.neighborlist = self.__get_neighbors(puzzle_size=puzzlesize)
 
         # if we only give reward on last episode then we should terminate on change of symbolic observation
         if self.reward_on_end:
@@ -81,6 +77,9 @@ class PuzzleEnv(gym.Env):
         else:
             self.relabel = relabel
 
+        # store rewards of all skills for whole episode (for relabeling)
+        self.episode_rewards = []
+
         # has actor fulfilled criteria of termination
         self.terminated = False
         self.truncated = False
@@ -88,6 +87,7 @@ class PuzzleEnv(gym.Env):
         self.total_num_steps = 0
         self._max_episode_steps = max_steps
         self.episode = 0
+
 
         # initialize scene
         self.scene = PuzzleScene(path, puzzlesize=puzzlesize, verbose=verbose, snapRatio=snapRatio)
@@ -104,11 +104,16 @@ class PuzzleEnv(gym.Env):
         # if true we are in the starting episodes where the environment may reward differently
         self.starting_epis = True
 
-        self.box = None
+        # list of boxes to push for each skill
+        self.boxes = None
 
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
         self.lookup = lookup
+        self.train_fm = train_fm
+        self.fm_path = fm_path
+        self.logging = logging
+
         if self.lookup:
             from forwardmodel_lookup.forward_model import ForwardModel
         else:
@@ -118,9 +123,6 @@ class PuzzleEnv(gym.Env):
                                height=puzzlesize[0],
                                num_skills=self.num_skills)
 
-        self.train_fm = train_fm
-        self.fm_path = fm_path
-        self.logging = logging
         if not self.train_fm:
             if self.lookup:
                 raise "Loading pretrained model not yet implemented for lookup table"
@@ -136,7 +138,8 @@ class PuzzleEnv(gym.Env):
                 print("initial save of fm")
                 torch.save(self.fm.model.state_dict(), fm_path)
 
-    def _get_neighbors(self, puzzle_size):
+    @staticmethod
+    def __get_neighbors(puzzle_size):
         """
         Calculates the neibhors of each field, depending on the puzzle size
         """
@@ -163,7 +166,8 @@ class PuzzleEnv(gym.Env):
 
         return neighborlist
 
-    def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
+    def step(self, action: Dict) -> tuple[
+        dict[str, np.ndarray | Any], float, bool, bool, dict[str, np.ndarray[int] | None | Any]]:
         """
         Run one timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
@@ -197,15 +201,34 @@ class PuzzleEnv(gym.Env):
                 lg.info(f"Change with skill {self.skill} after {self.total_num_steps} steps")
 
         # get reward (if we don't only want to give reward on last step of episode)
-        reward = self._reward()
+        rewards = self._get_rewards_for_all_skills()
+        #print("rewards = ", rewards)
+        self.episode_rewards.append(rewards)
 
-        max_reward = None
-        max_skill = None
+        reward = rewards[self.skill]
+
+        max_rewards = None
+        max_skill_one_hot = None
         if self._termination():
-            print(f"init_sym_state =\n {self.init_sym_state},\n out_sym_state = \n{self.scene.sym_state}")
+            #print(f"init_sym_state =\n {self.init_sym_state},\n out_sym_state = \n{self.scene.sym_state}")
             #print(f"relabel = {self.relabel}")
             if self.relabel:
-                max_skill, max_reward = self._get_max_skill_reward(reward)
+                #max_skill, max_reward = self.get_max_skill_reward(reward)
+
+                # get skill where return is maximized
+                self.episode_rewards = np.array(self.episode_rewards)
+                max_skill = np.argmax(np.sum(self.episode_rewards, axis=0))
+                max_rewards = self.episode_rewards[:, max_skill]
+
+                max_skill_one_hot = np.zeros(self.num_skills)
+                max_skill_one_hot[max_skill] = 1
+                max_skill_one_hot = max_skill_one_hot[None, :]
+                #print(max_rewards)
+                max_rewards = max_rewards[:, None]
+
+                #print(f"max_skill = {max_skill}")
+                #print(f"rewards = {max_rewards}")
+
                 #print(f"max_skill = {max_skill}")
         else:
             self.env_step_counter += 1
@@ -215,7 +238,29 @@ class PuzzleEnv(gym.Env):
                 reward,
                 self.terminated,
                 self.truncated,
-                {"max_reward": max_reward, "max_skill": max_skill})
+                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot})
+
+    def _get_box(self, k):
+        """
+        Looks up which boxes should be pushed by the given skill, based on the forward model
+        :param k: skill as scalar
+        :return: boxes idx, or -1 if skill is not executable in given field
+        """
+        skill = np.zeros((self.num_skills,))
+        skill[k] = 1
+
+        empty_out = self.fm.successor(self.fm.sym_state_to_input(self.init_sym_state), skill, sym_output=False)
+        # get the boxes that is currently on the empty_out field
+        empty_out = np.where(empty_out == 1)[0]
+
+        box = np.where(self.init_sym_state[:, empty_out[0]] == 1)[0]
+        if box.shape == (0,):
+            box = -1
+        else:
+            box = box[0]
+
+        return box
+
 
     def reset(self,
               *,
@@ -229,7 +274,7 @@ class PuzzleEnv(gym.Env):
         self.scene.reset()
         self.terminated = False
         self.truncated = False
-        self.skill_possible = True
+        self.episode_rewards = []
         self.env_step_counter = 0
         self.episode += 1
 
@@ -242,7 +287,7 @@ class PuzzleEnv(gym.Env):
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
 
-        # Set agent to random initial position inside a box
+        # Set agent to random initial position inside a boxes
         init_pos = np.random.uniform(-0.25, .25, (2,))
         self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
         #print("current pos = ", self.scene.q)
@@ -273,21 +318,10 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        # get box forward model predicts we should push
-        # penalize being far away from box fm predicts we should push
-        skill = np.zeros((self.num_skills,))
-        skill[self.skill] = 1
-        #print(self.init_sym_state)
-        empty_out = self.fm.successor(self.fm.sym_state_to_input(self.init_sym_state), skill, sym_output=False)
-        # get the box that is currently on the empty_out field
-        empty_out = np.where(empty_out == 1)[0]
+        # get boxes forward model predicts we should push for each skill
+        self.boxes = [self._get_box(skill) for skill in np.arange(self.num_skills)]
 
-        self.box = np.where(self.init_sym_state[:, empty_out[0]] == 1)[0]
-        if self.box.shape == (0,):
-            self.skill_possible = False
-            self.box = None
-        else:
-            self.box = self.box[0]
+        #print(f"boxes = {self.boxes}")
 
         return self._get_observation(), {}
 
@@ -379,7 +413,7 @@ class PuzzleEnv(gym.Env):
             self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
-    def get_neg_dist_to_neighbors(self, empty_field):
+    def _get_neg_dist_to_neighbors(self, empty_field):
         """
         Get the negative distance to all boxes on the adjacent fields to the empty one
         :param empty_field: the field that is initially empty (as a scalar)
@@ -394,6 +428,13 @@ class PuzzleEnv(gym.Env):
                 min_dist = dist[0]
 
         return min([min_dist, 0.])
+
+    def _get_rewards_for_all_skills(self):
+        """
+        Calculates rewards for all skills
+        :return: list of rewards sorted by skill-enumeration
+        """
+        return [self._reward(skill) for skill in np.arange(self.num_skills)]
 
     def _reward(self, k=None) -> float:
         """
@@ -410,7 +451,6 @@ class PuzzleEnv(gym.Env):
 
         """
         reward = 0.
-
         if k is None:
             k = self.skill
 
@@ -421,28 +461,31 @@ class PuzzleEnv(gym.Env):
             reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k)
+            #print(f"novelty reward = {reward}")
 
         if self._termination():
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
                 if not self.starting_epis:
-                    reward += np.max(
-                        [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                    end_reward = np.max(
+                        [-1., 5 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        k)])
+                    reward += end_reward
+                    #print(f"end reward = {end_reward}")
 
-                    print("reward_on_end = ", reward)
 
         if not self.sparse_reward:
             if self.starting_epis:
                 # penalize being away from all fields where the adjacent field is empty
                 # get empty field
                 empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
-                reward += 5 * self.get_neg_dist_to_neighbors(empty)
+                reward += 5 * self._get_neg_dist_to_neighbors(empty)
             else:
-                if self.skill_possible:
-                    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
+                if self.boxes[k] != -1:
+                    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.boxes[k]), "wedge"])
+                    #print(f"dist = {dist[0]}")
                     reward += 5 * min([dist[0], 0.])
 
        #else:
@@ -488,122 +531,3 @@ class PuzzleEnv(gym.Env):
         max_reward = np.array(max_reward, dtype=np.float32)
 
         return one_hot_skill, max_reward
-
-    def relabeling(self, episodes):
-        """
-        Relabeling of the episodes such that the number of times a certain skill k is applied in the relabeled episoded
-        is equal to the number of times it was applied in the input transitions.
-        This is done, to maintain the property of the skills being equally likely
-        (which is assumed in the derivation of the reward)
-        For this to work the number of input epsiodes n has to be sufficiently large
-
-        This function solves the linear sum assignment problem to get the new skills k for the episodes
-
-        @param episodes: list of n episodes in the form
-                ((s_0, a_0, r_0, s_1, m_0), (s_1, a_1, r_1, s_2, m_1), ..., (s_T-1, a_T-1, r_T-1, s_T, m_T), (e_0, k, e_T))
-                , the state s contains a one-hot encoding of the skill that needs to be relabeled,
-                e_0 and e_T are one-hot encodings of the empty fields
-        returns: relabeled episodes in same shape as input episodes
-        """
-
-        # count the number of times each skill appears
-        count = np.zeros(self.num_skills, dtype=int)
-        # go through all episodes and count how often each skill appears
-        for epi in episodes:
-            # the last tuple in each episode is of the form (z_0, k, z_T), and contains the skill as a one-hot encoding
-            one_hot_skill = epi[-1][1]
-            skill = np.where(one_hot_skill == 1)[0][0]
-            count[skill] += 1
-
-        # set up the cost matrix
-        # contains one row per episode and c columns per skill, where c is the number of times the skill
-        # is applied in the original episodes
-        prob = np.zeros((len(episodes), len(episodes)))
-
-        # go through all episodes i and calculate cost q(k | e_iT, e_i0), for all k
-        # add this to matrix for all c times the skill k appears
-        for i, epi in enumerate(episodes):
-            idx = 0
-            for k in range(self.num_skills):
-                cost = self.fm.calculate_reward(epi[-1][0], epi[-1][-1], k, normalize=False)
-                for c in range(count[k]):
-                    prob[i, c + idx] = cost
-                idx += count[k]
-
-        # get array of skills where each skill is repeated by its number of occurance
-        skill_array = np.empty((len(episodes)))
-        idx = 0
-        for k in range(self.num_skills):
-            for c in range(count[k]):
-                skill_array[c + idx] = k
-            idx += count[k]
-
-        # solve the linear sum assignment problem maximization, using scipy
-        _, col_idx = optimize.linear_sum_assignment(prob, maximize=True)
-
-        # relabel the episodes
-        rl_episodes = []
-        fm_episodes = []
-        for i, epi in enumerate(episodes):
-            # for each episode take all states and replace the one-hot encoding
-            # of the skill with one-hot encoding of the new skill
-            # get fm transition
-            fm_epi = epi[-1]
-            # delete fm transition from episodes
-            epi = epi[: -1]
-
-            # look if new skill is equal to old skill
-            old_skill = np.where(fm_epi[1] == 1)[0][0]
-            new_skill = skill_array[col_idx[i]]
-
-            if old_skill == new_skill:
-                rl_episodes.append(epi)
-                fm_episodes.append(fm_epi)
-            else:
-                # Todo: only relabel rl_episodes with certain probability
-                # Todo: also recalculate reward
-                # relabel all fm-episodes
-                one_hot_new_skill = np.zeros(self.num_skills)
-
-                one_hot_new_skill[int(new_skill)] = 1
-                fm_episodes.append((fm_epi[0], one_hot_new_skill, fm_epi[2]))
-
-                # only relabel rl-episodes with certain probability
-                if np.random.uniform() >= 0.5:
-
-                    epi = tuple(zip(*epi))
-                    states_0 = np.array(epi[0])
-                    states_1 = np.array(epi[3])
-                    rewards = np.array(epi[2])
-
-                    # for the skill the last num_skill entries of the state are responsible
-                    states_0[:, -self.num_skills:] = one_hot_new_skill
-                    states_1[:, -self.num_skills:] = one_hot_new_skill
-
-                    # Todo: recalculate reward actor would have gotten if he had executed the new skill
-                    # Beware: only works for the sparse reward setting
-                    # only look at last transition as actor only gets a reward there
-                    # reward = self.fm.calculate_reward(fm_epi[0], fm_epi[2], int(new_skill))
-                    reward = prob[i, col_idx[i]] + np.log(self.num_skills)
-                    if not (fm_epi[0] == fm_epi[2]).all():
-
-                        # if state changed in the episode give a larger reward
-                        reward *= 50
-                        if reward < 0:
-                            reward = 0
-                        # add a constant reward to encourage state change early on in training
-
-                    rewards[-1] = reward
-
-                    # add new states to episode
-                    epi = (tuple(states_0), epi[1], rewards, tuple(states_1), epi[4])
-                    # get it back into old shape
-                    epi = tuple(zip(*epi))
-
-                rl_episodes.append(epi)
-
-        return rl_episodes, fm_episodes
-
-
-
-

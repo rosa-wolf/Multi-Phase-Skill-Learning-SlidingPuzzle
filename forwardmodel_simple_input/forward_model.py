@@ -267,7 +267,7 @@ class ForwardModel(nn.Module):
     #    # get alpha (probability of state being 1) from y_pred
     #    alpha = (1 - x[:, :self.sym_obs_size]) * y_pred + x[:, :self.sym_obs_size] * (1 - y_pred)
     #    # make this into probabilities using softmax
-    #    # (for each box probabilities of being in one field should sum up to 1)
+    #    # (for each boxes probabilities of being in one field should sum up to 1)
     #    old_shape = alpha.shape
     #    alpha = alpha.reshape((alpha.shape[0], self.width * self.height - 1, self.width * self.height))
     #    alpha = torch.softmax(alpha, dim=2)
@@ -300,7 +300,7 @@ class ForwardModel(nn.Module):
     def pred_to_sym_state(self, state, empty):
         """
         Given a previous symbolic state and the current empty field it gives the new symbolic state
-        If given empty field a is not empty in the given state, then the box that is on that field a in the
+        If given empty field a is not empty in the given state, then the boxes that is on that field a in the
         state will be moved to the empty field b in the state, while the field a will become empty
 
         @param state: symbolic state we transition from
@@ -316,7 +316,7 @@ class ForwardModel(nn.Module):
 
         # if empty field changes, state also changes
         if orig_empty != empty:
-            # get index of box that changes its field
+            # get index of boxes that changes its field
             box = np.where(state[:, empty] == 1)[0][0]
             new_state[box, empty] = 0
             new_state[box, orig_empty] = 1
@@ -348,10 +348,10 @@ class ForwardModel(nn.Module):
         print("state shape = ", state.shape)
         empty = np.where(np.sum(state, axis=0) == 0)[0][0]
         if empty == SKILLS[k, 1]:
-            # get box we are pushing
-            box = np.where(state[:, SKILLS[k, 0]] == 1)[0][0]
-            state[box, SKILLS[k, 0]] = 0
-            state[box, SKILLS[k, 1]] = 1
+            # get boxes we are pushing
+            boxes = np.where(state[:, SKILLS[k, 0]] == 1)[0][0]
+            state[boxes, SKILLS[k, 0]] = 0
+            state[boxes, SKILLS[k, 1]] = 1
 
         return state.flatten()
         ######################################################################
@@ -362,7 +362,7 @@ class ForwardModel(nn.Module):
         empty = np.where(succ == 1)[0][0]
 
         # formulate succesor symbolic state given initial one and knowledge of empty field
-        # if new field is empty, then box that was on it is now on previous empty field
+        # if new field is empty, then boxes that was on it is now on previous empty field
         # even if those fields are not neighbors
         if sym_output:
             if sym_state is None:
