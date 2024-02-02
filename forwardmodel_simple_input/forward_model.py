@@ -323,12 +323,13 @@ class ForwardModel(nn.Module):
 
         return new_state.flatten()
 
-    def successor(self, state: np.array, skill: np.array, sym_output=True) -> np.array:
+    def successor(self, input_empty: np.array, skill: np.array, sym_state=None, sym_output=True) -> np.array:
         """
         Returns successor nodes of a given node
         Args:
-            :param state: node to find successor to (symbolic observation, falttened)
+            :param input_empty: node to find successor to (empty field as one-hot encoding)
             :param skill: skill to apply as one-hot encoding
+            :param sym_state: initial sym_state (flattened), only necessarry when we want the ouput as a symbolic state
         Returns:
             succ: most likely successor when applying skill in state
         """
@@ -356,9 +357,7 @@ class ForwardModel(nn.Module):
         ######################################################################
         """
         # concatenate state and skill to get input to mlp
-        one_hot_input = self.sym_state_to_input(state)
-
-        succ = self.get_prediction(one_hot_input, skill)
+        succ = self.get_prediction(input_empty, skill)
 
         empty = np.where(succ == 1)[0][0]
 
@@ -366,7 +365,9 @@ class ForwardModel(nn.Module):
         # if new field is empty, then box that was on it is now on previous empty field
         # even if those fields are not neighbors
         if sym_output:
-            return self.pred_to_sym_state(state, empty)
+            if sym_state is None:
+                raise "We need the initial symbolic state to map the output empty field to the ouput symbolic state"
+            return self.pred_to_sym_state(sym_state, empty)
 
         return succ
 
@@ -440,7 +441,7 @@ class ForwardModel(nn.Module):
                 one_hot[k] = 1
 
                 # find successor state
-                next_state = self.successor(state, one_hot)
+                next_state = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
                 # next_state = next_state.cpu().detach().numpy()
 
                 # for devugging visualize every state transition prediction

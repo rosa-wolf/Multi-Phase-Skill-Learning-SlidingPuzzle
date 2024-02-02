@@ -18,7 +18,7 @@ jointA1(fake){ joint:transX, limits:[-.5,.5], mass:.01 }
 jointA2(jointA1){ joint:transY, limits:[-.5,.5], mass:.01 }
 jointA3(jointA2){ joint:transZ, limits:[-.5,.5], mass:.01 }
 # made wide part of wedge smaller, because it was difficult to only push one cube
-wedge(jointA3): { joint:hingeZ, limits:[-3.2,3.2], shape:ssCvx, core:[-.035 0 0 .035 0 0 0 -.02 .1 0 .02 .1], size:[.005], color:[0 1 1], mass:.1 }
+wedge(jointA3): { joint:hingeZ, limits:[-3.2,3.2], shape:ssCvx, core:[-.01 0 0 .01 0 0 0 -.02 .1 0 .02 .1], size:[.005], color:[0 1 1], mass:.1 }
 
 
 # add a frame for a stationary camera

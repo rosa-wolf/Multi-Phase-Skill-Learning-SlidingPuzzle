@@ -10,7 +10,7 @@ from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
 import torch
 from scipy import optimize
-import logging
+import logging as lg
 
 class PuzzleEnv(gym.Env):
     """
@@ -24,7 +24,6 @@ class PuzzleEnv(gym.Env):
     """
 
     def __init__(self,
-                 log_dir,
                  path='slidingPuzzle_2x2.g',
                  lookup=False,
                  snapRatio=4.,
@@ -37,6 +36,7 @@ class PuzzleEnv(gym.Env):
                  sparse_reward=False,
                  reward_on_change=False,
                  reward_on_end=False,
+                 logging=True,
                  term_on_change=False,
                  relabel=False,
                  verbose=0):
@@ -120,6 +120,7 @@ class PuzzleEnv(gym.Env):
 
         self.train_fm = train_fm
         self.fm_path = fm_path
+        self.logging = logging
         if not self.train_fm:
             if self.lookup:
                 raise "Loading pretrained model not yet implemented for lookup table"
@@ -129,14 +130,11 @@ class PuzzleEnv(gym.Env):
             self.starting_epis = False
         else:
             if self.lookup:
+                print("initial save of fm")
                 self.fm.save(fm_path)
             else:
                 print("initial save of fm")
                 torch.save(self.fm.model.state_dict(), fm_path)
-
-
-        logging.basicConfig(filename=log_dir + '/change.log', level=logging.INFO, filemode='w',
-                            format='%(name)s - %(levelname)s - %(message)s')
 
     def _get_neighbors(self, puzzle_size):
         """
@@ -195,7 +193,8 @@ class PuzzleEnv(gym.Env):
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # for episode termination on change of symbolic observation
             self.terminated = self.term_on_change
-            logging.info(f"Change with skill {self.skill} after {self.total_num_steps} steps")
+            if self.logging:
+                lg.info(f"Change with skill {self.skill} after {self.total_num_steps} steps")
 
         # get reward (if we don't only want to give reward on last step of episode)
         reward = self._reward()
@@ -203,6 +202,7 @@ class PuzzleEnv(gym.Env):
         max_reward = None
         max_skill = None
         if self._termination():
+            print(f"init_sym_state =\n {self.init_sym_state},\n out_sym_state = \n{self.scene.sym_state}")
             #print(f"relabel = {self.relabel}")
             if self.relabel:
                 max_skill, max_reward = self._get_max_skill_reward(reward)
@@ -277,7 +277,8 @@ class PuzzleEnv(gym.Env):
         # penalize being far away from box fm predicts we should push
         skill = np.zeros((self.num_skills,))
         skill[self.skill] = 1
-        empty_out = self.fm.successor(self.init_sym_state, skill, sym_output=False)
+        #print(self.init_sym_state)
+        empty_out = self.fm.successor(self.fm.sym_state_to_input(self.init_sym_state), skill, sym_output=False)
         # get the box that is currently on the empty_out field
         empty_out = np.where(empty_out == 1)[0]
 
@@ -378,6 +379,22 @@ class PuzzleEnv(gym.Env):
             self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
+    def get_neg_dist_to_neighbors(self, empty_field):
+        """
+        Get the negative distance to all boxes on the adjacent fields to the empty one
+        :param empty_field: the field that is initially empty (as a scalar)
+
+        :returns: the neg min distance
+        """
+        min_dist = -np.inf
+        neighbors = self.neighborlist[str(empty_field)]
+        for i in range(len(neighbors)):
+            dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
+            if dist[0] > min_dist:
+                min_dist = dist[0]
+
+        return min([min_dist, 0.])
+
     def _reward(self, k=None) -> float:
         """
         Calculates reward, which is based on symbolic observation change
@@ -420,16 +437,9 @@ class PuzzleEnv(gym.Env):
         if not self.sparse_reward:
             if self.starting_epis:
                 # penalize being away from all fields where the adjacent field is empty
-                min_dist = -np.inf
                 # get empty field
                 empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
-                neighbors = self.neighborlist[str(empty)]
-                for i in range(len(neighbors)):
-                    dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
-                    if dist[0] > min_dist:
-                        min_dist = dist[0]
-
-                reward += 5 * min([min_dist, 0.])
+                reward += 5 * self.get_neg_dist_to_neighbors(empty)
             else:
                 if self.skill_possible:
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
@@ -451,7 +461,7 @@ class PuzzleEnv(gym.Env):
        #                    [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
        #                                                   self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
        #                                                   k)])
-        print("reward = ", reward)
+        #print("reward = ", reward)
 
         return reward
 
@@ -462,7 +472,7 @@ class PuzzleEnv(gym.Env):
         #print("---------------------------\nCalculating new skill and reward for relabeling")
         max_reward = reward
         skill = self.skill
-        #print(f"init skill = {skill}, init_reward = {max_reward}")
+        print(f"init skill = {skill}, init_reward = {max_reward}")
         for k in range(self.num_skills):
             if k != self.skill:
                 reward = self._reward(k=k)
@@ -471,7 +481,7 @@ class PuzzleEnv(gym.Env):
                     max_reward = reward
                     skill = k
 
-        #print(f"max skill = {skill}, max_reward = {max_reward}\n-----------------------------------------")
+        print(f"max skill = {skill}, max_reward = {max_reward}\n-----------------------------------------")
 
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
         one_hot_skill[skill] = 1

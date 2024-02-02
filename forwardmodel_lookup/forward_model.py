@@ -11,6 +11,7 @@ class ForwardModel():
         self.width = width
         self.height = height
         self.num_fields = self.width * self.height
+        self.pieces = self.num_fields - 1
         self.num_skills = num_skills
 
         # initialize probabilities with ones, s.t., each transitions is believed to be equally likely
@@ -21,7 +22,10 @@ class ForwardModel():
         return [seed]
 
     def one_hot_to_scalar(self, one_hot):
-        print(one_hot)
+        """
+        Gets the scalars to a batch of one-hot encodings
+        Does NOT work on 1D arrays
+        """
         return np.where(one_hot == 1)[1]
 
     def sym_state_to_input(self, state, one_hot=True):
@@ -88,17 +92,35 @@ class ForwardModel():
         loss = self._nllloss(skill_batch, state_batch, onehot_next_state_batch)
 
         succ = self.successor(skill_batch, state_batch)
+        succ = np.where(succ == 1)[0][0]
 
         return loss, (np.where(succ == next_state_batch)[0]).shape[0] / state_batch.shape[0]
 
 
-    def successor(self, skill_batch, init_empty_batch):
+    def successor(self, init_empty_batch, skill_batch, init_sym_batch = None, sym_output=False):
         """
+        TODO: cant currently prduce sym output
         get most likely successor empty field, given:
-        :param skill: applied skill
-        :param init_empty: initial emtpy field
+        :param skill_batch: applied skill as ont-hot-encoding
+        :param init_empty_batch: initial symbolic state
+        :param init_sym_batch: only needed if we want symbolic state output
+
+        :return:
         """
-        return np.argmax(self.table[skill_batch, init_empty_batch], axis=1)
+        if init_empty_batch.ndim == 1:
+            init_empty_batch = init_empty_batch[None, :]
+        if skill_batch.ndim == 1:
+            skill_batch = skill_batch[None, :]
+        skill_batch = self.one_hot_to_scalar(skill_batch)
+        init_empty_batch = self.one_hot_to_scalar(init_empty_batch)
+
+        out = np.argmax(self.table[skill_batch, init_empty_batch], axis=1)
+        print(out)
+
+        one_hot_out = np.zeros(self.num_fields)
+        one_hot_out[out] = 1
+
+        return one_hot_out
 
     def _nllloss(self, skill_batch, init_empty_batch, out_empty_batch):
         """
@@ -178,12 +200,23 @@ class ForwardModel():
         return bonus
 
     def save(self, path):
+        """
+        Save table data in npz file
+        """
         # save the table
-        print("save path = ", path)
-        np.save(path, self.table)
+        # make sure that it is saved as npy file
+        print("saving now")
+        np.savez(path, table=self.table)
     def load(self, path):
         # load a table from a file
-        table = np.load(path)
+        path += ".npz"
+        table = np.load(path, mmap_mode='r')
+
+        if 'table' not in table.keys():
+            raise ValueError("The key 'table' does not exist in the loaded file. Maybe you loaded the wrong file")
+
+        table = table['table']
+
         if not self.table.shape == table.shape:
             raise ValueError(f"Shape of loaded lookup table does not match shape of this instance,\
              loaded shape: {table.shape}, instance shape: {self.table.shape}")
