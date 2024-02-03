@@ -37,6 +37,7 @@ class PuzzleEnv(gym.Env):
                  movement_reward=True,
                  reward_on_end=False,
                  term_on_change=False,
+                 include_box_pos=True,
                  verbose=0):
 
         """
@@ -64,6 +65,7 @@ class PuzzleEnv(gym.Env):
         #                        [5, 8], [7, 8]])  # 22, 23
         #self.skills = self.skills[None, :]
 
+        self.include_box_pos = include_box_pos
 
         self.skills = skills
 
@@ -140,7 +142,6 @@ class PuzzleEnv(gym.Env):
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        reward = 0
         # store current symbolic observation before executing action
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -149,22 +150,28 @@ class PuzzleEnv(gym.Env):
 
         # check if joints are outside observation_space
         # if so set back to last valid position
-        in_limits = self.scene.check_limits()
-        if not in_limits:
-            reward -= 0.1
+        self.scene.check_limits()
 
         obs = self._get_observation()
 
         # get reward (if we don't only want to give reward on last step of episode)
-        reward += self._reward()
+        reward = self._reward()
+
+        # check if symbolic observation changed
+        if not (self._old_sym_obs == self.scene.sym_state).all():
+            # for episode termination on change of symbolic observation
+            self.terminated = self.term_on_change
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
-        self._termination()
+        if not self._termination():
+            self.env_step_counter += 1
 
-        self.env_step_counter += 1
-
-        return obs, reward, self.terminated, self.truncated, {}
+        return (obs,
+                reward,
+                self.terminated,
+                self.truncated,
+                {})
 
     def reset(self,
               *,
@@ -186,8 +193,8 @@ class PuzzleEnv(gym.Env):
         else:
             # sample skill
             self.skill = np.random.randint(0, self.num_skills, 1)[0]
-            # sample effect
-            self.effect = np.random.randint(0, self.skills[self.skill].shape[0], 1)[0]
+        # sample effect
+        self.effect = np.random.randint(0, self.skills[self.skill].shape[0], 1)[0]
 
         # Set agent to random initial position inside a boxes
         init_pos = np.random.uniform(-self.lim[:2], self.lim[:2])
@@ -198,9 +205,11 @@ class PuzzleEnv(gym.Env):
         field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill][self.effect, 1])
 
         # put blocks in random fields, except the one that has to be free
+        print(field)
         order = np.random.permutation(field)
         # Todo: reset after adding more puzzle pieces again
         sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+        print(order)
         for i in range(self.scene.pieces):
             sym_obs[i, order[i]] = 1
 
@@ -216,7 +225,7 @@ class PuzzleEnv(gym.Env):
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
         #self.boxes = 0
 
-        curr_pos = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
+        curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
         # set init and goal position of boxes
         self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill][self.effect, 0]]
         self.box_goal = self.scene.discrete_pos[self.skills[self.skill][self.effect, 1]]
@@ -279,7 +288,7 @@ class PuzzleEnv(gym.Env):
                 pos[i] = self.scene.discrete_pos[i, :2] * 4
             else:
                 box_idx = box_idx[0]
-                pos[i] = (self.scene.C.getFrame("boxes" + str(box_idx)).getPosition()[:2] * 4).copy()
+                pos[i] = (self.scene.C.getFrame("box" + str(box_idx)).getPosition()[:2] * 4).copy()
 
         pos = pos.flatten()
 
@@ -287,10 +296,16 @@ class PuzzleEnv(gym.Env):
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
         one_hot_skill[self.skill] = 1
 
+        if self.include_box_pos:
+            return {"q": q,
+                    "init_empty": one_hot_empty,
+                    "curr_empty": curr_empty,
+                    "box_pos": pos,
+                    "skill": one_hot_skill}
+
         return {"q": q,
                 "init_empty": one_hot_empty,
                 "curr_empty": curr_empty,
-                "box_pos": pos,
                 "skill": one_hot_skill}
 
     @property
@@ -298,12 +313,17 @@ class PuzzleEnv(gym.Env):
         """
         Defines bounds of the observation space (Hard coded for now)
         """
-        obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
+        if self.include_box_pos:
+            obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
+                         "init_empty": MultiBinary(self.num_pieces + 1),
+                         "curr_empty": MultiBinary(self.num_pieces + 1),
+                         "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,)),
+                         "skill": MultiBinary(self.num_skills)}
+        else:
+            obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
                      "init_empty": MultiBinary(self.num_pieces + 1),
-                     # Box(low=-1, high=1, shape=(self.num_pieces + 1,)),
                      "curr_empty": MultiBinary(self.num_pieces + 1),
-                     "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,)),
-                     "skill": MultiBinary(self.num_skills)}  # Box(low=-1, high=1, shape=(self.num_skills,))}W
+                     "skill": MultiBinary(self.num_skills)}
 
         return Dict(obs_space)
 
@@ -347,12 +367,12 @@ class PuzzleEnv(gym.Env):
         reward = 0
         if not self.sparse_reward:
             # read out position of boxes that should be pushed
-            box_pos = (self.scene.C.getFrame("boxes" + str(self.box)).getPosition()).copy()
+            box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
 
             # give additional reward for pushing puzzle piece towards its goal position
             if self.movement_reward:
                 #if self.env_step_counter == 0:
-                #    self.box_init = (self.scene.C.getFrame("boxes" + str(self.boxes)).getPosition()).copy()
+                #    self.box_init = (self.scene.C.getFrame("box" + str(self.boxes)).getPosition()).copy()
                 print("give movement reward")
                 #max_dist = np.linalg.norm(self.box_goal - self.box_init)
                 #box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
@@ -364,7 +384,7 @@ class PuzzleEnv(gym.Env):
             # minimal negative distance between boxes and actor
             if self.neg_dist_reward:
                 print("give neg dist reward")
-                dist, _ = self.scene.C.eval(ry.FS.distance, ["boxes" + str(self.box), "wedge"])
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
                 reward += 5 * min([dist[0], 0.])
 
 

@@ -21,8 +21,6 @@ parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
                     help='custom gym environment')
-parser.add_argument('--include_box_pos', action='store_true', default=False,
-                    help='Whether coordinates of boxes should be included in observation')
 parser.add_argument('--snap_ratio', default=4., type=float,
                     help='1/Ratio of when symbolic state changes, if boxes is pushed')
 parser.add_argument('--num_skills', default=8, type=int,
@@ -115,89 +113,40 @@ elif args.env_name.__contains__("3x3"):
 else:
     raise ValueError("You must specify the environment to use")
 
+
+# use different seed than in training
+seed = 398199
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
-                verbose=0,
+                verbose=1,
                 skills=skills,
                 puzzle_size=puzzle_size,
                 sparse_reward=args.sparse,
                 reward_on_change=args.reward_on_change,
                 neg_dist_reward=args.neg_dist_reward,
                 movement_reward=args.movement_reward,
-                include_box_pos=args.include_box_pos,
                 term_on_change=True,
                 reward_on_end=False,
                 seed=args.seed)
-eval_env = PuzzleEnv(path=puzzle_path,
-                     skills=skills,
-                     puzzle_size=puzzle_size,
-                     max_steps=100,
-                     verbose=0,
-                     sparse_reward=args.sparse,
-                     reward_on_change=args.reward_on_change,
-                     neg_dist_reward=args.neg_dist_reward,
-                     movement_reward=args.movement_reward,
-                     include_box_pos=args.include_box_pos,
-                     term_on_change=False,
-                     reward_on_end=False,
-                     seed=98765)
 
-eval_env = Monitor(eval_env)
-
-env.seed(args.seed)
 env.action_space.seed(args.seed)
-
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse) + "_seed" + str(args.seed)
-os.makedirs(log_dir, exist_ok=True)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/Reward-Shaping/neg-dist-sparse/3x3/3x3_neg_distTrue_movementFalse_reward_on_changeTrue_sparseFalse_seed12345/model/model_685000_steps", env=env)
 
-env.reset()
-
-# initialize callbacks
-# Save a checkpoint every 1000 steps
-checkpoint_callback = CheckpointCallback(
-  save_freq=1000,
-  save_path=log_dir + "/model/",
-  name_prefix="model",
-  save_replay_buffer=False,
-  save_vecnormalize=True,
-)
-
-# Use deterministic actions for evaluation
-eval_callback = EvalCallback(eval_env,
-                             log_path=log_dir, eval_freq=5000,
-                             n_eval_episodes=10,
-                             deterministic=True, render=False)
-
-callbacks = CallbackList([checkpoint_callback, eval_callback])
-
-# initialize SAC
-model = SAC("MultiInputPolicy",  # could also use CnnPolicy
-            env,        # gym env
-            learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
-            buffer_size=args.replay_size,
-            learning_starts=1000, # when learning should start to prevent learning on little data
-            batch_size=args.batch_size,  # mini-batch size for each gradient update
-            #tau=args.tau,  # update for polyak update
-            gamma=args.gamma, # discount factor
-            gradient_steps=-1, # do as many gradient steps as steps done in the env
-            #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
-            ent_coef='auto',
-            target_entropy=target_entropy,
-            #use_sde=True, # use state dependent exploration
-            #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
-            stats_window_size=1,
-            tensorboard_log=log_dir,
-            device=device,
-            verbose=1)
-
-model.learn(total_timesteps=args.num_epochs * 100,
-            log_interval=1,
-            tb_log_name="tb_logs",
-            progress_bar=False,
-            callback=callbacks)
+#print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
+obs, _ = env.reset(skill=0)
+num_steps = 0
+for _ in range(5000):
+    action, _states = model.predict(obs, deterministic=True)
+    obs, reward, terminated, truncated, _ = env.step(action)
+    num_steps += 1
+    if terminated or truncated:
+        obs, _ = env.reset(skill=0)
+        num_steps = 0
 
 del model
 env.close()
+
+# after 140 epis actor learned skill-conditioned with reward shaping when skill execution is always possible

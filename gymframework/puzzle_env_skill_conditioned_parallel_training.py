@@ -283,7 +283,8 @@ class PuzzleEnv(gym.Env):
             self.skill = skill
         else:
             self.skill = np.random.randint(0, self.num_skills, 1)[0]
-        #print("skill = ", self.skill)
+
+        print("skill = ", self.skill)
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
 
@@ -461,7 +462,7 @@ class PuzzleEnv(gym.Env):
             reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k)
-            #print(f"novelty reward = {reward}")
+            print(f"novelty reward = {reward}")
 
         if self._termination():
             print("terminating")
@@ -473,7 +474,7 @@ class PuzzleEnv(gym.Env):
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        k)])
                     reward += end_reward
-                    #print(f"end reward = {end_reward}")
+                    print(f"end reward = {end_reward}")
 
 
         if not self.sparse_reward:
@@ -482,6 +483,7 @@ class PuzzleEnv(gym.Env):
                 # get empty field
                 empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
                 reward += 5 * self._get_neg_dist_to_neighbors(empty)
+                print(f"neg dist reward = {reward}")
             else:
                 if self.boxes[k] != -1:
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.boxes[k]), "wedge"])

@@ -1,13 +1,8 @@
-import gymnasium as gym
-from stable_baselines3 import SAC, HerReplayBuffer
-from torch.utils.tensorboard import SummaryWriter
+from stable_baselines3 import SAC
 import argparse
 import torch
 import numpy as np
 import logging as lg
-
-from stable_baselines3.common import noise
-from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, StopTrainingOnMaxEpisodes
 
@@ -20,6 +15,8 @@ mod_dir = os.path.join(dir, "../gymframework/")
 sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
+
+from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -87,71 +84,55 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
-log_dir = "checkpoints/" + args.env_name + "_num_skills" + str(args.num_skills) + "_relabeling" + str(args.relabeling)
+log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_relabeling" + str(args.relabeling)
 os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
 os.makedirs(fm_dir, exist_ok=True)
 
-
-# TODO: make this a parameter
-relabel = True
-
-
-if args.env_name.__contains__("parallel_1x2"):
-    from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+max_steps = 100
+# Environment
+if args.env_name.__contains__("1x2"):
+    target_entropy = -2.5
+    puzzle_path = '../Puzzles/slidingPuzzle_1x2.g'
     puzzle_size = [1, 2]
-    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
-                    max_steps=100,
-                    num_skills=args.num_skills,
-                    verbose=0,
-                    fm_path=fm_dir + "/fm",
-                    puzzlesize=puzzle_size,
-                    sparse_reward=True,
-                    reward_on_change=True,
-                    term_on_change=True,
-                    reward_on_end=True,
-                    relabel=args.relabeling,
-                    snapRatio=args.snap_ratio)
-elif args.env_name.__contains__("parallel_2x2"):
-    from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
-    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                    max_steps=100,
-                    num_skills=args.num_skills,
-                    verbose=0,
-                    fm_path=fm_dir + "/fm",
-                    sparse_reward=True,
-                    reward_on_change=False,
-                    term_on_change=True,
-                    reward_on_end=args.reward_on_end,
-                    relabel=args.relabeling,
-                    snapRatio=args.snap_ratio)
+
+elif args.env_name.__contains__("2x2"):
+    target_entropy = -3.
+    puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
     puzzle_size = [2, 2]
-elif args.env_name.__contains__("parallel_3x3"):
-    from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+
+elif args.env_name.__contains__("2x3"):
+    target_entropy = -3.5
+    puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
+    puzzle_size = [2, 3]
+
+elif args.env_name.__contains__("3x3"):
+    target_entropy = -4.
+    puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
     puzzle_size = [3, 3]
-    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
-                    max_steps=200,
-                    num_skills=args.num_skills,
-                    verbose=0,
-                    fm_path=fm_dir + "/fm",
-                    puzzlesize=puzzle_size,
-                    sparse_reward=args.sparse,
-                    reward_on_change=True,
-                    term_on_change=True,
-                    reward_on_end=True,
-                    relabel=args.relabeling,
-                    snapRatio=args.snap_ratio)
+    max_steps = 200
 
+else:
+    raise ValueError("You must specify the environment to use")
 
+env = PuzzleEnv(path=puzzle_path,
+                max_steps=max_steps,
+                num_skills=args.num_skills,
+                verbose=0,
+                fm_path=fm_dir + "/fm",
+                puzzlesize=puzzle_size,
+                sparse_reward=args.sparse,
+                reward_on_change=True,
+                term_on_change=True,
+                reward_on_end=True,
+                relabel=args.relabeling,
+                snapRatio=args.snap_ratio)
 
 env.seed(args.seed)
 env.action_space.seed(args.seed)
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
-
-checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" + str(
-        args.seed) + "_num_skills" + str(args.num_skills) + "_relabeling" + str(args.relabeling)
 
 lg.basicConfig(filename=log_dir + "/change.log", level=lg.INFO, filemode='w',
                                 format='%(name)s - %(levelname)s - %(message)s')
@@ -190,7 +171,7 @@ model = SAC("MultiInputPolicy",
             train_freq=(args.num_episodes, "episode"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
-            target_entropy=-4.5,
+            target_entropy=target_entropy,
             #use_sde=True, # use state dependent exploration
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
