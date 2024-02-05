@@ -26,6 +26,6 @@ checkpoints/
 models/
 skills/
 runs/
-SAC/checkpoints/
+SAC/checkpoints*
 fm_eval/
 Plots/

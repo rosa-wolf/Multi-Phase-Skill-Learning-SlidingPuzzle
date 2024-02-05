@@ -16,6 +16,7 @@ mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
 #from puzzle_env_skill_conditioned import PuzzleEnv
+from Buffer import PriorityReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env

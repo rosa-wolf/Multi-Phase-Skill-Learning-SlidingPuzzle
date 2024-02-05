@@ -19,6 +19,8 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
+#from Buffer import PriorityReplayBuffer
+
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
@@ -84,7 +86,7 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
-
+max_steps = args.num_steps
 # Environment
 if args.env_name.__contains__("skill_conditioned_1x2"):
     from puzzle_env_small_skill_conditioned import PuzzleEnv
@@ -112,7 +114,7 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
                     verbose=0,
                     sparse_reward=True,
                     reward_on_change=True,
-                    neg_dist_reward=False,
+                    neg_dist_reward=True,
                     term_on_change=True,
                     reward_on_end=False,
                     dict_obs=args.dict_obs,
@@ -126,6 +128,7 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
                     neg_dist_reward=False,
                     term_on_change=False,
                     reward_on_end=False,
+                    dict_obs=args.dict_obs,
                     seed=98765,
                     snapRatio=args.snap_ratio)
 elif args.env_name.__contains__("skill_conditioned_3x3"):
@@ -165,7 +168,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 
-log_dir = "checkpoints_obs_space_comp/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse)
+log_dir = "checkpoints_obs_space_comp/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse) + "_seed" + str(args.seed)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
@@ -186,7 +189,7 @@ eval_callback = EvalCallback(eval_env,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 
-callbacks = CallbackList([checkpoint_callback])#, eval_callback])
+callbacks = CallbackList([checkpoint_callback, eval_callback])
 
 
 if args.dict_obs:
@@ -196,9 +199,10 @@ else:
 # initialize SAC
 model = SAC(policy,  # could also use CnnPolicy
             env,        # gym env
+            #replay_buffer_class=PriorityReplayBuffer,
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=1000, # when learning should start to prevent learning on little data
+            learning_starts=10, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma, # discount factor
@@ -213,7 +217,7 @@ model = SAC(policy,  # could also use CnnPolicy
             device=device,
             verbose=1)
 
-model.learn(total_timesteps=args.num_epochs * 100,
+model.learn(total_timesteps=args.num_epochs * args.num_steps,
             log_interval=1,
             tb_log_name="tb_logs",
             progress_bar=True,
