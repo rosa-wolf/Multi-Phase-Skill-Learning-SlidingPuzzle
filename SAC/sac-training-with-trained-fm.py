@@ -162,7 +162,7 @@ checkpoint_name = args.env_name + "_" + "_sparse" + str(args.sparse) + "_seed" +
 # initialize callbacks
 # Save a checkpoint every 1000 steps
 checkpoint_callback = CheckpointCallback(
-  save_freq=1000,
+  save_freq=10000,
   save_path=log_dir + "/model/",
   name_prefix="model",
   save_replay_buffer=False,

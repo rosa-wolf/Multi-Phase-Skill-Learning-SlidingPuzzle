@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Any
+from typing import Optional Any
 
 import gymnasium as gym
 import numpy as np
@@ -153,9 +153,9 @@ class PuzzleEnv(gym.Env):
 
         # check if joints are outside observation_space
         # if so set back to last valid position
-        in_limits = self.scene.check_limits()
-        if not in_limits:
-            reward -= 0.5
+        #in_limits = self.scene.check_limits()
+        #if not in_limits:
+        #    reward -= 0.5
 
         obs = self._get_observation()
 
@@ -441,27 +441,3 @@ class PuzzleEnv(gym.Env):
                     reward -= 1
                     print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return reward
-
-    def relabel_all(self, episode):
-        """
-        Relabels all episodes artificially assuming the skill-effect of the skill, under the assumption that skill
-        execution is always possible
-        @param: one episode for sac-training (containing multiple transitions), in the form
-        ((s_0, a_0, r_0, s_1, m_0), (s_1, a_1, r_1, s_2, m_1), ..., (s_T-1, a_T-1, r_T-1, s_T, m_T), (e_0, k, e_T))
-
-        @returns: relabeled transition for sac-training
-        """
-        rl_episode = []
-
-        init_sym_state = episode[-1][0]
-        end_sym_state = episode[-1][2]
-
-        # if no change in symbolic state happened don't relabel episode
-        if (init_sym_state == end_eym_state).all():
-            return episode
-
-        # read out which skills corresponds to the change in symbolic state
-        empty_1 = np.where(init_sym_state == 1)[0][0]
-        empty
-
-        return rl_episode

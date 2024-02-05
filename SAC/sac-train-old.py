@@ -1,11 +1,15 @@
-from stable_baselines3 import SAC
+import gymnasium as gym
+from stable_baselines3 import SAC, HerReplayBuffer
+from torch.utils.tensorboard import SummaryWriter
 import argparse
 import torch
 import numpy as np
 
+from stable_baselines3.common import noise
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
-
 
 import os
 import sys
@@ -15,16 +19,14 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-#from puzzle_env_skill_conditioned import PuzzleEnv
-
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
                     help='custom gym environment')
-parser.add_argument('--include_box_pos', action='store_true', default=False,
-                    help='Whether coordinates of boxes should be included in observation')
+parser.add_argument('--dict_obs', action='store_true', default=False,
+                    help='Whether to give observation as Dict, or as flat Box array')
 parser.add_argument('--snap_ratio', default=4., type=float,
-                    help='1/Ratio of when symbolic state changes, if boxes is pushed')
+                    help='1/Ratio of when symbolic state changes, if box is pushed')
 parser.add_argument('--num_skills', default=8, type=int,
                     help='Number of skills policy should learn')
 parser.add_argument('--num_steps', default=100, type=int,
@@ -36,7 +38,7 @@ parser.add_argument('--movement_reward', action='store_true', default=False,
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--reward_on_change', action='store_true', default=False,
-                    help='Whether to give additional reward when boxes is pushed')
+                    help='Whether to give additional reward when box is pushed')
 parser.add_argument('--term_on_change', action='store_true', default=False,
                     help='Terminate on change of symbolic state')
 parser.add_argument('--random_init_board', action='store_true', default=False,
@@ -50,9 +52,9 @@ parser.add_argument('--policy', default="Gaussian",
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
                     help='discount factor for reward (default: 0.99)')
-parser.add_argument('--tau', type=float, default=0.005, metavar='G',
+parser.add_argument('--tau', type=float, default=0.1, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
 parser.add_argument('--lr', type=float, default=0.001, metavar='G',
                     help='learning rate (default: 0.0003)')
@@ -82,31 +84,29 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
+
 # Environment
-if args.env_name.__contains__("1x2"):
-    target_entropy = -2.5
-    puzzle_path = '../Puzzles/slidingPuzzle_1x2.g'
-    puzzle_size = [1, 2]
-    skills = [np.array([[0, 1], [1, 0]])]
-
-elif args.env_name.__contains__("2x2"):
-    target_entropy = -3.
-    puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
-    puzzle_size = [2, 2]
-    #skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
-    #          np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
-
-    skills = [np.array([[1, 0]]),
-              np.array([[2, 0]]),
-              np.array([[0, 1]]),
-              np.array([[3, 1]]),
-              np.array([[0, 2]]),
-              np.array([[3, 2]]),
-              np.array([[1, 3]]),
-              np.array([[2, 3]])]
-
+if args.env_name.__contains__("skill_conditioned_1x2"):
+    from puzzle_env_small_skill_conditioned import PuzzleEnv
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=True,
+                    reward_on_change=True,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio)
+    eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=True,
+                    reward_on_change=True,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio,
+                    seed=98765)
+elif args.env_name.__contains__("skill_conditioned_2x2"):
     from puzzle_env_2x2_skill_conditioned import PuzzleEnv
-
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
                     verbose=0,
@@ -115,66 +115,46 @@ elif args.env_name.__contains__("2x2"):
                     neg_dist_reward=False,
                     term_on_change=True,
                     reward_on_end=False,
+                    dict_obs=args.dict_obs,
                     seed=args.seed,
                     snapRatio=args.snap_ratio)
     eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                         max_steps=100,
-                         verbose=0,
-                         sparse_reward=args.sparse,
-                         reward_on_change=args.reward_on_change,
-                         neg_dist_reward=False,
-                         term_on_change=False,
-                         reward_on_end=False,
-                         seed=98765,
-                         snapRatio=args.snap_ratio)
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=False,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    seed=98765,
+                    snapRatio=args.snap_ratio)
+elif args.env_name.__contains__("skill_conditioned_3x3"):
+    from puzzle_env_3x3_skill_conditioned import PuzzleEnv
+    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                    num_skills=args.num_skills,
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=args.neg_dist_reward,
+                    movement_reward=args.movement_reward,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    snapRatio=args.snap_ratio)
+    eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
+                    num_skills=args.num_skills,
+                    max_steps=100,
+                    verbose=0,
+                    sparse_reward=args.sparse,
+                    reward_on_change=args.reward_on_change,
+                    neg_dist_reward=args.neg_dist_reward,
+                    movement_reward=args.movement_reward,
+                    term_on_change=False,
+                    reward_on_end=False,
+                    seed=98765,
+                    snapRatio=args.snap_ratio)
 
-elif args.env_name.__contains__("2x3"):
-    target_entropy = -3.5
-    puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
-    puzzle_size = [2, 3]
-    skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5]]),
-              np.array([[1, 0], [2, 1], [5, 4], [4, 3]]),
-              np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
-
-
-
-elif args.env_name.__contains__("3x3"):
-    target_entropy = -4.
-    puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
-    puzzle_size = [3, 3]
-    skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]]),
-              np.array([[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]]),
-              np.array([[0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]]),
-              np.array([[3, 0], [6, 3], [4, 1], [7, 4], [5, 2], [8, 5]])]
-else:
-    raise ValueError("You must specify the environment to use")
-
-#env = PuzzleEnv(path=puzzle_path,
-#                max_steps=100,
-#                verbose=0,
-#                skills=skills,
-#                puzzle_size=puzzle_size,
-#                sparse_reward=args.sparse,
-#                reward_on_change=True,
-#                neg_dist_reward=args.neg_dist_reward,
-#                movement_reward=args.movement_reward,
-#                include_box_pos=args.include_box_pos,
-#                term_on_change=True,
-#                reward_on_end=False,
-#                seed=args.seed)
-#eval_env = PuzzleEnv(path=puzzle_path,
-#                     skills=skills,
-#                     puzzle_size=puzzle_size,
-#                     max_steps=100,
-#                     verbose=0,
-#                     sparse_reward=args.sparse,
-#                     reward_on_change=True,
-#                     neg_dist_reward=args.neg_dist_reward,
-#                     movement_reward=args.movement_reward,
-#                     include_box_pos=args.include_box_pos,
-#                     term_on_change=True,
-#                     reward_on_end=False,
-#                     seed=98765)
+check_env(env)
 
 eval_env = Monitor(eval_env)
 
@@ -184,7 +164,8 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-log_dir = "checkpoints/" + args.env_name + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse) + "_seed" + str(args.seed)
+
+log_dir = "checkpoints_obs_space_comp/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()
@@ -201,14 +182,19 @@ checkpoint_callback = CheckpointCallback(
 
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
-                             log_path=log_dir, eval_freq=5000,
+                             log_path=log_dir, eval_freq=1000,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 
 callbacks = CallbackList([checkpoint_callback])#, eval_callback])
 
+
+if args.dict_obs:
+    policy = "MultiInputPolicy"
+else:
+    policy = "MlpPolicy"
 # initialize SAC
-model = SAC("MultiInputPolicy",  # could also use CnnPolicy
+model = SAC(policy,  # could also use CnnPolicy
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
@@ -219,7 +205,7 @@ model = SAC("MultiInputPolicy",  # could also use CnnPolicy
             gradient_steps=-1, # do as many gradient steps as steps done in the env
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
-            target_entropy=target_entropy,
+            target_entropy=-3.,
             #use_sde=True, # use state dependent exploration
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             stats_window_size=1,

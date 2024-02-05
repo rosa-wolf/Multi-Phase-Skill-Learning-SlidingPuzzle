@@ -21,6 +21,8 @@ parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
                     help='custom gym environment')
+parser.add_argument('--include_box_pos', action='store_true', default=False,
+                    help='Whether coordinates of boxes should be included in observation')
 parser.add_argument('--snap_ratio', default=4., type=float,
                     help='1/Ratio of when symbolic state changes, if boxes is pushed')
 parser.add_argument('--num_skills', default=8, type=int,
@@ -123,6 +125,7 @@ env = PuzzleEnv(path=puzzle_path,
                 puzzle_size=puzzle_size,
                 sparse_reward=args.sparse,
                 reward_on_change=args.reward_on_change,
+                include_box_pos=args.include_box_pos,
                 neg_dist_reward=args.neg_dist_reward,
                 movement_reward=args.movement_reward,
                 term_on_change=True,
@@ -133,7 +136,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/Reward-Shaping/neg-dist-sparse/3x3/3x3_neg_distTrue_movementFalse_reward_on_changeTrue_sparseFalse_seed12345/model/model_685000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/2x2_test-obs-coord_neg_distFalse_movementFalse_reward_on_changeTrue_sparseTrue_seed48719/model/model_150000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset(skill=0)

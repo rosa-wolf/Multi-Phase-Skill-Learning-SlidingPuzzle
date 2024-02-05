@@ -200,12 +200,10 @@ class PuzzleEnv(gym.Env):
         init_pos = np.random.uniform(-self.lim[:2], self.lim[:2])
         self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
-        # should it be possible to apply skill on initial board configuration?
         # take initial empty field such that skill execution is possible
         field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill][self.effect, 1])
 
         # put blocks in random fields, except the one that has to be free
-        print(field)
         order = np.random.permutation(field)
         # Todo: reset after adding more puzzle pieces again
         sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
@@ -297,22 +295,27 @@ class PuzzleEnv(gym.Env):
         one_hot_skill[self.skill] = 1
 
         if self.include_box_pos:
-            return {"q": q,
+            obs = {"q": q,
                     "init_empty": one_hot_empty,
                     "curr_empty": curr_empty,
                     "box_pos": pos,
                     "skill": one_hot_skill}
+        else:
+            obs =  {"q": q,
+                    "init_empty": one_hot_empty,
+                    "curr_empty": curr_empty,
+                    "skill": one_hot_skill}
 
-        return {"q": q,
-                "init_empty": one_hot_empty,
-                "curr_empty": curr_empty,
-                "skill": one_hot_skill}
+        #print(f"obs = \n {obs}")
+        return obs
 
     @property
     def observation_space(self):
         """
         Defines bounds of the observation space (Hard coded for now)
         """
+
+
         if self.include_box_pos:
             obs_space = {"q": Box(low=-1., high=1., shape=(3,)),
                          "init_empty": MultiBinary(self.num_pieces + 1),
@@ -324,6 +327,8 @@ class PuzzleEnv(gym.Env):
                      "init_empty": MultiBinary(self.num_pieces + 1),
                      "curr_empty": MultiBinary(self.num_pieces + 1),
                      "skill": MultiBinary(self.num_skills)}
+
+        #print(f"obs space = \n {obs_space}")
 
         return Dict(obs_space)
 
