@@ -1,46 +1,13 @@
 ** compiled at:     Jun 15 2023 13:29:34
-** execution start: 2024-02-05 17:22:40:276919
+** execution start: 2024-02-05 17:28:09:733563
 graph.cpp:initParameters:1384(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1391(3)  - failed
 graph.cpp:initParameters:1397(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1403(3)  - failed
 util.cpp:cd_start:1028(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
 util.cpp:cd_file:1036(3) entering path '../Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
-util.cpp:getIs:1065(3) opening input file 'slidingPuzzle_2x3.g'
+util.cpp:getIs:1065(3) opening input file 'slidingPuzzle_2x2.g'
 util.cpp:cd_start:1028(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
-util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
-util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
-util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
-util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
-util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
-util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
-util.ipp:getParameterBase:29(3) physx/defaultFriction:  0.05 # user [d]
-util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
-util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
-util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
-simulation.cpp:~Simulation:157(0) shutting down Simulation
-util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
-util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
-util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
-util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
-util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
-util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
-util.ipp:getParameterBase:29(3) physx/defaultFriction:  0.05 # user [d]
-util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
-util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
-util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
-simulation.cpp:~Simulation:157(0) shutting down Simulation
-util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
-util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
-util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
-util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
-util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
-util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
-util.ipp:getParameterBase:29(3) physx/defaultFriction:  0.05 # user [d]
-util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
-util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
-util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
-simulation.cpp:~Simulation:157(0) shutting down Simulation
 util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
 util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
 util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
