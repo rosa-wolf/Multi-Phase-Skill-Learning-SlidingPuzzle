@@ -38,6 +38,7 @@ class PuzzleEnv(gym.Env):
                  neg_dist_reward=True,
                  reward_on_end=False,
                  term_on_change=False,
+                 give_coord=False,
                  verbose=0):
 
         """
@@ -62,6 +63,7 @@ class PuzzleEnv(gym.Env):
 
         self.seed(seed=seed)
         self.dict_obs = dict_obs
+        self.give_coord = give_coord
         # which policy are we currently training? (Influences reward)
         self.skill = None
 
@@ -313,10 +315,15 @@ class PuzzleEnv(gym.Env):
 
         # print("obs = ", np.concatenate((q, one_hot_empty, curr_empty, pos, one_hot_skill)))
         if self.dict_obs:
+            if self.give_coord:
+                return {"q": q,
+                        "init_empty": one_hot_empty,
+                        "curr_empty": curr_empty,
+                        "box_pos": pos,
+                        "skill": one_hot_skill}
             return {"q": q,
                     "init_empty": one_hot_empty,
                     "curr_empty": curr_empty,
-                    "box_pos": pos,
                     "skill": one_hot_skill}
         return np.concatenate((q, one_hot_empty, curr_empty, pos, one_hot_skill))
 
@@ -342,11 +349,16 @@ class PuzzleEnv(gym.Env):
         shape += self.num_skills
 
         if self.dict_obs:
+            if self.give_coord:
+                return Dict({"q": Box(low=-1., high=1., shape=(3,), dtype=np.float64),
+                             "init_empty": MultiBinary(self.num_pieces + 1),
+                             "curr_empty": MultiBinary(self.num_pieces + 1),
+                             "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,), dtype=np.float64),
+                             "skill": MultiBinary(self.num_skills)})
             return Dict({"q": Box(low=-1., high=1., shape=(3,), dtype=np.float64),
-                         "init_empty": MultiBinary(self.num_pieces + 1),
-                         "curr_empty": MultiBinary(self.num_pieces + 1),
-                         "box_pos": Box(low=-1., high=1., shape=((self.num_pieces + 1) * 2,), dtype=np.float64),
-                         "skill": MultiBinary(self.num_skills)})
+                             "init_empty": MultiBinary(self.num_pieces + 1),
+                             "curr_empty": MultiBinary(self.num_pieces + 1),
+                             "skill": MultiBinary(self.num_skills)})
 
         return Box(low=-1., high=1., shape=(shape,), dtype=np.float64)
 

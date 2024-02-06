@@ -25,6 +25,8 @@ parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
                     help='custom gym environment')
+parser.add_argument('--give_coord', action='store_true', default=False,
+                    help='Whether to give coordinates of puzzle pieces or not')
 parser.add_argument('--dict_obs', action='store_true', default=False,
                     help='Whether to give observation as Dict, or as flat Box array')
 parser.add_argument('--snap_ratio', default=4., type=float,
@@ -114,21 +116,23 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
                     verbose=0,
                     sparse_reward=True,
                     reward_on_change=True,
-                    neg_dist_reward=True,
+                    neg_dist_reward=False,
                     term_on_change=True,
                     reward_on_end=False,
-                    dict_obs=args.dict_obs,
+                    dict_obs=True,
+                    give_coord=args.give_coord,
                     seed=args.seed,
                     snapRatio=args.snap_ratio)
     eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
                     verbose=0,
-                    sparse_reward=args.sparse,
-                    reward_on_change=args.reward_on_change,
+                    sparse_reward=True,
+                    reward_on_change=True,
                     neg_dist_reward=False,
-                    term_on_change=False,
+                    term_on_change=True,
                     reward_on_end=False,
-                    dict_obs=args.dict_obs,
+                    dict_obs=True,
+                    give_coord=args.give_coord,
                     seed=98765,
                     snapRatio=args.snap_ratio)
 elif args.env_name.__contains__("skill_conditioned_3x3"):
