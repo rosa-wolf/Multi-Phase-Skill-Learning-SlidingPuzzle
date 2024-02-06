@@ -152,19 +152,19 @@ class PuzzleEnv(gym.Env):
         # if so set back to last valid position
         self.scene.check_limits()
 
-        obs = self._get_observation()
-
-        # get reward (if we don't only want to give reward on last step of episode)
-        reward = self._reward()
-
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # for episode termination on change of symbolic observation
             self.terminated = self.term_on_change
 
+        obs = self._get_observation()
+        # get reward (if we don't only want to give reward on last step of episode)
+        reward = self._reward()
+
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
-        if not self._termination():
+        done = self._termination()
+        if not done:
             self.env_step_counter += 1
 
         return (obs,
@@ -182,7 +182,7 @@ class PuzzleEnv(gym.Env):
         Resets the environment (including the agent) to the initial conditions.
         """
         super().reset(seed=seed)
-        #self.scene.reset()
+        self.scene.reset()
         self.terminated = False
         self.truncated = False
         self.env_step_counter = 0
@@ -198,6 +198,7 @@ class PuzzleEnv(gym.Env):
 
         # Set agent to random initial position inside a boxes
         init_pos = np.random.uniform(-self.lim[:2], self.lim[:2])
+        print(f"lim = {self.lim}")
         self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
         # take initial empty field such that skill execution is possible
@@ -215,12 +216,16 @@ class PuzzleEnv(gym.Env):
         self.scene.set_to_symbolic_state(hard=True)
         self.init_sym_state = sym_obs.copy()
 
+        print(f"skill = {self.skill}, effect = {self.skills[self.skill][self.effect]}\n init_sym_obs = \n {self.init_sym_state}")
+
         # look which boxes is in the field we want to push from
         # important for reward shaping
         field = self.skills[self.skill][self.effect, 0]
         # get boxes that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+
+        print(f"box = {self.box}")
         #self.boxes = 0
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
@@ -230,11 +235,13 @@ class PuzzleEnv(gym.Env):
 
         # calculate goal sym_state
         self.goal_sym_state = self.init_sym_state.copy()
-        print(f"skill = {self.skill}, effect = {self.effect}")
-        print(f"from {self.skills[self.skill][self.effect, 0]} to {self.skills[self.skill][self.effect, 1]}")
+        #print(f"skill = {self.skill}, effect = {self.effect}")
+       # print(f"from {self.skills[self.skill][self.effect, 0]} to {self.skills[self.skill][self.effect, 1]}")
         # boxes we want to push should move to field we want to push to
         self.goal_sym_state[self.box, self.skills[self.skill][self.effect, 0]] = 0
         self.goal_sym_state[self.box, self.skills[self.skill][self.effect, 1]] = 1
+
+        #print(f"goal sym state = \n {self.goal_sym_state}")
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -269,7 +276,7 @@ class PuzzleEnv(gym.Env):
         # actor joint coordinates
         q, _, _ = self.scene.state
         q = q[:3] * 4  # for normalization
-        q = q.astype(np.float32)
+        q = q.astype(np.float64)
 
         # one-hot encoding of initially empty field
         empty = np.where(np.sum(self.init_sym_state, axis=0) == 0)[0][0]
@@ -277,7 +284,7 @@ class PuzzleEnv(gym.Env):
         one_hot_empty[empty] = 1
 
         # coordinates of boxes on the fields, with encoding whether field is empty (1) or occupied (0)
-        pos = np.empty((self.num_pieces + 1, 2), dtype=np.float32)
+        pos = np.empty((self.num_pieces + 1, 2), dtype=np.float64)
         curr_empty = np.zeros((self.num_pieces + 1,), dtype=np.int8)
         for i in range(self.scene.sym_state.shape[1]):
             box_idx = np.where(self.scene.sym_state[:, i] == 1)[0]
@@ -343,10 +350,10 @@ class PuzzleEnv(gym.Env):
         # (vel[0] - velocity in x-direction, vel[1] - velocity in y-direction)
         # vel[2] - velocity in z-direction (set to zero)
         # vel[3] - orientation, set to zero
-        action /= 4
+        action[:3] /= 4
         #action[2] = action[2] / (2/0.3) - 0.05
         # if limits are [-.25, .1]
-        for i in range(100):
+        for _ in range(100):
             # get current position
             act = self.scene.q[:3]
 
@@ -371,7 +378,7 @@ class PuzzleEnv(gym.Env):
         """
         reward = 0
         if not self.sparse_reward:
-            # read out position of boxes that should be pushed
+            # read out position of box that should be pushed
             box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
 
             # give additional reward for pushing puzzle piece towards its goal position

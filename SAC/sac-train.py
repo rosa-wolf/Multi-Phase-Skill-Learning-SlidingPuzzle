@@ -15,7 +15,7 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-#from puzzle_env_skill_conditioned import PuzzleEnv
+from puzzle_env_skill_conditioned import PuzzleEnv
 from Buffer import PriorityReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
@@ -106,29 +106,6 @@ elif args.env_name.__contains__("2x2"):
               np.array([[1, 3]]),
               np.array([[2, 3]])]
 
-    from puzzle_env_2x2_skill_conditioned import PuzzleEnv
-
-    env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                    max_steps=100,
-                    verbose=0,
-                    sparse_reward=args.sparse,
-                    reward_on_change=True,
-                    neg_dist_reward=False,
-                    term_on_change=True,
-                    reward_on_end=False,
-                    seed=args.seed,
-                    snapRatio=args.snap_ratio)
-    eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                         max_steps=100,
-                         verbose=0,
-                         sparse_reward=args.sparse,
-                         reward_on_change=True,
-                         neg_dist_reward=False,
-                         term_on_change=False,
-                         reward_on_end=False,
-                         seed=98765,
-                         snapRatio=args.snap_ratio)
-
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
     puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
@@ -150,32 +127,32 @@ elif args.env_name.__contains__("3x3"):
 else:
     raise ValueError("You must specify the environment to use")
 
-#env = PuzzleEnv(path=puzzle_path,
-#                max_steps=100,
-#                verbose=0,
-#                skills=skills,
-#                puzzle_size=puzzle_size,
-#                sparse_reward=args.sparse,
-#                reward_on_change=True,
-#                neg_dist_reward=args.neg_dist_reward,
-#                movement_reward=args.movement_reward,
-#                include_box_pos=args.include_box_pos,
-#                term_on_change=True,
-#                reward_on_end=False,
-#                seed=args.seed)
-#eval_env = PuzzleEnv(path=puzzle_path,
-#                     skills=skills,
-#                     puzzle_size=puzzle_size,
-#                     max_steps=100,
-#                     verbose=0,
-#                     sparse_reward=args.sparse,
-#                     reward_on_change=True,
-#                     neg_dist_reward=args.neg_dist_reward,
-#                     movement_reward=args.movement_reward,
-#                     include_box_pos=args.include_box_pos,
-#                     term_on_change=True,
-#                     reward_on_end=False,
-#                     seed=98765)
+env = PuzzleEnv(path=puzzle_path,
+                max_steps=100,
+                verbose=0,
+                skills=skills,
+                puzzle_size=puzzle_size,
+                sparse_reward=args.sparse,
+                reward_on_change=True,
+                neg_dist_reward=args.neg_dist_reward,
+                movement_reward=args.movement_reward,
+                include_box_pos=args.include_box_pos,
+                term_on_change=True,
+                reward_on_end=False,
+                seed=args.seed)
+eval_env = PuzzleEnv(path=puzzle_path,
+                     skills=skills,
+                     puzzle_size=puzzle_size,
+                     max_steps=100,
+                     verbose=0,
+                     sparse_reward=args.sparse,
+                     reward_on_change=True,
+                     neg_dist_reward=args.neg_dist_reward,
+                     movement_reward=args.movement_reward,
+                     include_box_pos=args.include_box_pos,
+                     term_on_change=True,
+                     reward_on_end=False,
+                     seed=98765)
 
 eval_env = Monitor(eval_env)
 
