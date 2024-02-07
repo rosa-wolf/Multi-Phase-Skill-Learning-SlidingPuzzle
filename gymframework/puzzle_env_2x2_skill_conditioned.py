@@ -31,7 +31,6 @@ class PuzzleEnv(gym.Env):
                  snapRatio=4.,
                  max_steps=100,
                  puzzlesize = [2, 2],
-                 give_sym_obs=False,
                  dict_obs=False,
                  sparse_reward=False,
                  reward_on_change=False,

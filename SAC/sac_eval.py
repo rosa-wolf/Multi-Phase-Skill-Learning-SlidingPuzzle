@@ -111,9 +111,10 @@ match args.env_name:
                         sparse_reward=True,
                         reward_on_change=True,
                         neg_dist_reward=False,
-                        dict_obs=False,
+                        dict_obs=True,
                         term_on_change=True,
                         reward_on_end=False,
+                        give_coord=False,
                         snapRatio=args.snap_ratio)
     case "skill_conditioned_3x3":
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
@@ -166,7 +167,7 @@ match args.env_name:
                         num_skills=args.num_skills,
                         logging=False,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel2x3_num_skills3_sparseFalse_relabelingFalse/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints-parallel/parallel2x3_num_skills3_sparseFalse_relabelingFalse/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -203,21 +204,21 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_obs_space_comp/skill_conditioned_2x2_flatBox_num_skills8_neg_distFalse_movementFalse_reward_on_changeFalse_sparseTrue_seed487193/model/model_170000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints-parallel/parallel2x3_num_skills3_sparseFalse_relabelingFalse/model/model_2530000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset()
+obs, _ = env.reset(skill=1)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
     if terminated or truncated:
-        obs, _ = env.reset()
+        obs, _ = env.reset(skill=1)
         num_steps = 0
 
 del model

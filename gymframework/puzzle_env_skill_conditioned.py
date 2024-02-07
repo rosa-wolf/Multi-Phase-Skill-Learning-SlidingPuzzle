@@ -413,5 +413,4 @@ class PuzzleEnv(gym.Env):
                     # punish if wrong block was pushed
                     reward -= 1
                     print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("reward = ", reward)
         return reward
