@@ -54,11 +54,9 @@ class PuzzleEnv(gym.Env):
 
         # ground truth skills
         # we have only one box, so there is only one skill
-        self.skills = np.array([[1, 0], [2, 0],
-                                [0, 1], [3, 1],
-                                [0, 2], [3, 2],
-                                [1, 3], [2, 3]])
-        self.num_skills = num_skills
+        self.skills = skills
+        self.num_skills = len(self.skills)
+        print(self.num_skills)
 
         self.seed(seed=seed)
         self.dict_obs = dict_obs
@@ -207,7 +205,7 @@ class PuzzleEnv(gym.Env):
 
         # should it be possible to apply skill on initial board configuration?
         # take initial empty field such that skill execution is possible
-        field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill, 1])
+        field = np.delete(np.arange(0, self.scene.pieces + 1), self.skills[self.skill][1])
 
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
@@ -223,7 +221,7 @@ class PuzzleEnv(gym.Env):
 
         # look which box is in the field we want to push from
         # important for reward shaping
-        field = self.skills[self.skill, 0]
+        field = self.skills[self.skill][0]
         # get box that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
@@ -234,14 +232,14 @@ class PuzzleEnv(gym.Env):
         self.max_dist = np.linalg.norm(curr_pos - max_pos)
 
         # set init and goal position of box
-        self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill, 0]]
-        self.box_goal = self.scene.discrete_pos[self.skills[self.skill, 1]]
+        self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill][0]]
+        self.box_goal = self.scene.discrete_pos[self.skills[self.skill][1]]
 
         # calculate goal sym_state
         self.goal_sym_state = self.init_sym_state.copy()
         # box we want to push should move to field we want to push to
-        self.goal_sym_state[self.box, self.skills[self.skill, 0]] = 0
-        self.goal_sym_state[self.box, self.skills[self.skill, 1]] = 1
+        self.goal_sym_state[self.box, self.skills[self.skill][0]] = 0
+        self.goal_sym_state[self.box, self.skills[self.skill][1]] = 1
 
         self._old_sym_obs = self.scene.sym_state.copy()
 

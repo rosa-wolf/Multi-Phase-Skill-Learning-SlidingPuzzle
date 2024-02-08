@@ -129,6 +129,7 @@ else:
 
 env = PuzzleEnv(path=puzzle_path,
                 puzzlesize=puzzle_size,
+                skills=skills,
                 max_steps=100,
                 verbose=0,
                 sparse_reward=True,
@@ -137,19 +138,21 @@ env = PuzzleEnv(path=puzzle_path,
                 term_on_change=True,
                 reward_on_end=False,
                 dict_obs=True,
-                give_coord=args.give_coord,
+                give_coord=True,
                 seed=args.seed)
 eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                max_steps=100,
-                verbose=0,
-                sparse_reward=True,
-                reward_on_change=True,
-                neg_dist_reward=False,
-                term_on_change=True,
-                reward_on_end=False,
-                dict_obs=True,
-                give_coord=args.give_coord,
-                seed=98765)
+                     puzzlesize=puzzle_size,
+                     skills=skills,
+                     max_steps=100,
+                     verbose=0,
+                     sparse_reward=True,
+                     reward_on_change=True,
+                     neg_dist_reward=False,
+                     term_on_change=True,
+                     reward_on_end=False,
+                     dict_obs=True,
+                     give_coord=True,
+                     seed=98765)
 
 eval_env = Monitor(eval_env)
 
