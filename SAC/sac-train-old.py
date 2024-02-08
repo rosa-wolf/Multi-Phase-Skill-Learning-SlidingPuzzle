@@ -19,7 +19,7 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-#from Buffer import PriorityReplayBuffer
+from Buffer import PriorityReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -119,7 +119,7 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
                     neg_dist_reward=False,
                     term_on_change=True,
                     reward_on_end=False,
-                    dict_obs=True,
+                    dict_obs=False,
                     give_coord=args.give_coord,
                     seed=args.seed,
                     snapRatio=args.snap_ratio)
@@ -131,7 +131,7 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
                     neg_dist_reward=False,
                     term_on_change=True,
                     reward_on_end=False,
-                    dict_obs=True,
+                    dict_obs=False,
                     give_coord=args.give_coord,
                     seed=98765,
                     snapRatio=args.snap_ratio)
@@ -203,7 +203,7 @@ else:
 # initialize SAC
 model = SAC(policy,  # could also use CnnPolicy
             env,        # gym env
-            #replay_buffer_class=PriorityReplayBuffer,
+            replay_buffer_class=PriorityReplayBuffer,
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
             learning_starts=10, # when learning should start to prevent learning on little data

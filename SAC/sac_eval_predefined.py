@@ -93,8 +93,18 @@ elif args.env_name.__contains__("2x2"):
     target_entropy = -3.
     puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
     puzzle_size = [2, 2]
-    skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
-              np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
+    #skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
+    #          np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
+
+    skills = [np.array([[1, 0]]),
+              np.array([[2, 0]]),
+              np.array([[0, 1]]),
+              np.array([[3, 1]]),
+              np.array([[0, 2]]),
+              np.array([[3, 2]]),
+              np.array([[1, 3]]),
+              np.array([[2, 3]])]
+
 
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
@@ -136,7 +146,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/2x2_test-obs-coord_neg_distFalse_movementFalse_reward_on_changeTrue_sparseTrue_seed48719/model/model_150000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/2x2_neg_distFalse_movementFalse_reward_on_changeFalse_sparseTrue_seed12345/model/model_200000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset(skill=0)

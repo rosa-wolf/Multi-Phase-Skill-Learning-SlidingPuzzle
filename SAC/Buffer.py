@@ -240,7 +240,7 @@ class PriorityReplayBuffer(BaseBuffer):
                     batch_inds = np.random.randint(0, self.pos, size=batch_size)
                 batches.append(self._get_samples(batch_inds, env=env))
 
-        prior_batch = self._get_prior_batch(batches[0], batches[1])
+        prior_batch = self._get_prior_batch(batches[0], batches[1], batch_size)
         print("===========================")
 
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
@@ -265,7 +265,7 @@ class PriorityReplayBuffer(BaseBuffer):
         )
         return PrioritizedReplayBufferSamples(*tuple(map(self.to_torch, data)))
 
-    def _get_prior_batch(self, batch1, batch2):
+    def _get_prior_batch(self, batch1, batch2, batch_size: int):
         # calculate score
         score = batch1.weights @ batch2.weights / (th.norm(batch1.weights) * th.norm(batch2.weights))
 
@@ -279,7 +279,37 @@ class PriorityReplayBuffer(BaseBuffer):
         # concatenate batches
         # TODO: delete dublicates
         # TODO: get prioritized samples
-        print(f"batch 1 =\n {batch1}")
+        print(f"batch1 = \n {batch1}")
+        print(f"batch 1 key =\n {batch1.enumeration}")
+
+        # TODO: this is not correct
+        #unique, idx, counts = th.unique(batch1.enumeration, sorted=True, return_inverse=True, return_counts=True)
+        #_, ind_sorted = th.sort(idx, stable=True)
+        #cum_sum = counts.cumsum(0)
+        #cum_sum = th.cat((th.tensor([0], device=self.device), cum_sum[:-1]))
+
+        # TODO: delete all entries from weight of batch2, where enumeration of batch 2 is in batch1
+
+        #unique_idx = idx_sorted[cum_sum]
+
+
+        b1_weights = batch1.weights
+        b2_weights = batch2.weights
+
+        tmp = th.concatenate((b1_weights, b2_weights))
+
+        _, max_idx = th.topk(tmp, batch_size)
+        # get which idx was originally from which of the two batches
+        idx_batch1 = max_idx[th.where(max_idx < b1_weights.shape[0])]
+        idx_batch2 = max_idx[th.where(max_idx >= b1_weights.shape[0])]
+
+        # new bach contains elements form batch1 at position idx_batch1
+        # and elements from batch2 (where repitions have been removed) at position idx_batch2
+        prior_batch = PrioritizedReplayBufferSamples()
+        print(prior_batch)
+
+
+
         print("==================================")
     @staticmethod
     def _maybe_cast_dtype(dtype: np.typing.DTypeLike) -> np.typing.DTypeLike:

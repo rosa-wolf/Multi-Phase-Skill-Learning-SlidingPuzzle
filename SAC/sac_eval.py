@@ -204,7 +204,7 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints-parallel/parallel2x3_num_skills3_sparseFalse_relabelingFalse/model/model_2530000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/2x2_neg_distFalse_movementFalse_reward_on_changeFalse_sparseTrue_seed12345/model/model_200000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
