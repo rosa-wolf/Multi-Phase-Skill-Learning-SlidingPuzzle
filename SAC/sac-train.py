@@ -16,7 +16,7 @@ mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
 from puzzle_env_all_skill_conditioned import PuzzleEnv
-from Buffer import PriorityReplayBuffer
+#from Buffer import PriorityReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -188,7 +188,7 @@ callbacks = CallbackList([checkpoint_callback, eval_callback])
 # initialize SAC
 model = SAC("MultiInputPolicy",  # could also use CnnPolicy
             env,        # gym env
-            replay_buffer_class=PriorityReplayBuffer,
+            #replay_buffer_class=PriorityReplayBuffer,
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
             learning_starts=1000, # when learning should start to prevent learning on little data
