@@ -442,6 +442,7 @@ class ForwardModel(nn.Module):
 
                 # find successor state
                 next_state = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                print(f"skill = {k}, next_state = {next_state}")
                 # next_state = next_state.cpu().detach().numpy()
 
                 # for devugging visualize every state transition prediction

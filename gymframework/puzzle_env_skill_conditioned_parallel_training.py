@@ -266,6 +266,8 @@ class PuzzleEnv(gym.Env):
               *,
               seed: Optional[int] = None,
               skill=None,
+              actor_pos=None,
+              sym_state_in=None,
               options: Optional[dict] = None, ) -> tuple[dict[str, Any], dict[Any, Any]]:
         """
         Resets the environment (including the agent) to the initial conditions.
@@ -288,19 +290,25 @@ class PuzzleEnv(gym.Env):
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
 
-        # Set agent to random initial position inside a boxes
-        init_pos = np.random.uniform(-0.25, .25, (2,))
-        self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
-        #print("current pos = ", self.scene.q)
+        if actor_pos is None:
+            # Set agent to random initial position inside a boxes
+            init_pos = np.random.uniform(-0.25, .25, (2,))
+            self.scene.q = [init_pos[0], init_pos[1], self.scene.q0[2], self.scene.q0[3]]
+            #print("current pos = ", self.scene.q)
+        else:
+            self.scene.q = [actor_pos[0], actor_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
-        # randomly pick the field where no block is initially
-        field = np.delete(np.arange(0, self.scene.pieces + 1),
-                          np.random.choice(np.arange(0, self.scene.pieces + 1)))
-        # put blocks in random fields, except the one that has to be free
-        order = np.random.permutation(field)
-        sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-        for i in range(self.scene.pieces):
-            sym_obs[i, order[i]] = 1
+        if sym_state_in is None:
+            # randomly pick the field where no block is initially
+            field = np.delete(np.arange(0, self.scene.pieces + 1),
+                              np.random.choice(np.arange(0, self.scene.pieces + 1)))
+            # put blocks in random fields, except the one that has to be free
+            order = np.random.permutation(field)
+            sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+            for i in range(self.scene.pieces):
+                sym_obs[i, order[i]] = 1
+        else:
+            sym_obs = sym_state_in
 
         self.scene.sym_state = sym_obs
         self.scene.set_to_symbolic_state()
@@ -325,6 +333,46 @@ class PuzzleEnv(gym.Env):
         #print(f"boxes = {self.boxes}")
 
         return self._get_observation(), {}
+
+    def execution_reset(self, skill):
+        """
+        Reset for when we execute a solution path. Here we do not want the puzzle board to reset
+        We only set the actor pos to the initial z-plane over its current position, set the new skill, and get an observation
+        :return: observation after the reset
+        """
+        self.terminated = False
+        self.truncated = False
+        self.episode_rewards = []
+        self.env_step_counter = 0
+
+        actor_pos = np.array([self.scene.q[0], self.scene.q[1], self.scene.q0[2]])
+        self._goto_pos(actor_pos)
+
+        self.init_sym_state = self.scene.sym_state
+
+        self.skill = skill
+
+        return self._get_observation()
+
+    def _goto_pos(self, goal_pos):
+
+        act = self.scene.q[:3]
+        diff = goal_pos - act
+        max_vel = np.array([diff[0], diff[1], diff[2], 0.])
+
+        #self.scene.q = np.array([goal_pos[0], goal_pos[1], self.scene.q0[2], self.scene.q0[3]])
+        #return 0
+
+        while not np.allclose(np.linalg.norm(goal_pos - self.scene.q[:3]), 0., atol=0.05):
+            #print(f"diff = {goal_pos - act}")
+            #print(f"factor = {np.linalg.norm(diff)}")
+            self.scene.v = 10 * np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.velocity_control(1)
+
+            act = self.scene.q[:3]
+            diff = goal_pos - act
+
+
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)

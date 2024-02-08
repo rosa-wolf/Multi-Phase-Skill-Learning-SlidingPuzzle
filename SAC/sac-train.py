@@ -97,14 +97,19 @@ elif args.env_name.__contains__("2x2"):
     #skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
     #          np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
 
-    skills = [np.array([[1, 0]]),
-              np.array([[2, 0]]),
-              np.array([[0, 1]]),
-              np.array([[3, 1]]),
-              np.array([[0, 2]]),
-              np.array([[3, 2]]),
-              np.array([[1, 3]]),
-              np.array([[2, 3]])]
+    #skills = [np.array([[1, 0]]),
+    #          np.array([[2, 0]]),
+    #          np.array([[0, 1]]),
+    #          np.array([[3, 1]]),
+    #          np.array([[0, 2]]),
+    #          np.array([[3, 2]]),
+    #          np.array([[1, 3]]),
+    #          np.array([[2, 3]])]
+
+    skills = np.array([[1, 0], [2, 0],
+                       [0, 1], [3, 1],
+                       [0, 2], [3, 2],
+                       [1, 3], [2, 3]])
 
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
@@ -131,7 +136,7 @@ env = PuzzleEnv(path=puzzle_path,
                 puzzlesize=puzzle_size,
                 skills=skills,
                 max_steps=100,
-                verbose=0,
+                verbose=1,
                 sparse_reward=True,
                 reward_on_change=True,
                 neg_dist_reward=False,

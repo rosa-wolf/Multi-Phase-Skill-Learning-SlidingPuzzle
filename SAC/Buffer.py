@@ -240,8 +240,7 @@ class PriorityReplayBuffer(BaseBuffer):
                     batch_inds = np.random.randint(0, self.pos, size=batch_size)
                 batches.append(self._get_samples(batch_inds, env=env))
 
-        prior_batch = self._get_prior_batch(batches[0], batches[1], batch_size)
-        print("===========================")
+        return self._get_prior_batch(batches[0], batches[1], batch_size)
 
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
         # Sample randomly the env idx
@@ -279,8 +278,6 @@ class PriorityReplayBuffer(BaseBuffer):
         # concatenate batches
         # TODO: delete dublicates
         # TODO: get prioritized samples
-        print(f"batch1 = \n {batch1}")
-        print(f"batch 1 key =\n {batch1.enumeration}")
 
         # TODO: this is not correct
         #unique, idx, counts = th.unique(batch1.enumeration, sorted=True, return_inverse=True, return_counts=True)
@@ -303,11 +300,25 @@ class PriorityReplayBuffer(BaseBuffer):
         idx_batch1 = max_idx[th.where(max_idx < b1_weights.shape[0])]
         idx_batch2 = max_idx[th.where(max_idx >= b1_weights.shape[0])]
 
+        print(f"batch_1 =\n {batch1}\n idx_batch1 = {idx_batch1} \n batch_2 = \n {batch2}\nidx_batch2 = {idx_batch2}")
+
         # new bach contains elements form batch1 at position idx_batch1
         # and elements from batch2 (where repitions have been removed) at position idx_batch2
-        prior_batch = PrioritizedReplayBufferSamples()
-        print(prior_batch)
+        observations = th.concatenate((batch1.observations[idx_batch1], batch2.observations[idx_batch2]))
+        actions = th.concatenate((batch1.actions[idx_batch1], batch2.actions[idx_batch2]))
+        next_observations = th.concatenate((batch1.next_observations[idx_batch1], batch2.next_observations[idx_batch2]))
+        dones = th.concatenate((batch1.dones[idx_batch1], batch2.dones[idx_batch2]))
+        rewards = th.concatenate((batch1.rewards[idx_batch1], batch2.rewards[idx_batch2]))
+        weights = th.concatenate((batch1.weights[idx_batch1], batch2.weights[idx_batch2]))
+        enumeration = th.concatenate((batch1.enumeration[idx_batch1], batch2.enumeration[idx_batch2]))
 
+        return PrioritizedReplayBufferSamples(observations,
+                                                     actions,
+                                                     next_observations,
+                                                     dones,
+                                                     rewards,
+                                                     weights,
+                                                     enumeration)
 
 
         print("==================================")

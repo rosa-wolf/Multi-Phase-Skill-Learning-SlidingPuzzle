@@ -6,15 +6,17 @@ from forwardmodel_simple_input.forward_model import ForwardModel
 
 # load model
 num_skills = 3
-fm = ForwardModel(width=3,
+fm = ForwardModel(width=2,
                   height=3,
                   num_skills=num_skills,
                   batch_size=10,
                   learning_rate=0.001)
 
 # save model
-fm_path = "SAC/checkpoints/parallel2x3_num_skills3_sparseTrue_relabelingFalse/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/parallel2x3_num_skills3_sparseTrue_relabelingFalse/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
+
+print(fm.get_full_pred())
 
 #input_states = [np.array([0, 1]), np.array([1, 0])]
 #input_skills = [0, 1]
