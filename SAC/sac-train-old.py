@@ -172,7 +172,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 
-log_dir = "checkpoints_obs_space_comp/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse) + "_seed" + str(args.seed)
+log_dir = "checkpoints/" + args.env_name + "_num_skills" + str(args.num_skills) + "_neg_dist" + str(args.neg_dist_reward) + "_movement" + str(args.movement_reward) + "_reward_on_change" + str(args.reward_on_change) + "_sparse" + str(args.sparse) + "_seed" + str(args.seed)
 os.makedirs(log_dir, exist_ok=True)
 
 env.reset()

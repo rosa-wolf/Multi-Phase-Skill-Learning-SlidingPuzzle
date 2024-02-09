@@ -56,9 +56,6 @@ class PriorityReplayBuffer(BaseBuffer):
     enumeration: np.ndarray
     last_done: np.int8
 
-    # TODO: make recent buffer which is taken completely
-
-
     def __init__(
         self,
         buffer_size: int,
@@ -67,6 +64,7 @@ class PriorityReplayBuffer(BaseBuffer):
         device: Union[th.device, str] = "auto",
         n_envs: int = 1,
         zeta: float = 0.5,
+        recent: int = 1,
         optimize_memory_usage: bool = False,
         handle_timeout_termination: bool = True,
     ):
@@ -111,6 +109,8 @@ class PriorityReplayBuffer(BaseBuffer):
 
         # threshold value for SDP sampling
         self.zeta = zeta
+        # number of samples that should be most recent ones
+        self.num_recent = recent
 
         if psutil is not None:
             total_memory_usage: float = (
@@ -240,7 +240,12 @@ class PriorityReplayBuffer(BaseBuffer):
                     batch_inds = np.random.randint(0, self.pos, size=batch_size)
                 batches.append(self._get_samples(batch_inds, env=env))
 
-        return self._get_prior_batch(batches[0], batches[1], batch_size)
+        buffer = self._get_prior_batch(batches[0], batches[1], batch_size)
+
+        # replace x samples with most recent ones
+        recent = self._get_recent_samples(buffer, batch_size, env=env)
+        print("Number of trans in buffer = ", recent.weights.shape)
+        return recent
 
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
         # Sample randomly the env idx
@@ -274,22 +279,17 @@ class PriorityReplayBuffer(BaseBuffer):
                 return batch1
             return batch2
 
-        # else take prioritized transitions
-        # concatenate batches
-        # TODO: delete dublicates
-        # TODO: get prioritized samples
+        # delete transitions from batch 2 that are also in batch1
+        idx = th.where(th.isin(batch2.enumeration, batch1.enumeration) == False)[0]
+        batch2 = PrioritizedReplayBufferSamples(batch2.observations[idx],
+                                                batch2.actions[idx],
+                                                batch2.next_observations[idx],
+                                                batch2.dones[idx],
+                                                batch2.rewards[idx],
+                                                batch2.weights[idx],
+                                                batch2.enumeration[idx])
 
-        # TODO: this is not correct
-        #unique, idx, counts = th.unique(batch1.enumeration, sorted=True, return_inverse=True, return_counts=True)
-        #_, ind_sorted = th.sort(idx, stable=True)
-        #cum_sum = counts.cumsum(0)
-        #cum_sum = th.cat((th.tensor([0], device=self.device), cum_sum[:-1]))
-
-        # TODO: delete all entries from weight of batch2, where enumeration of batch 2 is in batch1
-
-        #unique_idx = idx_sorted[cum_sum]
-
-
+        # get transitions with max weights
         b1_weights = batch1.weights
         b2_weights = batch2.weights
 
@@ -313,15 +313,46 @@ class PriorityReplayBuffer(BaseBuffer):
         enumeration = th.concatenate((batch1.enumeration[idx_batch1], batch2.enumeration[idx_batch2]))
 
         return PrioritizedReplayBufferSamples(observations,
-                                                     actions,
-                                                     next_observations,
-                                                     dones,
-                                                     rewards,
-                                                     weights,
-                                                     enumeration)
+                                              actions,
+                                              next_observations,
+                                              dones,
+                                              rewards,
+                                              weights,
+                                              enumeration)
 
+    def _get_recent_samples(self, batch, batch_size, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
 
-        print("==================================")
+        if self.num_recent > batch_size:
+            raise ValueError("The number of recent transitions to take in the batch is higher than the batch size.")
+
+        # Sample transitions, that should not be replaced
+        idx = np.random.uniform(0, batch_size, size=(batch_size - self.num_recent,))
+
+        # self.pos is in front of last added transition
+        if self.pos < self.num_recent:
+           batch_inds = np.concatenate((np.arange(self.pos),
+                                       np.arange(self.buffer_size - (self.num_recent - self.pos), self.buffer_size)))
+        else:
+            batch_inds = np.arange(self.pos - self.num_recent, self.pos)
+
+        recent_batch = self._get_samples(batch_inds, env=env)
+
+        observations = th.concatenate((batch.observations[idx], recent_batch.observations))
+        actions = th.concatenate((batch.actions[idx], recent_batch.actions))
+        next_observations = th.concatenate((batch.next_observations[idx], recent_batch.next_observations))
+        dones = th.concatenate((batch.dones[idx], recent_batch.dones))
+        rewards = th.concatenate((batch.rewards[idx], recent_batch.rewards))
+        weights = th.concatenate((batch.weights[idx], recent_batch.weights))
+        enumeration = th.concatenate((batch.enumeration[idx], recent_batch.enumeration))
+
+        return PrioritizedReplayBufferSamples(observations,
+                                              actions,
+                                              next_observations,
+                                              dones,
+                                              rewards,
+                                              weights,
+                                              enumeration)
+
     @staticmethod
     def _maybe_cast_dtype(dtype: np.typing.DTypeLike) -> np.typing.DTypeLike:
         """
