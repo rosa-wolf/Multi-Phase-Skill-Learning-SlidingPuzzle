@@ -29,13 +29,13 @@ class PuzzleEnv(gym.Env):
                  puzzlesize,
                  skills,
                  seed=12345,
-                 num_skills=8,
                  snapRatio=4.,
                  max_steps=100,
                  dict_obs=False,
                  sparse_reward=False,
                  reward_on_change=False,
                  neg_dist_reward=True,
+                 movement_reward=True,
                  reward_on_end=False,
                  term_on_change=False,
                  give_coord=False,
@@ -71,35 +71,15 @@ class PuzzleEnv(gym.Env):
 
         self.num_pieces = puzzlesize[0] * puzzlesize[1] - 1
 
-        # opt push position for all 14 skills (for calculating reward)
-        # position when reading out block position is the center of the block
-        # depending on skill we have to push from different side on the block
-        # optimal position is position at offset into right direction from the center og the block
-        # offset half the side length of the block
-        self.offset = 0.06
-        # direction of offset [x-direction, y-direction]
-        # if 0 no offset in that direction
-        # -1/1: negative/positive offset in that direction
-        self.opt_pos_dir = np.array([[-1, 0], [0, 1],
-                                     [1, 0], [0, 1],
-                                     [0, -1], [-1, 0],
-                                     [0, -1], [1, 0]])
         # store which box we will push with current skill
         self.box = None
-
-        # as the optimal position changes with the position of the box
-        # However, we can hardcode a maximal distance using the
-        self.max = np.array([[1, 1], [-1, -1],
-                             [-1, 1], [1, -1],
-                             [-1, 1], [1, -1],
-                             [1, 1], [-1, -1]])
-        self.max_dist = None
 
         # parameters to control different versions of observation and reward
         self.sparse_reward = sparse_reward
         self.reward_on_change = reward_on_change
         self.reward_on_end = reward_on_end
         self.neg_dist_reward = neg_dist_reward
+        self.movement_reward = movement_reward
 
         # is skill execution possible?
         self.skill_possible = None
@@ -231,11 +211,8 @@ class PuzzleEnv(gym.Env):
         # get box that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-        #self.box = 0
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
-        max_pos = np.array([0.25, 0.25, 0.25]) * np.concatenate((self.max[self.skill], np.array([1])))
-        self.max_dist = np.linalg.norm(curr_pos - max_pos)
 
         # set init and goal position of box
         self.box_init = curr_pos #self.scene.discrete_pos[self.skills[self.skill][self.effect, 0]]
@@ -407,31 +384,23 @@ class PuzzleEnv(gym.Env):
             # read out position of box that should be pushed
             box_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
 
-            # always some y and z-offset because of the way the wedge and the boxes were placed
-            opt = box_pos.copy()
-            opt[2] -= 0.2
-            # additional offset in x-direction and y-direction dependent on skill
-            # (which side do we want to push box from?)
-            opt[0] += self.offset * self.opt_pos_dir[self.skill, 0]
-            opt[1] += self.offset * self.opt_pos_dir[self.skill, 1]
-
-            loc = self.scene.C.getJointState()[:3]  # current location
-
-            # reward: max distance - current distance
-            reward += 0.1 * (self.max_dist - np.linalg.norm(opt - loc)) / self.max_dist
-
             # give additional reward for pushing puzzle piece towards its goal position
-            max_dist = np.linalg.norm(self.box_goal - self.box_init)
-            box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
-            reward += box_reward
+            if self.movement_reward:
+                # if self.env_step_counter == 0:
+                #    self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
+                print("give movement reward")
+                # max_dist = np.linalg.norm(self.box_goal - self.box_init)
+                # box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
+                # reward += box_reward
+
+                # give neg dist of current box pos to goal box pos as reward
+                reward -= max([np.linalg.norm(self.box_goal - box_pos), 0.])
+
             # minimal negative distance between box and actor
             if self.neg_dist_reward:
+                print("give neg dist reward")
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-                reward += dist[0]
-            #if np.isclose(dist[0], 0) or dist[0] >= 0:
-            #    reward += 0.5
-            #    print("give 0.5")
-
+                reward += 5 * min([dist[0], 0.])
 
         # optionally give reward of one when box was successfully pushed to other field
         if self.reward_on_change:
@@ -446,4 +415,5 @@ class PuzzleEnv(gym.Env):
                     # punish if wrong block was pushed
                     reward -= 1
                     print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("reward = ", reward)
         return reward

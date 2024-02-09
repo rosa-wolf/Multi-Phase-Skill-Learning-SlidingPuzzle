@@ -110,16 +110,9 @@ if args.env_name.__contains__("skill_conditioned_1x2"):
                     snapRatio=args.snap_ratio,
                     seed=98765)
 elif args.env_name.__contains__("skill_conditioned_2x2"):
-    from puzzle_env_all_skill_conditioned import PuzzleEnv
-    puzzle_size = [2, 2]
-    skills = np.array([[1, 0], [2, 0],
-                       [0, 1], [3, 1],
-                       [0, 2], [3, 2],
-                       [1, 3], [2, 3]])
+    from puzzle_env_2x2_skill_conditioned import PuzzleEnv
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
-                    puzzlesize=puzzle_size,
-                    skills=skills,
                     verbose=0,
                     sparse_reward=True,
                     reward_on_change=True,
@@ -127,8 +120,9 @@ elif args.env_name.__contains__("skill_conditioned_2x2"):
                     term_on_change=True,
                     reward_on_end=False,
                     dict_obs=False,
-                    give_coord=True,
-                    seed=1234567)
+                    give_coord=args.give_coord,
+                    seed=args.seed,
+                    snapRatio=args.snap_ratio)
     eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=100,
                     verbose=0,
