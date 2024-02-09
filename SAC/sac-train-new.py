@@ -88,21 +88,48 @@ else:
 max_steps = args.num_steps
 # Environment
 
-if args.env_name.__contains__("2x2"):
-    puzzle_size = [2, 2]
-    #skills = np.array([[1, 0], [2, 0],
-    #                   [0, 1], [3, 1],
-    #                   [0, 2], [3, 2],
-    #                   [1, 3], [2, 3]])
+if args.env_name.__contains__("1x2"):
+    target_entropy = -2.5
+    puzzle_path = '../Puzzles/slidingPuzzle_1x2.g'
+    puzzle_size = [1, 2]
+    skills = [np.array([[0, 1], [1, 0]])]
 
-    skills = [np.array([[1, 0]]),
-              np.array([[2, 0]]),
-              np.array([[0, 1]]),
-              np.array([[3, 1]]),
-              np.array([[0, 2]]),
-              np.array([[3, 2]]),
-              np.array([[1, 3]]),
-              np.array([[2, 3]])]
+elif args.env_name.__contains__("2x2"):
+    target_entropy = -3.
+    puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
+    puzzle_size = [2, 2]
+    skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
+              np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
+
+    #skills = [np.array([[1, 0]]),
+    #          np.array([[2, 0]]),
+    #          np.array([[0, 1]]),
+    #          np.array([[3, 1]]),
+    #          np.array([[0, 2]]),
+    #          np.array([[3, 2]]),
+    #          np.array([[1, 3]]),
+    #          np.array([[2, 3]])]
+
+elif args.env_name.__contains__("2x3"):
+    target_entropy = -3.5
+    puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
+    puzzle_size = [2, 3]
+    skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5]]),
+              np.array([[1, 0], [2, 1], [5, 4], [4, 3]]),
+              np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
+
+
+
+elif args.env_name.__contains__("3x3"):
+    target_entropy = -4.
+    puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
+    puzzle_size = [3, 3]
+    skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]]),
+              np.array([[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]]),
+              np.array([[0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]]),
+              np.array([[3, 0], [6, 3], [4, 1], [7, 4], [5, 2], [8, 5]])]
+else:
+    raise ValueError("You must specify the environment to use")
 
 env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                 max_steps=100,
