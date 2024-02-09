@@ -470,13 +470,41 @@ class PuzzleEnv(gym.Env):
         :returns: the neg min distance
         """
         min_dist = -np.inf
-        neighbors = self.neighborlist[str(empty_field)]
-        for i in range(len(neighbors)):
-            dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(i), "wedge"])
+        neighbor_fields = self.neighborlist[str(empty_field)]
+        neighbor_pieces = []
+
+        # get boxes on adjacent fields from sym state
+        for field in neighbor_fields:
+            box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+            neighbor_pieces.append(box)
+
+        for box in neighbor_pieces:
+            dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(box), "wedge"])
             if dist[0] > min_dist:
                 min_dist = dist[0]
 
         return min([min_dist, 0.])
+
+    def _contact_with_nonneighbor(self, empty_field) -> bool:
+        """
+        Returns true if wedge is in contact with box, that is not adjacent to an empty field
+        """
+
+        neighbor_fields = self.neighborlist[str(empty_field)]
+        neighbor_pieces = []
+
+        # get boxes on adjacent fields from sym state
+        for field in neighbor_fields:
+            box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+            neighbor_pieces.append(box)
+
+        for box in range(self.num_pieces):
+            if box not in neighbor_pieces:
+                dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(box), "wedge"])
+                if dist >= 0:
+                    return True, box
+
+        return False, None
 
     def _get_rewards_for_all_skills(self):
         """
@@ -528,10 +556,22 @@ class PuzzleEnv(gym.Env):
         if not self.sparse_reward:
             if self.starting_epis:
                 # penalize being away from all fields where the adjacent field is empty
+                # and penalize contact with puzzle piece, that cannot be pushed
                 # get empty field
                 empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
-                reward += 5 * self._get_neg_dist_to_neighbors(empty)
-                print(f"neg dist reward = {reward}")
+                min_dist = self._get_neg_dist_to_neighbors(empty)
+                print(min_dist)
+                reward += 5 * min_dist
+                #print(f"neg dist reward = {reward}")
+
+                # only penalize contact with wrong boxes, if we are not in contact with correct ones
+                if min_dist < -0.01:
+                    contact, box = self._contact_with_nonneighbor(empty)
+                    if contact:
+                        reward -= 0.1
+                        print(f"In contact with box {box}")
+
+
             else:
                 if self.boxes[k] != -1:
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.boxes[k]), "wedge"])

@@ -90,10 +90,19 @@ max_steps = args.num_steps
 
 if args.env_name.__contains__("2x2"):
     puzzle_size = [2, 2]
-    skills = np.array([[1, 0], [2, 0],
-                       [0, 1], [3, 1],
-                       [0, 2], [3, 2],
-                       [1, 3], [2, 3]])
+    #skills = np.array([[1, 0], [2, 0],
+    #                   [0, 1], [3, 1],
+    #                   [0, 2], [3, 2],
+    #                   [1, 3], [2, 3]])
+
+    skills = [np.array([[1, 0]]),
+              np.array([[2, 0]]),
+              np.array([[0, 1]]),
+              np.array([[3, 1]]),
+              np.array([[0, 2]]),
+              np.array([[3, 2]]),
+              np.array([[1, 3]]),
+              np.array([[2, 3]])]
 
 env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                 max_steps=100,
@@ -105,21 +114,22 @@ env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                 neg_dist_reward=False,
                 term_on_change=True,
                 reward_on_end=False,
-                dict_obs=False,
+                dict_obs=True,
                 give_coord=True,
                 seed=1234567)
 eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
-                max_steps=100,
-                verbose=0,
-                sparse_reward=True,
-                reward_on_change=True,
-                neg_dist_reward=False,
-                term_on_change=True,
-                reward_on_end=False,
-                dict_obs=False,
-                give_coord=args.give_coord,
-                seed=98765,
-                snapRatio=args.snap_ratio)
+                     max_steps=100,
+                     puzzlesize=puzzle_size,
+                     skills=skills,
+                     verbose=0,
+                     sparse_reward=True,
+                     reward_on_change=True,
+                     neg_dist_reward=False,
+                     term_on_change=True,
+                     reward_on_end=False,
+                     dict_obs=True,
+                     give_coord=True,
+                     seed=98765)
 
 check_env(env)
 
