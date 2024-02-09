@@ -1,5 +1,5 @@
 ** compiled at:     Jun 15 2023 13:29:34
-** execution start: 2024-02-09 12:36:29:267008
+** execution start: 2024-02-09 13:26:45:928287
 graph.cpp:initParameters:1384(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1391(3)  - failed
 graph.cpp:initParameters:1397(3) opening base config file '/root/local/rai/../local.cfg'
@@ -29,5 +29,15 @@ util.ipp:getParameterBase:29(3) physx/defaultFriction:  0.05 # user [d]
 util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
 util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
 util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
-kin.cpp:getFrame:379(-1) cannot find frame named 'box(array([4]),)'
-kin.cpp:getFrameIDs:410(-2) frame name 'box(array([4]),)' doesn't exist
+simulation.cpp:~Simulation:157(0) shutting down Simulation
+util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
+util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
+util.ipp:getParameterBase:36(3)       physx/softBody:     0 # default [b]
+util.ipp:getParameterBase:36(3)      physx/multiBody:     1 # default [b]
+util.ipp:getParameterBase:36(3)  physx/jointedBodies:     0 # default [b]
+util.ipp:getParameterBase:36(3) physx/angularDamping:   0.1 # default [d]
+util.ipp:getParameterBase:29(3) physx/defaultFriction:  0.05 # user [d]
+util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
+util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
+util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
+simulation.cpp:~Simulation:157(0) shutting down Simulation
