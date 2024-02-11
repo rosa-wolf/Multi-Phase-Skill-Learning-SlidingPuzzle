@@ -211,6 +211,7 @@ class PuzzleEnv(gym.Env):
         # get box that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
+        print(f"box = {self.box}, skill = {self.skills[self.skill][self.effect]}")
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
 
@@ -400,7 +401,7 @@ class PuzzleEnv(gym.Env):
             if self.neg_dist_reward:
                 print("give neg dist reward")
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-                reward += 5 * min([dist[0], 0.])
+                reward += 2 * min([dist[0], 0.])
 
         # optionally give reward of one when box was successfully pushed to other field
         if self.reward_on_change:

@@ -15,7 +15,7 @@ sys.path.append(mod_dir)
 mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
-from puzzle_env_skill_conditioned import PuzzleEnv
+from puzzle_env_all_skill_conditioned import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -93,17 +93,17 @@ elif args.env_name.__contains__("2x2"):
     target_entropy = -3.
     puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
     puzzle_size = [2, 2]
-    #skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
-    #          np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
+    skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
+              np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
 
-    skills = [np.array([[1, 0]]),
-              np.array([[2, 0]]),
-              np.array([[0, 1]]),
-              np.array([[3, 1]]),
-              np.array([[0, 2]]),
-              np.array([[3, 2]]),
-              np.array([[1, 3]]),
-              np.array([[2, 3]])]
+    #skills = [np.array([[1, 0]]),
+    #          np.array([[2, 0]]),
+    #          np.array([[0, 1]]),
+    #          np.array([[3, 1]]),
+    #          np.array([[0, 2]]),
+    #          np.array([[3, 2]]),
+    #          np.array([[1, 3]]),
+    #          np.array([[2, 3]])]
 
 
 elif args.env_name.__contains__("2x3"):
@@ -130,33 +130,34 @@ else:
 seed = 398199
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
-                verbose=1,
+                puzzlesize=puzzle_size,
                 skills=skills,
-                puzzle_size=puzzle_size,
+                verbose=1,
                 sparse_reward=args.sparse,
-                reward_on_change=args.reward_on_change,
-                include_box_pos=args.include_box_pos,
+                reward_on_change=True,
                 neg_dist_reward=args.neg_dist_reward,
                 movement_reward=args.movement_reward,
                 term_on_change=True,
                 reward_on_end=False,
-                seed=args.seed)
+                dict_obs=True,
+                give_coord=True,
+                seed=seed)
 
 env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/2x2_neg_distFalse_movementFalse_reward_on_changeFalse_sparseTrue_seed12345/model/model_200000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/skill_conditioned_2x2_2skills_num_skills8_neg_distTrue_movementFalse_reward_on_changeFalse_sparseFalse_seed123456/model/model_170000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=0)
+obs, _ = env.reset()
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
     if terminated or truncated:
-        obs, _ = env.reset(skill=0)
+        obs, _ = env.reset()
         num_steps = 0
 
 del model
