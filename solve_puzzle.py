@@ -18,6 +18,11 @@ if th.cuda.is_available():
 else:
     device = 'cpu'
 
+# for making a video
+# first ensure a folder
+import os
+os.system('mkdir -p z.vid')
+
 # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
 init_state = np.array([[1, 0, 0, 0],
                        [0, 1, 0, 0],
@@ -26,15 +31,13 @@ goal_state = np.array([[0, 0, 0, 1],
                        [0, 0, 1, 0],
                        [0, 1, 0, 0]])
 
-
-
 # load forward model and policy
 fm = ForwardModel(width=2,
                   height=2,
                   num_skills=args.num_skills,
                   batch_size=10,
                   learning_rate=0.001)
-fm_path = "SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel2x2_num_skills2_sparseFalse_relabelingFalse_BEST/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/parallel2x2-new-penalty_num_skills2_sparseTrue_relabelingFalse/fm/fm"
 fm.model.load_state_dict(th.load(fm_path, weights_only=True))
 fm.model.eval()
 
@@ -46,12 +49,13 @@ env = PuzzleEnv(path='Puzzles/slidingPuzzle_2x2.g',
                         logging=False,
                         verbose=1,
                         fm_path=fm_path,
+                        train_fm=False,
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
                         reward_on_end=False)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel2x2_num_skills2_sparseFalse_relabelingFalse_BEST/model/model_600000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/parallel2x2-new-penalty_num_skills2_sparseTrue_relabelingFalse/model/model_330000_steps", env=env)
 
 
 
@@ -59,14 +63,16 @@ model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/
 
 # execute skill
 # do not reset environment after skill execution, but set actor to init z plane above its current position
-#_, plan = fm.breadth_first_search(init_state.flatten(), goal_state.flatten())
-#print(f"plan = {plan}")
+_, plan = fm.breadth_first_search(init_state.flatten(), goal_state.flatten())
+print(f"plan = {plan}")
 
-plan = [0, 1, 1, 1, 0, 1]
+#plan = [0, 1, 1, 1, 0, 1]
 skill_idx = 0
 obs, _ = env.reset(skill=plan[skill_idx], actor_pos=np.array([0., 0.]), sym_state_in=init_state)
 num_steps = 0
 while True:
+    env.scene.C.view()
+    env.scene.C.view_savePng('z.vid/')
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1

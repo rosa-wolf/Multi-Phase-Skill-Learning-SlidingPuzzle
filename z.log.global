@@ -1,5 +1,5 @@
 ** compiled at:     Jun 15 2023 13:29:34
-** execution start: 2024-02-08 17:16:47:142494
+** execution start: 2024-02-12 15:16:59:426720
 graph.cpp:initParameters:1384(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1391(3)  - failed
 graph.cpp:initParameters:1397(3) opening base config file '/root/local/rai/../local.cfg'
@@ -30,3 +30,6 @@ util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
 util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
 util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
 simulation.cpp:~Simulation:157(0) shutting down Simulation
+** execution stop: 2024-02-12 15:17:10:600885
+** real time: 11.1742sec
+** CPU time: 21.6447

@@ -477,7 +477,7 @@ class ForwardModel(nn.Module):
                             if (next_state == goal).all():
                                 # get the state transitions and skills that lead to the goal
                                 state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
-                                return state_sequence, skill_sequence
+                                return np.array(state_sequence), np.array(skill_sequence).flatten()
                             # append successor to visited and queue
                             if not np.any(np.all(next_state == visited, axis=1)):
                                 visited.append(next_state)

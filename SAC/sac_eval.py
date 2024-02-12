@@ -204,21 +204,21 @@ np.random.seed(args.seed)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel_2x2/model/model_287000_steps", env=env)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel2x2_num_skills2_sparseFalse_relabelingFalse_BEST/model/model_600000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/parallel2x2-new-penalty_num_skills2_sparseTrue_relabelingFalse/model/model_330000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=1)
+obs, _ = env.reset(skill=0)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
     if terminated or truncated:
-        obs, _ = env.reset(skill=1)
+        obs, _ = env.reset(skill=0)
         num_steps = 0
 
 del model

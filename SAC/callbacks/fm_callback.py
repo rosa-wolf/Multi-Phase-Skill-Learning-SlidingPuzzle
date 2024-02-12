@@ -250,9 +250,9 @@ class FmCallback(BaseCallback):
                 #print(f"old_skill = {old_skill}, new_skill = {new_skill}")
                 #print(f"start_idx = {start_idx}, end_idx = {end_idx}")
                 # never relabel policy transitions
-                if not (new_skill == old_skill).all():
+                if not (new_skill == old_skill).all() or True:
                     # relabel policy transitions with 50% probability
-                    if np.random.normal() > 0.5:
+                    if np.random.normal() > 0.5 or True:
                         #print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_rewards = self.relabel_buffer["max_rewards"][i_episode][None, :]
@@ -269,8 +269,9 @@ class FmCallback(BaseCallback):
                             # change rewards
                             #print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
                             #                           {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
-                            self.locals["replay_buffer"].rewards[start_idx:] = new_rewards
-                            self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards
+                            tmp_idx = self.locals["replay_buffer"].rewards[start_idx:].shape[0]
+                            self.locals["replay_buffer"].rewards[start_idx:] = new_rewards[:, : tmp_idx]
+                            self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards[:, tmp_idx:]
 
                             #print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
                             #                          {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
