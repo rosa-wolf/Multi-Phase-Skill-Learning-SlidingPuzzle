@@ -401,7 +401,7 @@ class PuzzleEnv(gym.Env):
             if self.neg_dist_reward:
                 print("give neg dist reward")
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
-                reward += 2 * min([dist[0], 0.])
+                reward += 0.5 * min([dist[0], 0.])
 
         # optionally give reward of one when box was successfully pushed to other field
         if self.reward_on_change:

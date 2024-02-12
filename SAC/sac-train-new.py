@@ -131,11 +131,11 @@ elif args.env_name.__contains__("3x3"):
 else:
     raise ValueError("You must specify the environment to use")
 
-env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 puzzlesize=puzzle_size,
                 skills=skills,
-                verbose=1,
+                verbose=0,
                 sparse_reward=args.sparse,
                 reward_on_change=True,
                 neg_dist_reward=args.neg_dist_reward,
@@ -145,7 +145,7 @@ env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                 dict_obs=True,
                 give_coord=True,
                 seed=1234567)
-eval_env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
+eval_env = PuzzleEnv(path=puzzle_path,
                      max_steps=100,
                      puzzlesize=puzzle_size,
                      skills=skills,
