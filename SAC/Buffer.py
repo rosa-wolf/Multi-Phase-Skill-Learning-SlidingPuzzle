@@ -139,7 +139,7 @@ class PriorityReplayBuffer(BaseBuffer):
         infos: List[Dict[str, Any]],
     ) -> None:
 
-        print(f"obs shape = {obs.shape}, done shape = {done.shape}, reward shape = {reward.shape}")
+        #print(f"obs shape = {obs.shape}, done shape = {done.shape}, reward shape = {reward.shape}")
 
         # Reshape needed when using multiple envs with discrete observations
         # as numpy cannot broadcast (n_discrete,) to (n_discrete, 1)
@@ -225,7 +225,7 @@ class PriorityReplayBuffer(BaseBuffer):
             to normalize the observations/rewards when sampling
         :return:
         """
-        print("sampling now")
+        #print("sampling now")
         # sample 2 batches and take prioritized samples over those two batches
         batches = []
         for _ in range(2):
@@ -244,7 +244,7 @@ class PriorityReplayBuffer(BaseBuffer):
 
         # replace x samples with most recent ones
         recent = self._get_recent_samples(buffer, batch_size, env=env)
-        print("Number of trans in buffer = ", recent.weights.shape)
+        #print("Number of trans in buffer = ", recent.weights.shape)
         return recent
 
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
@@ -273,7 +273,7 @@ class PriorityReplayBuffer(BaseBuffer):
         # calculate score
         score = batch1.weights @ batch2.weights / (th.norm(batch1.weights) * th.norm(batch2.weights))
 
-        if score > self.zeta and False:
+        if score > self.zeta:
             # take random of the two batches
             if np.random.uniform() >= 0.5:
                 return batch1
@@ -299,8 +299,9 @@ class PriorityReplayBuffer(BaseBuffer):
         # get which idx was originally from which of the two batches
         idx_batch1 = max_idx[th.where(max_idx < b1_weights.shape[0])]
         idx_batch2 = max_idx[th.where(max_idx >= b1_weights.shape[0])]
+        idx_batch2 -= b1_weights.shape[0]
 
-        print(f"batch_1 =\n {batch1}\n idx_batch1 = {idx_batch1} \n batch_2 = \n {batch2}\nidx_batch2 = {idx_batch2}")
+        #print(f"batch_1 =\n {batch1}\n idx_batch1 = {idx_batch1} \n batch_2 = \n {batch2}\nidx_batch2 = {idx_batch2}")
 
         # new bach contains elements form batch1 at position idx_batch1
         # and elements from batch2 (where repitions have been removed) at position idx_batch2
@@ -312,13 +313,15 @@ class PriorityReplayBuffer(BaseBuffer):
         weights = th.concatenate((batch1.weights[idx_batch1], batch2.weights[idx_batch2]))
         enumeration = th.concatenate((batch1.enumeration[idx_batch1], batch2.enumeration[idx_batch2]))
 
-        return PrioritizedReplayBufferSamples(observations,
-                                              actions,
-                                              next_observations,
-                                              dones,
-                                              rewards,
-                                              weights,
-                                              enumeration)
+        #return PrioritizedReplayBufferSamples(observations,
+        #                                      actions,
+        #                                      next_observations,
+        #                                      dones,
+        #                                      rewards,
+        #                                      weights,
+        #                                      enumeration)
+
+        return batch1
 
     def _get_recent_samples(self, batch, batch_size, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
 

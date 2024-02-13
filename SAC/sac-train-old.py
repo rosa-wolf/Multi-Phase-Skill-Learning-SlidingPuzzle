@@ -193,7 +193,7 @@ eval_callback = EvalCallback(eval_env,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 
-callbacks = CallbackList([checkpoint_callback, eval_callback])
+callbacks = CallbackList([checkpoint_callback])#, eval_callback])
 
 
 if args.dict_obs:
