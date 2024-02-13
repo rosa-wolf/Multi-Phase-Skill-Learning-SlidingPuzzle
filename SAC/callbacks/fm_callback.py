@@ -61,11 +61,7 @@ class FmCallback(BaseCallback):
         self.num_skills = num_skills
         self.train_fm = train_fm
         # initialize forward model (untrained)
-        self.fm = ForwardModel(width=size[1],
-                          height=size[0],
-                          num_skills=self.num_skills,
-                          batch_size=sample_size,
-                          learning_rate=0.001)
+        self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=size, batch_size=sample_size, learning_rate=0.001)
 
         self.logging = logging
         if self.logging:
@@ -242,7 +238,7 @@ class FmCallback(BaseCallback):
             old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
             #print(f"init_empty = {init_empty}, out_empty = {out_empty}")
 
-            if self.relabel and self.env.starting_epis:
+            if self.relabel and not self.env.starting_epis:
                 # get skill that maximizes reward
                 # TODO: relabeling for now assumes that we terminated on change of symbolic state
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
@@ -250,9 +246,9 @@ class FmCallback(BaseCallback):
                 #print(f"old_skill = {old_skill}, new_skill = {new_skill}")
                 #print(f"start_idx = {start_idx}, end_idx = {end_idx}")
                 # never relabel policy transitions
-                if not (new_skill == old_skill).all() or True:
+                if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
-                    if np.random.normal() > 0.5 or True:
+                    if np.random.normal() > 0.5:
                         #print("Relabeling RL transitions")
                         # relabel all transitions in episode
                         new_rewards = self.relabel_buffer["max_rewards"][i_episode][None, :]

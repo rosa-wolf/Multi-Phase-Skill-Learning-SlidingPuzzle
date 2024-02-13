@@ -66,12 +66,7 @@ if __name__ == "__main__":
     num_test_data = 50
 
     # get forward model
-    my_forwardmodel = ForwardModel(width=2,
-                                   height=1,
-                                   num_skills=2,
-                                   batch_size=10,
-                                   learning_rate=0.001,
-                                   precision='float64')
+    my_forwardmodel = ForwardModel(num_skills=2, batch_size=10, learning_rate=0.001, precision='float64')
     print(my_forwardmodel.model)
 
     for epoch in range(EPOCHS):

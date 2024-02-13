@@ -139,12 +139,7 @@ if __name__ == "__main__":
     agent.load_checkpoint(path)
 
     # load forward model (untrained)
-    fm = ForwardModel(width=2,
-                      height=1,
-                      num_skills=2,
-                      batch_size=10,
-                      learning_rate=0.001,
-                      precision='float64')
+    fm = ForwardModel(num_skills=2, batch_size=10, learning_rate=0.001, precision='float64')
 
     # One short-term and one long-term memory, we sample episodes from
     recent_memory = FmReplayMemory(50, args.seed)

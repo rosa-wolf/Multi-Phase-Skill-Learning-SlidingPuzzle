@@ -11,6 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from .mlp import MLP
 from .nllloss import NLLLoss_customized
+from get_neighbors import get_neighbors
 
 from .visualize_transitions import visualize_transition
 
@@ -49,8 +50,7 @@ class ForwardModel(nn.Module):
     - nodes through node expansion using successor function
     """
     def __init__(self,
-                 width=3,
-                 height=2,
+                 puzzle_size=[2, 3],
                  num_skills=14,
                  seed=1024,
                  batch_size=70,
@@ -81,8 +81,9 @@ class ForwardModel(nn.Module):
         self.skills = np.arange(0, num_skills)
 
         # calculate size of symbolic observation (to get size of input layer)
-        self.width = width
-        self.height = height
+        self.puzzle_size = puzzle_size
+        self.height = puzzle_size[0]
+        self.width = puzzle_size[1]
         # number of puzzle pieces
         self.pieces = self.width * self.height - 1
         self.num_skills = num_skills
@@ -93,6 +94,8 @@ class ForwardModel(nn.Module):
         self.output_size = self.pieces + 1
 
         self.batch_size = batch_size
+
+        self.neighbor_list = get_neighbors(self.puzzle_size)
 
         # define model loss and optimizer
         self.model = MLP(self.width, self.height, self.num_skills)
@@ -300,15 +303,18 @@ class ForwardModel(nn.Module):
     def pred_to_sym_state(self, state, empty):
         """
         Given a previous symbolic state and the current empty field it gives the new symbolic state
-        If given empty field a is not empty in the given state, then the boxes that is on that field a in the
+        If given empty fielto_d a is not empty in the given state, then the boxes that is on that field a in the
         state will be moved to the empty field b in the state, while the field a will become empty
 
         @param state: symbolic state we transition from
         @param empty: field that is empty after transitioning
         """
+
         # TODO: implement to work when several boxes are pushed at once
         # look up which field is empty in state
         orig_empty = self.sym_state_to_input(state, one_hot=False)
+
+        #print(f"old_empty = {orig_empty}, new_empty = {empty}")
 
         # reshape state
         state = np.reshape(state, (self.pieces, self.pieces + 1))
@@ -316,10 +322,51 @@ class ForwardModel(nn.Module):
 
         # if empty field changes, state also changes
         if orig_empty != empty:
-            # get index of boxes that changes its field
-            box = np.where(state[:, empty] == 1)[0][0]
-            new_state[box, empty] = 0
-            new_state[box, orig_empty] = 1
+            # look whether several boxes have been pushed at once
+            #print(f"width = {self.width}")
+            if empty % self.width == orig_empty % self.width:
+                #print("In one column")
+                # push in same column
+                column = empty % self.width
+                # get how many pieces have been pushed
+                row_orig = int(np.floor(orig_empty / self.width))
+                row_now = int(np.floor(empty / self.width))
+
+                # push all pieces in between one filed towards original empty field
+                dir = np.sign(row_now - row_orig)
+                curr_row = row_orig
+                while True:
+                    if dir > 0:
+                        if curr_row >= row_now:
+                            break
+                    else:
+                        if curr_row <= row_now:
+                            break
+
+                    piece = np.where(state[:, (curr_row + dir) * self.width + column] == 1)[0][0]
+                    #print(f"piece = {piece}")
+                    new_state[piece, (curr_row + dir) * self.width + column] = 0
+                    new_state[piece, curr_row * self.width + column] = 1
+                    curr_row += dir
+            else:
+                #print("In one row")
+                # push in same row
+                dir = np.sign(empty - orig_empty)
+                curr_field = orig_empty
+
+                while True:
+                    if dir > 0:
+                        if curr_field >= empty:
+                            break
+                    else:
+                        if curr_field <= empty:
+                            break
+                    piece = np.where(state[:, curr_field + dir] == 1)[0][0]
+                    new_state[piece, curr_field + dir] = 0
+                    new_state[piece, curr_field] = 1
+                    curr_field += dir
+
+        #print(f"old_state = \n {state}\n new_state = \n{new_state}")
 
         return new_state.flatten()
 
@@ -477,7 +524,7 @@ class ForwardModel(nn.Module):
                             if (next_state == goal).all():
                                 # get the state transitions and skills that lead to the goal
                                 state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
-                                return np.array(state_sequence), np.array(skill_sequence).flatten()
+                                return np.array(state_sequence), list(np.array(skill_sequence).flatten())
                             # append successor to visited and queue
                             if not np.any(np.all(next_state == visited, axis=1)):
                                 visited.append(next_state)

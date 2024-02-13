@@ -207,12 +207,7 @@ if __name__ == "__main__":
         gather_data_sym(train_data, 50)
 
     # get forward model
-    my_forwardmodel = ForwardModel(width=3,
-                                   height=3,
-                                   num_skills=NUM_SKILLS,
-                                   batch_size=20,
-                                   seed=12345,
-                                   learning_rate=0.001)
+    my_forwardmodel = ForwardModel(num_skills=NUM_SKILLS, seed=12345, batch_size=20, learning_rate=0.001)
     print(my_forwardmodel.model)
 
     test_loss_list = []

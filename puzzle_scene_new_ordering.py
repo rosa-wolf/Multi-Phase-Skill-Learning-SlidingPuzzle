@@ -41,10 +41,6 @@ class PuzzleScene:
         self.puzzlesize = puzzlesize
         self.pieces = self.puzzlesize[0] * self.puzzlesize[1] - 1
 
-        # we only have one puzzle piece
-        # Todo: Change this back when we add pieces
-        #self.pieces = 1
-
         self.C = ry.Config()
         self.C.addFile(filename)
 

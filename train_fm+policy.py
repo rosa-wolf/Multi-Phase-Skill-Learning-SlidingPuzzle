@@ -96,11 +96,7 @@ def visualize_result(states, skills):
 if __name__ == "__main__":
 
     # load forward model (untrained)
-    fm = ForwardModel(width=2,
-                      height=1,
-                      num_skills=2,
-                      batch_size=100,
-                      learning_rate=0.001)
+    fm = ForwardModel(num_skills=2, batch_size=100, learning_rate=0.001)
 
     # save model
     if not os.path.exists('models/'):

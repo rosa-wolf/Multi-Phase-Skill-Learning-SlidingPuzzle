@@ -16,11 +16,7 @@ from gymframework.puzzle_env_small_skill_conditioned_parallel_training import Pu
 
 # initialize forward model
 # load fully trained forward model
-fm = ForwardModel(width=2,
-                       height=1,
-                       num_skills=2,
-                       batch_size=10,
-                       learning_rate=0.001)
+fm = ForwardModel(num_skills=2, batch_size=10, learning_rate=0.001)
 fm.model.load_state_dict(
         torch.load("../SEADS_SlidingPuzzle/forwardmodel_simple_input/models/best_model_change"))
 

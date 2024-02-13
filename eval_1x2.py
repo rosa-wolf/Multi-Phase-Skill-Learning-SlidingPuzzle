@@ -23,12 +23,7 @@ def visualize_result(states, skills):
 
 if __name__ == "__main__":
         # load forward model (untrained)
-    fm = ForwardModel(width=2,
-                      height=1,
-                      num_skills=2,
-                      batch_size=10,
-                      learning_rate=0.001,
-                      precision='float64')
+    fm = ForwardModel(num_skills=2, batch_size=10, learning_rate=0.001, precision='float64')
 
     # load best model
     fm.model.load_state_dict(torch.load("models/fm_trained-with-policy"))

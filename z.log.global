@@ -1,12 +1,12 @@
 ** compiled at:     Jun 15 2023 13:29:34
-** execution start: 2024-02-12 15:16:59:426720
+** execution start: 2024-02-13 16:20:52:223161
 graph.cpp:initParameters:1384(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1391(3)  - failed
 graph.cpp:initParameters:1397(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1403(3)  - failed
 util.cpp:cd_start:1028(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
 util.cpp:cd_file:1036(3) entering path 'Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
-util.cpp:getIs:1065(3) opening input file 'slidingPuzzle_2x2.g'
+util.cpp:getIs:1065(3) opening input file 'slidingPuzzle_2x3.g'
 util.cpp:cd_start:1028(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
 util.ipp:getParameterBase:36(3)        physx/verbose:     1 # default [i]
 util.ipp:getParameterBase:36(3)       physx/yGravity:     0 # default [b]
@@ -30,6 +30,6 @@ util.ipp:getParameterBase:36(3) physx/defaultRestitution:   0.1 # default [d]
 util.ipp:getParameterBase:29(3)        physx/motorKp:  1000 # user [d]
 util.ipp:getParameterBase:29(3)        physx/motorKd:   100 # user [d]
 simulation.cpp:~Simulation:157(0) shutting down Simulation
-** execution stop: 2024-02-12 15:17:10:600885
-** real time: 11.1742sec
-** CPU time: 21.6447
+** execution stop: 2024-02-13 16:21:06:244681
+** real time: 14.0216sec
+** CPU time: 24.7018

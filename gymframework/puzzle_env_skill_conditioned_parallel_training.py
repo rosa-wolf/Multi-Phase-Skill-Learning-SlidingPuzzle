@@ -12,6 +12,7 @@ from robotic import ry
 import torch
 from scipy import optimize
 import logging as lg
+from get_neighbors import get_neighbors
 
 class PuzzleEnv(gym.Env):
     """
@@ -119,9 +120,7 @@ class PuzzleEnv(gym.Env):
         else:
             from forwardmodel_simple_input.forward_model import ForwardModel
 
-        self.fm = ForwardModel(width=puzzlesize[1],
-                               height=puzzlesize[0],
-                               num_skills=self.num_skills)
+        self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=puzzlesize)
 
         if not self.train_fm:
             if self.lookup:
@@ -138,33 +137,9 @@ class PuzzleEnv(gym.Env):
                 print("initial save of fm")
                 torch.save(self.fm.model.state_dict(), fm_path)
 
-    @staticmethod
+    @ staticmethod
     def __get_neighbors(puzzle_size):
-        """
-        Calculates the neibhors of each field, depending on the puzzle size
-        """
-        neighborlist = {}
-        for i in range(puzzle_size[0]):
-            for j in range(puzzle_size[1]):
-                # look on which side we have a neighor and mark it in array
-                neighbors = []
-                field = j + (i * puzzle_size[1])
-                if i != 0:
-                    # a neighbor above
-                    neighbors.append(field - puzzle_size[1])
-                if j != 0:
-                    # no neighbor on left
-                    neighbors.append(field - 1)
-                if j != puzzle_size[1] - 1:
-                    # a neighbors on right
-                    neighbors.append(field + 1)
-                if i != puzzle_size[0] - 1:
-                    # a neighbor below
-                    neighbors.append(field + puzzle_size[1])
-
-                neighborlist[str(j + (i * puzzle_size[1]))] = neighbors
-
-        return neighborlist
+        return get_neighbors(puzzle_size)
 
     def step(self, action: Dict) -> tuple[
         dict[str, np.ndarray | Any], float, bool, bool, dict[str, np.ndarray[int] | None | Any]]:

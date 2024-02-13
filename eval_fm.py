@@ -6,11 +6,7 @@ from forwardmodel_simple_input.forward_model import ForwardModel
 
 # load model
 num_skills = 3
-fm = ForwardModel(width=2,
-                  height=3,
-                  num_skills=num_skills,
-                  batch_size=10,
-                  learning_rate=0.001)
+fm = ForwardModel(num_skills=num_skills, batch_size=10, learning_rate=0.001)
 
 # save model
 fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingTrue/fm/fm"
