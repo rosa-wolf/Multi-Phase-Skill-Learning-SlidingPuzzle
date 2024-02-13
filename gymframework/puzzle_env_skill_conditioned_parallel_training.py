@@ -104,6 +104,7 @@ class PuzzleEnv(gym.Env):
 
         # if true we are in the starting episodes where the environment may reward differently
         self.starting_epis = True
+        self.end_epis = False
 
         # list of boxes to push for each skill
         self.boxes = None
@@ -259,9 +260,25 @@ class PuzzleEnv(gym.Env):
         if skill is not None:
             self.skill = skill
         else:
-            self.skill = np.random.randint(0, self.num_skills, 1)[0]
+            if not self.end_epis:
+                self.skill = np.random.randint(0, self.num_skills, 1)[0]
+            else:
+                # at end do not sample from all skills, but only from those the forward model predicts change for
+                # (for those that are in use)
+                # out is shape empty_fields x num_skill x output array
+                used_skills = set()
+                out = self.fm.get_full_pred()
+                for i in range(out.shape[0]):
+                    out[i, :, i] = 0.
+                    used_skills.update(list(np.where(np.any(out[i] > 0.8, axis=1))[0]))
+                used_skills = np.array(list(used_skills))
+                if used_skills.shape == (0,):
+                    raise ValueError("No skills lead to any change in symbolic state, "
+                                     "reward scheme seems to have been changed to early")
+                self.skill = np.random.choice(np.array(list(used_skills)))
 
-        print("skill = ", self.skill)
+
+        #print("skill = ", self.skill)
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
 
@@ -513,10 +530,10 @@ class PuzzleEnv(gym.Env):
             reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k)
-            print(f"novelty reward = {reward}")
+            #print(f"novelty reward = {reward}")
 
         if self._termination():
-            print("terminating")
+            #print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
                 if not self.starting_epis:
@@ -525,7 +542,7 @@ class PuzzleEnv(gym.Env):
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        k)])
                     reward += end_reward
-                    print(f"end reward = {end_reward}")
+                    #print(f"end reward = {end_reward}")
 
 
         if not self.sparse_reward:
@@ -535,7 +552,7 @@ class PuzzleEnv(gym.Env):
                 # get empty field
                 empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
                 min_dist = self._get_neg_dist_to_neighbors(empty)
-                print(min_dist)
+                #print(min_dist)
                 reward += 5 * min_dist
                 #print(f"neg dist reward = {reward}")
 
@@ -544,7 +561,7 @@ class PuzzleEnv(gym.Env):
                     contact, box = self._contact_with_nonneighbor(empty)
                     if contact:
                         reward -= 0.1
-                        print(f"In contact with box {box}")
+                        #print(f"In contact with box {box}")
 
 
             else:

@@ -156,25 +156,33 @@ class FmCallback(BaseCallback):
         Checks if reward scheme should be changed and does so if necessarry
         :return: True if scheme has been changed, else False
         """
-        if self.env.starting_epis:
-            # Look if forward model finds change in symbolic state probable for at least max_neighbor skills in at least one state
-            out = self.fm.get_full_pred()
-            # out is shape empty_fields x num_skill x output array
-            change_reward_scheme = True
-            for i in range(out.shape[0]):
-                # set probabilities to not change empty field to zero, as we are only looking at transitions where change happens
-                out[i, :, i] = 0
-                #print(f"out[{i}] = {out[i]}")
-                # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
+
+        # out is shape empty_fields x num_skill x output array
+        out = self.fm.get_full_pred()
+        change_reward_scheme = True
+        for i in range(out.shape[0]):
+            # set probabilities to not change empty field to zero, as we are only looking at transitions where change happens
+            out[i, :, i] = 0
+
+            # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
+            if self.env.starting_epis:
+                # in beginning look whether change regularly happens
                 num_change = np.where(out[i] >= 0.6)[0].shape[0]
-                #print(f"neighborlist = {self.env.neighborlist[str(i)]}")
-                if num_change < len(self.env.neighborlist[str(i)]): #self.min_neighbors:
-                        change_reward_scheme = False
-            if change_reward_scheme:
-                #print("changing reward scheme")
+            else:
+                # at end look if change happens consistently with high probability
+                num_change = np.where(out[i] >= 0.9)[0].shape[0]
+
+            if num_change < len(self.env.neighborlist[str(i)]):
+                    change_reward_scheme = False
+
+        if change_reward_scheme:
+            if self.env.starting_epis:
                 self.env.starting_epis = False
-                lg.info("Changing reward scheme after {0} steps".format(self.n_calls))
-                return True
+                lg.info("Changing from starting reward scheme after {0} steps".format(self.n_calls))
+            else:
+                self.env.end_epis = True
+                lg.info("Changing to final training part after {0} steps".format(self.n_calls))
+            return True
 
         return False
 

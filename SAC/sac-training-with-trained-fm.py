@@ -54,7 +54,7 @@ parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
 #parser.add_argument('--eval', type=bool, default=True,
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.1, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
@@ -93,13 +93,13 @@ os.makedirs(fm_dir, exist_ok=True)
 
 
 # TODO: make this a parameter
-relabel = True
+relabel = False
 
 # get fm path
 fm_path = "../fm/fm_eval_empty_input_4skills_seed12345_model"
 
 
-if args.env_name.__contains__("parallel_1x2"):
+if args.env_name.__contains__("1x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     puzzle_size = [1, 2]
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_1x2.g',
@@ -116,7 +116,7 @@ if args.env_name.__contains__("parallel_1x2"):
                     reward_on_end=True,
                     relabel=args.relabeling,
                     snapRatio=args.snap_ratio)
-elif args.env_name.__contains__("parallel_2x2"):
+elif args.env_name.__contains__("2x2"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_2x2.g',
                     max_steps=10,
@@ -131,9 +131,11 @@ elif args.env_name.__contains__("parallel_2x2"):
                     relabel=args.relabeling,
                     snapRatio=args.snap_ratio)
     puzzle_size = [2, 2]
-elif args.env_name.__contains__("parallel_3x3"):
+    target_entropy = -3.
+elif args.env_name.__contains__("3x3"):
     from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
     puzzle_size = [3, 3]
+    target_entropy = -4.
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                     max_steps=100,
                     num_skills=args.num_skills,
@@ -169,17 +171,17 @@ checkpoint_callback = CheckpointCallback(
   save_vecnormalize=True,
 )
 
-# callback for updating and training fm
-relabel_callback = FmCallback(update_freq=500,
-                              env=env,
-                              save_path=log_dir + "/fm",
-                              size=puzzle_size,
-                              train_fm=False,
-                              num_skills=args.num_skills,
-                              seed=args.seed,
-                              relabel=args.relabeling)
+## callback for updating and training fm
+#relabel_callback = FmCallback(update_freq=500,
+#                              env=env,
+#                              save_path=log_dir + "/fm",
+#                              size=puzzle_size,
+#                              train_fm=False,
+#                              num_skills=args.num_skills,
+#                              seed=args.seed,
+#                              relabel=args.relabeling)
 
-callback = CallbackList([checkpoint_callback, relabel_callback])
+callback = CallbackList([checkpoint_callback])#, relabel_callback])
 
 # initialize SAC
 model = SAC("MultiInputPolicy",
@@ -192,7 +194,7 @@ model = SAC("MultiInputPolicy",
             gamma=args.gamma,  # learning rate
             gradient_steps=-1, # do as many gradient steps as steps done in the env
             train_freq=(args.num_episodes, "episode"),
-            target_entropy=-3.75,
+            target_entropy=target_entropy,
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
             #use_sde=True, # use state dependent exploration
