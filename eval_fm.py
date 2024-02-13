@@ -13,7 +13,7 @@ fm = ForwardModel(width=2,
                   learning_rate=0.001)
 
 # save model
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/parallel2x3_num_skills3_sparseTrue_relabelingFalse/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingTrue/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
 
 print(fm.get_full_pred())

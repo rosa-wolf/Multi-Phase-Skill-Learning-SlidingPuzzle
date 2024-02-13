@@ -170,7 +170,7 @@ class FmCallback(BaseCallback):
                 out[i, :, i] = 0
                 #print(f"out[{i}] = {out[i]}")
                 # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
-                num_change = np.where(out[i] >= 0.8)[0].shape[0]
+                num_change = np.where(out[i] >= 0.6)[0].shape[0]
                 #print(f"neighborlist = {self.env.neighborlist[str(i)]}")
                 if num_change < len(self.env.neighborlist[str(i)]): #self.min_neighbors:
                         change_reward_scheme = False
@@ -242,7 +242,7 @@ class FmCallback(BaseCallback):
             old_skill = (self.locals["replay_buffer"]).next_observations["skill"][end_idx]
             #print(f"init_empty = {init_empty}, out_empty = {out_empty}")
 
-            if self.relabel:
+            if self.relabel and self.env.starting_epis:
                 # get skill that maximizes reward
                 # TODO: relabeling for now assumes that we terminated on change of symbolic state
                 new_skill = self.relabel_buffer["max_skill"][i_episode]
