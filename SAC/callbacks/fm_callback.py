@@ -41,6 +41,7 @@ class FmCallback(BaseCallback):
                  relabel=False,
                  train_fm=True,
                  logging=False,
+                 prior_buffer=False,
                  eval_freq=500,
                  verbose=0):
 
@@ -49,6 +50,7 @@ class FmCallback(BaseCallback):
         self.save_path = save_path
         self.env = env  # this is not a copy of the env, but a reference to it
         self.sample_size = sample_size
+        self.prior_buffer = prior_buffer
         self.relabel = relabel
         self.relabel_buffer = {"max_rewards": [],
                                 "max_skill": [],
@@ -263,7 +265,6 @@ class FmCallback(BaseCallback):
                         #print(f"episode length = {end_idx + 1 - start_idx}, rewards length = {new_rewards.shape}")
                         if start_idx > end_idx:
                             # wrap around
-                            # Todo: check if skill really has right shape
                             # replace skill and in all transitions and reward in last transition of episode
                             self.locals["replay_buffer"].observations["skill"][start_idx:] = new_skill
                             self.locals["replay_buffer"].observations["skill"][: end_idx + 1] = new_skill
@@ -277,11 +278,15 @@ class FmCallback(BaseCallback):
                             self.locals["replay_buffer"].rewards[start_idx:] = new_rewards[:, : tmp_idx]
                             self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards[:, tmp_idx:]
 
+                            if self.prior_buffer:
+                                weight = np.sum(new_rewards)
+                                self.locals["replay_buffer"].weights[start_idx:] = weight
+                                self.locals["replay_buffer"].weights[: end_idx + 1] = weight
+
                             #print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
                             #                          {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
 
                         else:
-                            # Todo: check if skill really has right shape
                             # replace skill and in all transitions and reward in last transition of episode
                             self.locals["replay_buffer"].observations["skill"][start_idx: end_idx + 1] = new_skill
                             # change skill in next state
@@ -289,6 +294,12 @@ class FmCallback(BaseCallback):
                             # change rewards
                             #print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
                             self.locals["replay_buffer"].rewards[start_idx: end_idx + 1] = new_rewards
+
+                            if self.prior_buffer:
+                                print("relableing weights")
+                                weight = np.sum(new_rewards)
+                                print(f"weight = {weight}")
+                                self.locals["replay_buffer"].weights[start_idx: end_idx + 1] = weight
 
                             #print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
 

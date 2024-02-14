@@ -34,3 +34,12 @@ class PrioritizedReplayBufferSamples(NamedTuple):
     rewards: th.Tensor
     weights: th.Tensor
     enumeration: th.Tensor
+
+class PrioritizedDictReplayBufferSamples(NamedTuple):
+    observations: TensorDict
+    actions: th.Tensor
+    next_observations: TensorDict
+    dones: th.Tensor
+    rewards: th.Tensor
+    weights: th.Tensor
+    enumeration: th.Tensor

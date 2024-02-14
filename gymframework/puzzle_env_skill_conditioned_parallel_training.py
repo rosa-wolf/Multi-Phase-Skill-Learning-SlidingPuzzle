@@ -39,7 +39,6 @@ class PuzzleEnv(gym.Env):
                  reward_on_change=False,
                  reward_on_end=False,
                  logging=True,
-                 dict_obs=False,
                  term_on_change=False,
                  relabel=False,
                  seed=12345,

@@ -31,6 +31,8 @@ parser.add_argument('--vel_steps', default=1, type=int,
                     help='Number of times to apply velocity control in one step of the agent')
 parser.add_argument('--relabeling', action='store_true', default=False,
                     help='Do HER for higher level skills')
+parser.add_argument('--prior_buffer', action='store_true', default=False,
+                    help='Whether to use priority buffer')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
@@ -85,7 +87,13 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
-log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_relabeling" + str(args.relabeling)
+if args.prior_buffer:
+    from Buffer import PriorityDictReplayBuffer
+    buffer_class = PriorityDictReplayBuffer
+else:
+    buffer_class = None
+
+log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_relabeling" + str(args.relabeling) + "_priorbuffer" + str(args.prior_buffer)
 os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
 os.makedirs(fm_dir, exist_ok=True)
@@ -111,7 +119,7 @@ elif args.env_name.__contains__("3x3"):
     target_entropy = -4.
     puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
     puzzle_size = [3, 3]
-    max_steps = 200
+    max_steps = 100
 
 else:
     raise ValueError("You must specify the environment to use")
@@ -168,6 +176,7 @@ fm_callback = FmCallback(update_freq=500,
                          save_path=log_dir + "/fm",
                          size=puzzle_size,
                          num_skills=args.num_skills,
+                         prior_buffer=args.prior_buffer,
                          seed=args.seed,
                          relabel=args.relabeling)
 
@@ -180,11 +189,12 @@ eval_callback = EvalCallback(eval_env,
 callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
 
 # initialize SAC
-model = SAC("MultiInputPolicy",
+model = SAC('MultiInputPolicy',
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=1000, # when learning should start to prevent learning on little data
+            replay_buffer_class=buffer_class,
+            learning_starts=100, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
@@ -206,8 +216,8 @@ model.learn(total_timesteps=args.num_epochs * 100,
             progress_bar=True,
             callback=callback)
 
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=20)
-print(f"mean_reward = {mean_reward}, std_reward = {std_reward}")
+#mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=20)
+#print(f"mean_reward = {mean_reward}, std_reward = {std_reward}")
 
 del model
 env.close()
