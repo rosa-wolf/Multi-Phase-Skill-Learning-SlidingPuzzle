@@ -167,10 +167,10 @@ class FmCallback(BaseCallback):
             # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
             if self.env.starting_epis:
                 # in beginning look whether change regularly happens
-                num_change = np.where(out[i] >= 0.6)[0].shape[0]
+                num_change = np.where(out[i] > 0.4)[0].shape[0]
             else:
                 # at end look if change happens consistently with high probability
-                num_change = np.where(out[i] >= 0.9)[0].shape[0]
+                num_change = np.where(out[i] > 0.6)[0].shape[0]
 
             if num_change < len(self.env.neighborlist[str(i)]):
                     change_reward_scheme = False

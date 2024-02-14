@@ -39,8 +39,10 @@ class PuzzleEnv(gym.Env):
                  reward_on_change=False,
                  reward_on_end=False,
                  logging=True,
+                 dict_obs=False,
                  term_on_change=False,
                  relabel=False,
+                 seed=12345,
                  verbose=0):
 
         """
@@ -52,6 +54,7 @@ class PuzzleEnv(gym.Env):
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param verbose:      _       whether to render scene (default false)
         """
+        self.seed(seed)
         self.num_skills = num_skills
 
         # which policy are we currently training? (Influences reward)
@@ -270,7 +273,7 @@ class PuzzleEnv(gym.Env):
                 out = self.fm.get_full_pred()
                 for i in range(out.shape[0]):
                     out[i, :, i] = 0.
-                    used_skills.update(list(np.where(np.any(out[i] > 0.8, axis=1))[0]))
+                    used_skills.update(list(np.where(np.any(out[i] > 0.6, axis=1))[0]))
                 used_skills = np.array(list(used_skills))
                 if used_skills.shape == (0,):
                     raise ValueError("No skills lead to any change in symbolic state, "
@@ -553,7 +556,7 @@ class PuzzleEnv(gym.Env):
                 empty = np.where(np.sum(self.scene.sym_state, axis=0) == 0)[0][0]
                 min_dist = self._get_neg_dist_to_neighbors(empty)
                 #print(min_dist)
-                reward += 5 * min_dist
+                reward += 0.5 * min_dist
                 #print(f"neg dist reward = {reward}")
 
                 # only penalize contact with wrong boxes, if we are not in contact with correct ones

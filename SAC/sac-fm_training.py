@@ -3,8 +3,9 @@ import argparse
 import torch
 import numpy as np
 import logging as lg
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, StopTrainingOnMaxEpisodes
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 
 from callbacks.fm_callback import FmCallback
 
@@ -126,11 +127,25 @@ env = PuzzleEnv(path=puzzle_path,
                 term_on_change=True,
                 reward_on_end=True,
                 relabel=args.relabeling,
+                seed=args.seed,
                 snapRatio=args.snap_ratio)
 
-env.seed(args.seed)
-env.action_space.seed(args.seed)
+eval_env = PuzzleEnv(path=puzzle_path,
+                max_steps=max_steps,
+                num_skills=args.num_skills,
+                verbose=0,
+                fm_path=fm_dir + "/fm",
+                puzzlesize=puzzle_size,
+                sparse_reward=args.sparse,
+                reward_on_change=True,
+                term_on_change=True,
+                reward_on_end=True,
+                relabel=args.relabeling,
+                seed=987654,
+                snapRatio=args.snap_ratio)
+eval_env = Monitor(eval_env)
 
+env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
@@ -156,7 +171,13 @@ fm_callback = FmCallback(update_freq=500,
                          seed=args.seed,
                          relabel=args.relabeling)
 
-callback = CallbackList([checkpoint_callback, fm_callback])
+# Use deterministic actions for evaluation
+eval_callback = EvalCallback(eval_env,
+                             log_path=log_dir, eval_freq=5000,
+                             n_eval_episodes=10,
+                             deterministic=True, render=False)
+
+callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
 
 # initialize SAC
 model = SAC("MultiInputPolicy",
