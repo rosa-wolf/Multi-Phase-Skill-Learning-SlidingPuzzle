@@ -174,16 +174,11 @@ class PuzzleEnv(gym.Env):
         self.episode += 1
 
         # sample skill
-        self.skill = np.random.randint(0, self.num_skills, 1)[0]
-        self.effect = 0
+        self.skill = np.random.randint(0, self.num_skills)
+        # sample effect
+        self.effect = np.random.randint(0, self.skills[self.skill].shape[0])
 
-        # ensure that orientation of actor is such that skill execution is possible
-        # skills where orientation of end-effector does not have to be changed for
-        no_orient_change = [1, 3, 4, 6]
-        if self.skill in no_orient_change:
-            self.scene.q0[3] = 0.
-        else:
-            self.scene.q0[3] = np.pi / 2.
+        #print(f"skill = {self.skill}, effect = {self.effect}, trans = {self.skills[self.skill][self.effect]}")
 
         # Set agent to random initial position inside a box
         init_pos = np.random.uniform(-0.25, .25, (2,))
@@ -211,7 +206,7 @@ class PuzzleEnv(gym.Env):
         # get box that is currently on that field
         # Todo: set back when adding more pieces again
         self.box = np.where(self.scene.sym_state[:, field] == 1)[0][0]
-        print(f"box = {self.box}, skill = {self.skills[self.skill][self.effect]}")
+        #print(f"box = {self.box}, skill = {self.skills[self.skill][self.effect]}")
 
         curr_pos = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
 
@@ -227,9 +222,9 @@ class PuzzleEnv(gym.Env):
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        print("skill = ", self.skill)
+        #print("skill = ", self.skill)
         obs = self._get_observation()
-        print(f"obs = {obs}")
+        #print(f"obs = {obs}")
 
         return self._get_observation(), {}
 
@@ -399,7 +394,7 @@ class PuzzleEnv(gym.Env):
 
             # minimal negative distance between box and actor
             if self.neg_dist_reward:
-                print("give neg dist reward")
+                #print("give neg dist reward")
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.box), "wedge"])
                 reward += 0.5 * min([dist[0], 0.])
 
@@ -416,5 +411,5 @@ class PuzzleEnv(gym.Env):
                     # punish if wrong block was pushed
                     reward -= 1
                     print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("reward = ", reward)
+        #print("reward = ", reward)
         return reward
