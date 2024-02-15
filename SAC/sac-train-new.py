@@ -188,7 +188,7 @@ checkpoint_callback = CheckpointCallback(
 
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
-                             log_path=log_dir, eval_freq=5000,
+                             log_path=log_dir, eval_freq=1000,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 

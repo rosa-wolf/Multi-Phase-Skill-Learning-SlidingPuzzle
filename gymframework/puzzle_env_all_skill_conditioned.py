@@ -80,6 +80,7 @@ class PuzzleEnv(gym.Env):
         self.reward_on_end = reward_on_end
         self.neg_dist_reward = neg_dist_reward
         self.movement_reward = movement_reward
+        self.success = False
 
         # is skill execution possible?
         self.skill_possible = None
@@ -157,7 +158,11 @@ class PuzzleEnv(gym.Env):
         if not done:
             self.env_step_counter += 1
 
-        return obs, reward, self.terminated, self.truncated, {}
+        return (obs,
+                reward,
+                self.terminated,
+                self.truncated,
+                {'is_success': self.success})
 
     def reset(self,
               *,
@@ -172,6 +177,7 @@ class PuzzleEnv(gym.Env):
         self.truncated = False
         self.env_step_counter = 0
         self.episode += 1
+        self.success = False
 
         # sample skill
         self.skill = np.random.randint(0, self.num_skills)
@@ -226,7 +232,7 @@ class PuzzleEnv(gym.Env):
         obs = self._get_observation()
         #print(f"obs = {obs}")
 
-        return self._get_observation(), {}
+        return self._get_observation(), {'is_success': self.success}
 
     def seed(self, seed=None):
         np.random.seed(seed)
@@ -407,6 +413,7 @@ class PuzzleEnv(gym.Env):
                     # only get reward for moving the block, if that was the intention of the skill
                     reward += 1
                     print("SYM STATE CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    self.success = True
                 else:
                     # punish if wrong block was pushed
                     reward -= 1
