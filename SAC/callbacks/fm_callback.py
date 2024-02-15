@@ -181,7 +181,7 @@ class FmCallback(BaseCallback):
             if self.env.starting_epis:
                 self.env.starting_epis = False
                 lg.info("Changing from starting reward scheme after {0} steps".format(self.n_calls))
-            else:
+            elif not self.env_end_epis:
                 self.env.end_epis = True
                 lg.info("Changing to final training part after {0} steps".format(self.n_calls))
             return True

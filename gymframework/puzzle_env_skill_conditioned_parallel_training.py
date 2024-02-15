@@ -570,7 +570,7 @@ class PuzzleEnv(gym.Env):
                 if self.boxes[k] != -1:
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.boxes[k]), "wedge"])
                     #print(f"dist = {dist[0]}")
-                    reward += 5 * min([dist[0], 0.])
+                    reward += 0.5 * min([dist[0], 0.])
 
        #else:
        #    if not self.sparse_reward:

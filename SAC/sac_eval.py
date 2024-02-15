@@ -151,7 +151,8 @@ match args.env_name:
                         num_skills=args.num_skills,
                         logging=False,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/fm/fm",
+                        train_fm=False,
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingTrue-automated-reward-change_success/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -166,9 +167,9 @@ match args.env_name:
                         max_steps=100,
                         num_skills=args.num_skills,
                         logging=False,
-                        verbose=1,
                         train_fm=False,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints-parallel/parallel2x3_num_skills3_sparseFalse_relabelingFalse/fm/fm",
+                        verbose=1,
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel2x3_num_skills3_sparseTrue_relabelingFalse/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -184,8 +185,9 @@ match args.env_name:
                         puzzlesize=[3, 3],
                         logging=False,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel3x3-new-penalty_num_skills4_sparseFalse_relabelingFalse/fm/fm",
+                        fm_path="../fm/fm_eval_empty_input_4skills_seed12345_model",
                         sparse_reward=True,
+                        train_fm=False,
                         reward_on_change=True,
                         term_on_change=True,
                         reward_on_end=args.reward_on_end,
@@ -207,21 +209,21 @@ np.random.seed(args.seed)
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingFalse/model/model_200000_steps", env=env)
 
 # only relabel after change of reward scheme
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/skill_conditioned_2x2_prio-buffer_num_skills8_neg_distFalse_movementFalse_reward_on_changeFalse_sparseTrue_seed12345/model/model_200000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel3x3_num_skills4_sparseFalse_relabelingTrue_priorbufferTrue/model/model_660000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset()
+obs, _ = env.reset(skill=1)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
     if terminated or truncated or num_steps > 20:
-        obs, _ = env.reset()
+        obs, _ = env.reset(skill=1)
         num_steps = 0
 
 del model
