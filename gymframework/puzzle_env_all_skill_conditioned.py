@@ -390,13 +390,14 @@ class PuzzleEnv(gym.Env):
             if self.movement_reward:
                 # if self.env_step_counter == 0:
                 #    self.box_init = (self.scene.C.getFrame("box" + str(self.box)).getPosition()).copy()
-                print("give movement reward")
+                #print("give movement reward")
                 # max_dist = np.linalg.norm(self.box_goal - self.box_init)
                 # box_reward = (max_dist - np.linalg.norm(self.box_goal - box_pos)) / max_dist
                 # reward += box_reward
 
                 # give neg dist of current box pos to goal box pos as reward
-                reward -= max([np.linalg.norm(self.box_goal - box_pos), 0.])
+                reward -= 0.5 * max([np.linalg.norm(self.box_goal - box_pos), 0.])
+                #print("move_reward = ", reward)
 
             # minimal negative distance between box and actor
             if self.neg_dist_reward:
