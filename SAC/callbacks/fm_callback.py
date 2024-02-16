@@ -63,7 +63,7 @@ class FmCallback(BaseCallback):
         self.num_skills = num_skills
         self.train_fm = train_fm
         # initialize forward model (untrained)
-        self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=size, batch_size=sample_size, learning_rate=0.001)
+        self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=size, batch_size=sample_size, learning_rate=0.005)
 
         self.logging = logging
         if self.logging:

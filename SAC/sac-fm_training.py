@@ -116,10 +116,10 @@ elif args.env_name.__contains__("2x3"):
     puzzle_size = [2, 3]
 
 elif args.env_name.__contains__("3x3"):
-    target_entropy = -4.
+    target_entropy = -4.5
     puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
     puzzle_size = [3, 3]
-    max_steps = 100
+    max_steps = 150
 
 else:
     raise ValueError("You must specify the environment to use")
@@ -171,7 +171,7 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # callback for updating and training fm
-fm_callback = FmCallback(update_freq=500,
+fm_callback = FmCallback(update_freq=1000,
                          env=env,
                          save_path=log_dir + "/fm",
                          size=puzzle_size,
@@ -186,7 +186,7 @@ eval_callback = EvalCallback(eval_env,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 
-callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
+callback = CallbackList([checkpoint_callback, fm_callback])#, eval_callback])
 
 # initialize SAC
 model = SAC('MultiInputPolicy',
