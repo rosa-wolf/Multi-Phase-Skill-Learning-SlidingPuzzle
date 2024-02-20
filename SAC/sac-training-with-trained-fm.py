@@ -205,7 +205,7 @@ model = SAC("MultiInputPolicy",
             verbose=1)
 
 model.learn(total_timesteps=args.num_epochs * 100,
-            log_interval=10,
+            log_interval=1,
             tb_log_name="tb_logs",
             progress_bar=True,
             callback=callback)

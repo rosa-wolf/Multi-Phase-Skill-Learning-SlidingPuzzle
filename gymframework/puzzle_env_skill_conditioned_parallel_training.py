@@ -179,11 +179,14 @@ class PuzzleEnv(gym.Env):
                 lg.info(f"Change with skill {self.skill} after {self.total_num_steps} steps")
 
         # get reward (if we don't only want to give reward on last step of episode)
-        rewards = self._get_rewards_for_all_skills()
-        #print("rewards = ", rewards)
-        self.episode_rewards.append(rewards)
+        if self.relabel:
+            rewards = self._get_rewards_for_all_skills()
+            #print("rewards = ", rewards)
+            self.episode_rewards.append(rewards)
 
-        reward = rewards[self.skill]
+            reward = rewards[self.skill]
+        else:
+            reward = self._reward()
 
         max_rewards = None
         max_skill_one_hot = None
@@ -529,22 +532,24 @@ class PuzzleEnv(gym.Env):
             # always give novelty bonus when state changes
             print("SYM STATE CHANGED !!!")
             # add novelty bonus (min + 0)
-            reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+            reward += min([5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                k)
-            #print(f"novelty reward = {reward}")
+                                                k), 10.])
+            print(f"novelty reward = {reward}")
 
         if self._termination():
             #print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
                 if not self.starting_epis:
-                    end_reward = np.max(
-                        [-1., 5 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                    take_max = np.max(
+                        [-1., 10 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        k)])
+
+                    end_reward = min([take_max, 10.])
                     reward += end_reward
-                    #print(f"end reward = {end_reward}")
+                    print(f"end reward = {end_reward}")
 
 
         if not self.sparse_reward:
