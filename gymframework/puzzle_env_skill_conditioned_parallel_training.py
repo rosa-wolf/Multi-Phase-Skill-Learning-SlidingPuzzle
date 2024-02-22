@@ -9,6 +9,7 @@ from gymnasium.utils import seeding
 
 from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
+#import robotic as ry
 import torch
 from scipy import optimize
 import logging as lg
@@ -90,7 +91,6 @@ class PuzzleEnv(gym.Env):
         self.total_num_steps = 0
         self._max_episode_steps = max_steps
         self.episode = 0
-
 
         # initialize scene
         self.scene = PuzzleScene(path, puzzlesize=puzzlesize, verbose=verbose, snapRatio=snapRatio)
@@ -215,6 +215,7 @@ class PuzzleEnv(gym.Env):
             self.env_step_counter += 1
             self.total_num_steps += 1
 
+        print(f"reward = {reward}")
         return (obs,
                 reward,
                 self.terminated,
@@ -237,8 +238,10 @@ class PuzzleEnv(gym.Env):
         box = np.where(self.init_sym_state[:, empty_out[0]] == 1)[0]
         if box.shape == (0,):
             box = -1
+            print("no box should be pushed")
         else:
             box = box[0]
+            print(f"box {box} should be pushed")
 
         return box
 
@@ -282,7 +285,7 @@ class PuzzleEnv(gym.Env):
                                      "reward scheme seems to have been changed to early")
                 self.skill = np.random.choice(np.array(list(used_skills)))
 
-
+        print(f"skill = {self.skill}")
         #print("skill = ", self.skill)
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
@@ -561,7 +564,7 @@ class PuzzleEnv(gym.Env):
                 min_dist = self._get_neg_dist_to_neighbors(empty)
                 #print(min_dist)
                 reward += 0.5 * min_dist
-                #print(f"neg dist reward = {reward}")
+                print(f"neg dist reward to all neighbors = {reward}")
 
                 # only penalize contact with wrong boxes, if we are not in contact with correct ones
                 if min_dist < -0.01:
@@ -574,7 +577,7 @@ class PuzzleEnv(gym.Env):
             else:
                 if self.boxes[k] != -1:
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.boxes[k]), "wedge"])
-                    #print(f"dist = {dist[0]}")
+                    print(f"min dist to single box = {dist[0]}")
                     reward += 0.5 * min([dist[0], 0.])
 
        #else:

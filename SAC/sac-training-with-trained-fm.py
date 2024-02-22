@@ -139,7 +139,7 @@ elif args.env_name.__contains__("3x3"):
     env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                     max_steps=100,
                     num_skills=args.num_skills,
-                    verbose=0,
+                    verbose=1,
                     train_fm=False,
                     fm_path=fm_path,
                     puzzlesize=puzzle_size,

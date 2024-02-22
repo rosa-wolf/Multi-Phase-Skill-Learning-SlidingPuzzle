@@ -9,7 +9,7 @@ from gymnasium.utils import seeding
 from puzzle_scene_new_ordering import PuzzleScene
 from robotic import ry
 import torch
-
+from get_neighbors import get_neighbors_dict
 #from forwardmodel.forward_model import ForwardModel
 
 
@@ -55,11 +55,9 @@ class PuzzleEnv(gym.Env):
 
         # ground truth skills
         # we have only one box, so there is only one skill
-        self.skills = skills
+        self.skills = ['up', 'down', 'left', 'right']
         self.num_skills = len(self.skills)
         # each skill has only one effect for now
-        self.effect = 0
-
         print(f"skills = \n{self.skills}")
         print(f"num_skills = \n{self.num_skills}")
 
@@ -115,6 +113,12 @@ class PuzzleEnv(gym.Env):
         self.init_sym_state = None
         self.goal_sym_state = None
 
+        self.neighbors = self.__get_neighbors(puzzlesize)
+
+    @staticmethod
+    def __get_neighbors(puzzle_size):
+        return get_neighbors_dict(puzzle_size)
+
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
         """
         Run one timestep of the environment's dynamics. When end of
@@ -149,6 +153,7 @@ class PuzzleEnv(gym.Env):
 
         # get reward (if we don't only want to give reward on last step of episode)
         reward += self._reward()
+        print(reward)
 
         # look whether conditions for termination are met
         # make sure to reset env in trainings loop if done
@@ -156,6 +161,13 @@ class PuzzleEnv(gym.Env):
 
         if not done:
             self.env_step_counter += 1
+        else:
+            if not self.terminated:
+                if (self.scene.sym_state == self.goal_sym_state).all():
+                    # only get reward for moving the block, if that was the intention of the skill
+                    reward += 1
+                    print("Give reward for not changing sym state")
+                    self.success = True
 
         return (obs,
                 reward,
@@ -180,10 +192,6 @@ class PuzzleEnv(gym.Env):
 
         # sample skill
         self.skill = np.random.randint(0, self.num_skills)
-        # sample effect
-        self.effect = np.random.randint(0, self.skills[self.skill].shape[0])
-
-        print(f"skill = {self.skill}, effect = {self.effect}, trans = {self.skills[self.skill][self.effect]}")
 
         # Set agent to random initial position inside a box
         init_pos = np.random.uniform(-0.25, .25, (2,))
@@ -191,10 +199,10 @@ class PuzzleEnv(gym.Env):
 
         # should it be possible to apply skill on initial board configuration?
         # take initial empty field such that skill execution is possible
-        field = np.delete(np.arange(self.scene.pieces + 1), self.skills[self.skill][self.effect, 1])
+        #field = np.delete(np.arange(self.scene.pieces + 1), self.skills[self.skill][self.effect, 1])
 
         # take random initial empty field without ensuring that skill execution is possible
-        #field = np.delete(np.arange(self.num_pieces + 1), np.random.choice(np.arange(self.num_pieces + 1)))
+        field = np.delete(np.arange(self.num_pieces + 1), np.random.choice(np.arange(self.num_pieces + 1)))
         # put blocks in random fields, except the one that has to be free
         order = np.random.permutation(field)
         # Todo: reset after adding more puzzle pieces again
@@ -207,31 +215,50 @@ class PuzzleEnv(gym.Env):
         self.scene.set_to_symbolic_state(hard=True)
         self.init_sym_state = sym_obs.copy()
 
-        # look which box is in the field we want to push from
-        # important for reward shaping
-        field = self.skills[self.skill][self.effect, 0]
-        # get box that is currently on that field
-        # Todo: set back when adding more pieces again
-        self.box = np.where(self.scene.sym_state[:, field] == 1)[0]
-        print(f"box = {self.box}, shape = {self.box.shape}")
-        if self.box.shape == (0,):
+
+        # look which field is emtpy
+        end_field = np.where(np.sum(self.init_sym_state, axis=0) == 0)[0][0]
+
+        # look whether skill execution is possible
+        match self.skills[self.skill]:
+            case 'up':
+                # we need a neighbor below
+                key = 'below'
+            case 'down':
+                # we need a neighbor above
+                key = 'above'
+            case 'left':
+                # we need a neighbor to the right
+                key = 'right'
+            case 'right':
+                # we need a  neighbor to the left
+                key = 'left'
+        print(f"key = {key}")
+        start_field = self.neighbors[str(end_field)][key]
+        if start_field is None:
             self.box = None
+        else:
+            # field has to be occupied by piece such that it can be pushed
+            self.box = np.where(self.init_sym_state[:, start_field] == 1)[0]
+            if self.box.shape == (0,):
+                self.box = None
+            else:
+                self.box = self.box[0]
+
+        if self.box is None:
             self.goal_sym_state = self.init_sym_state.copy()
         else:
-            self.box = self.box[0]
-
             # set init and goal position of box
-            self.box_goal = self.scene.discrete_pos[self.skills[self.skill][self.effect, 1]]
-
+            self.box_goal = end_field
             # calculate goal sym_state
             self.goal_sym_state = self.init_sym_state.copy()
             # box we want to push should move to field we want to push to
-            self.goal_sym_state[self.box, self.skills[self.skill][self.effect, 0]] = 0
-            self.goal_sym_state[self.box, self.skills[self.skill][self.effect, 1]] = 1
+            self.goal_sym_state[self.box, start_field] = 0
+            self.goal_sym_state[self.box, end_field] = 1
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        #print("skill = ", self.skill)
+        print(f"skill = {self.skill}, self.box = {self.box}")
 
         return self._get_observation(), {'is_success': self.success}
 

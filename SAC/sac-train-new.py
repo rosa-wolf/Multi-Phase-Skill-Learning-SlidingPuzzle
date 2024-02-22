@@ -128,6 +128,7 @@ elif args.env_name.__contains__("3x3"):
               np.array([[1, 0], [2, 1], [4, 3], [5, 4], [7, 6], [8, 7]]),
               np.array([[0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]]),
               np.array([[3, 0], [6, 3], [4, 1], [7, 4], [5, 2], [8, 5]])]
+    from puzzle_env_3x3 import PuzzleEnv
 else:
     raise ValueError("You must specify the environment to use")
 
@@ -135,7 +136,7 @@ env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 puzzlesize=puzzle_size,
                 skills=skills,
-                verbose=0,
+                verbose=1,
                 sparse_reward=args.sparse,
                 reward_on_change=True,
                 neg_dist_reward=args.neg_dist_reward,

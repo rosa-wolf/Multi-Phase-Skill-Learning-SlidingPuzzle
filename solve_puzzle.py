@@ -2,6 +2,8 @@ import numpy as np
 import torch as th
 import argparse
 import time
+import robotic as ry
+import matplotlib.pyplot as plt
 
 from stable_baselines3 import SAC
 
@@ -114,8 +116,8 @@ skill_idx = 0
 obs, _ = env.reset(skill=plan.pop(0), actor_pos=np.array([0., 0.]), sym_state_in=init_state)
 num_steps = 0
 while True:
-    env.scene.C.view_pose(np.array([0., 0., 2., 0., 0., 0., 0]))
-    env.scene.C.view()
+    #env.scene.C.view_pose(np.array([0., 0., 2., 0., 0., 0., 0]))
+    #env.scene.C.view()
     #env.scene.C.view_savePng('z.vid/')
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
