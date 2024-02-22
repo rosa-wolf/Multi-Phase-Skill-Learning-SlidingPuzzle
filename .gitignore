@@ -29,3 +29,4 @@ runs/
 SAC/checkpoints*
 fm_eval/
 Plots/
+z.vid/
