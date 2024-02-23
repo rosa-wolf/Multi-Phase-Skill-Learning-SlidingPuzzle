@@ -3,6 +3,7 @@ import torch as th
 import argparse
 import time
 import robotic as ry
+#from robotic import ry
 import matplotlib.pyplot as plt
 
 from stable_baselines3 import SAC
@@ -117,8 +118,8 @@ obs, _ = env.reset(skill=plan.pop(0), actor_pos=np.array([0., 0.]), sym_state_in
 num_steps = 0
 while True:
     #env.scene.C.view_pose(np.array([0., 0., 2., 0., 0., 0., 0]))
-    #env.scene.C.view()
-    #env.scene.C.view_savePng('z.vid/')
+    env.scene.C.view()
+    env.scene.C.view_savePng('z.vid/')
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1

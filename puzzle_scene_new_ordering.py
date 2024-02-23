@@ -1,5 +1,5 @@
-from robotic import ry
-#import robotic as ry
+#from robotic import ry
+import robotic as ry
 import numpy as np
 import time
 

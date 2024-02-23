@@ -8,8 +8,8 @@ from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
 
 from puzzle_scene_new_ordering import PuzzleScene
-from robotic import ry
-#import robotic as ry
+#from robotic import ry
+import robotic as ry
 import torch
 from scipy import optimize
 import logging as lg
@@ -257,7 +257,7 @@ class PuzzleEnv(gym.Env):
         Resets the environment (including the agent) to the initial conditions.
         """
         super().reset(seed=seed)
-        self.scene.reset()
+        #self.scene.reset()
         self.terminated = False
         self.truncated = False
         self.episode_rewards = []
@@ -453,13 +453,18 @@ class PuzzleEnv(gym.Env):
         :param action: desired x-y-z position
         """
         # do velocity control for 100 steps
-        for _ in range(100):
+
+        action[0] /= 4
+        action[1] /= 4
+
+        action[2] = action[2] / 10 - 0.1
+        for _ in range(50):
             # get current position
             act = self.scene.q[:3]
 
-            diff = action / 4 - act
+            diff = action - act
 
-            self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.v = 2 * np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _get_neg_dist_to_neighbors(self, empty_field):

@@ -1,5 +1,5 @@
 ** compiled at:     Feb 13 2024 11:40:06
-** execution start: 2024-02-21 15:33:31:11327
+** execution start: 2024-02-23 15:49:48:961038
 graph.cpp:initParameters:1505(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1512(3)  - failed
 graph.cpp:initParameters:1518(3) opening base config file '/root/local/rai/../local.cfg'
@@ -11,3 +11,8 @@ util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/S
 simulation.cpp:~Simulation:149(0) shutting down Simulation
 simulation.cpp:updateDisplayData:664(0) simulation frames changed: #frames: 19 last: camera
 simulation.cpp:~Simulation:149(0) shutting down Simulation
+** execution stop: 2024-02-23 15:50:59:404546
+** real time: 70.4436sec
+** CPU time: 72.0238
+
+** set+queried params:

@@ -7,7 +7,8 @@ from gymnasium.core import ObsType, ActType
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
 from puzzle_scene_new_ordering import PuzzleScene
-from robotic import ry
+#from robotic import ry
+import robotic as ry
 import torch
 
 #from forwardmodel.forward_model import ForwardModel

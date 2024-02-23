@@ -7,7 +7,8 @@ from gymnasium.core import ObsType, ActType
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
 from puzzle_scene_new_ordering import PuzzleScene
-from robotic import ry
+#from robotic import ry
+import robotic as ry
 import torch
 from get_neighbors import get_neighbors_dict
 #from forwardmodel.forward_model import ForwardModel
@@ -386,13 +387,13 @@ class PuzzleEnv(gym.Env):
         #action[2] = action[2] / (2/0.3) - 0.05
         # if limits are [-.25, .1]
 
-        for _ in range(100):
+        for _ in range(50):
             # get current position
             act = self.scene.q[:3]
 
             diff = action - act
 
-            self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.v = 4 * np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _reward(self) -> float:
