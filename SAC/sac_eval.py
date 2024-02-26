@@ -118,7 +118,6 @@ match args.env_name:
                         snapRatio=args.snap_ratio)
     case "skill_conditioned_3x3":
         from puzzle_env_3x3_skill_conditioned import PuzzleEnv
-
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         max_steps=100,
                         verbose=1,
@@ -179,6 +178,7 @@ match args.env_name:
     case "parallel_3x3":
         from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
 
+
         env = PuzzleEnv(path='../Puzzles/slidingPuzzle_3x3.g',
                         max_steps=100,
                         num_skills=args.num_skills,
@@ -209,7 +209,7 @@ np.random.seed(args.seed)
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingFalse/model/model_200000_steps", env=env)
 
 # only relabel after change of reward scheme
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/3x3_num_skills4_relabelingFalse/model/model_910000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_predefined_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_690000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)

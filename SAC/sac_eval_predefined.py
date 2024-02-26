@@ -115,6 +115,7 @@ elif args.env_name.__contains__("2x3"):
               np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
 
 elif args.env_name.__contains__("3x3"):
+    from puzzle_env_3x3 import PuzzleEnv
     target_entropy = -4.
     puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
     puzzle_size = [3, 3]
