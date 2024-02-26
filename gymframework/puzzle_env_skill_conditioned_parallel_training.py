@@ -561,7 +561,7 @@ class PuzzleEnv(gym.Env):
 
 
         if not self.sparse_reward:
-            if self.starting_epis:
+            if not self.end_epis:
                 # penalize being away from all fields where the adjacent field is empty
                 # and penalize contact with puzzle piece, that cannot be pushed
                 # get empty field
