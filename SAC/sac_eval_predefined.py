@@ -148,7 +148,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined/2x3/2x3_3skills_predefined_neg_distFalse_movementFalse_sparseTrue_seed123456/model/model_530000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_possible_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_170000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()

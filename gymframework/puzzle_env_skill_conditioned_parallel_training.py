@@ -215,7 +215,7 @@ class PuzzleEnv(gym.Env):
             self.env_step_counter += 1
             self.total_num_steps += 1
 
-        print(f"reward = {reward}")
+        #print(f"reward = {reward}")
         return (obs,
                 reward,
                 self.terminated,
@@ -278,7 +278,7 @@ class PuzzleEnv(gym.Env):
                 out = self.fm.get_full_pred()
                 for i in range(out.shape[0]):
                     out[i, :, i] = 0.
-                    used_skills.update(list(np.where(np.any(out[i] > 0.6, axis=1))[0]))
+                    used_skills.update(list(np.where(np.any(out[i] > 0.5, axis=1))[0]))
                 used_skills = np.array(list(used_skills))
                 if used_skills.shape == (0,):
                     raise ValueError("No skills lead to any change in symbolic state, "
@@ -543,7 +543,7 @@ class PuzzleEnv(gym.Env):
             reward += min([5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k), 10.])
-            print(f"novelty reward = {reward}")
+            #print(f"novelty reward = {reward}")
 
         if self._termination():
             #print("terminating")
@@ -557,7 +557,7 @@ class PuzzleEnv(gym.Env):
 
                     end_reward = min([take_max, 10.])
                     reward += end_reward
-                    print(f"end reward = {end_reward}")
+                    #print(f"end reward = {end_reward}")
 
 
         if not self.sparse_reward:
@@ -569,7 +569,7 @@ class PuzzleEnv(gym.Env):
                 min_dist = self._get_neg_dist_to_neighbors(empty)
                 #print(min_dist)
                 reward += 0.5 * min_dist
-                print(f"neg dist reward to all neighbors = {reward}")
+                #print(f"neg dist reward to all neighbors = {reward}")
 
                 # only penalize contact with wrong boxes, if we are not in contact with correct ones
                 if min_dist < -0.01:
@@ -582,7 +582,7 @@ class PuzzleEnv(gym.Env):
             else:
                 if self.boxes[k] != -1:
                     dist, _ = self.scene.C.eval(ry.FS.distance, ["box" + str(self.boxes[k]), "wedge"])
-                    print(f"min dist to single box = {dist[0]}")
+                    #print(f"min dist to single box = {dist[0]}")
                     reward += 0.5 * min([dist[0], 0.])
 
        #else:

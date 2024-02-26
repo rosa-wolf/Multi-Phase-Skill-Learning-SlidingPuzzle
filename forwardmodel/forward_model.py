@@ -54,7 +54,7 @@ class ForwardModel(nn.Module):
     """
     def __init__(self,
                  width=3,
-                 height=2,
+                 height=3,
                  num_skills=14,
                  seed=1024,
                  batch_size=70,

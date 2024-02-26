@@ -88,13 +88,10 @@ class ForwardModel():
         state_batch = self.one_hot_to_scalar(onehot_state_batch)
         skill_batch = self.one_hot_to_scalar(onehot_skill_batch)
         next_state_batch = self.one_hot_to_scalar(onehot_next_state_batch)
-        #print(f"out = {next_state_batch}")
+
         loss = self._nllloss(skill_batch, state_batch, onehot_next_state_batch)
-
-        succ = self.successor(skill_batch, state_batch)
-        succ = np.where(succ == 1)[0][0]
-
-        return loss, (np.where(succ == next_state_batch)[0]).shape[0] / state_batch.shape[0]
+        succ = self.successor(state_batch, skill_batch)
+        return loss, np.where(succ == next_state_batch)[0].shape[0] / state_batch.shape[0]
 
 
     def successor(self, init_empty_batch, skill_batch, init_sym_batch = None, sym_output=False):
@@ -107,20 +104,9 @@ class ForwardModel():
 
         :return:
         """
-        if init_empty_batch.ndim == 1:
-            init_empty_batch = init_empty_batch[None, :]
-        if skill_batch.ndim == 1:
-            skill_batch = skill_batch[None, :]
-        skill_batch = self.one_hot_to_scalar(skill_batch)
-        init_empty_batch = self.one_hot_to_scalar(init_empty_batch)
-
         out = np.argmax(self.table[skill_batch, init_empty_batch], axis=1)
-        print(out)
 
-        one_hot_out = np.zeros(self.num_fields)
-        one_hot_out[out] = 1
-
-        return one_hot_out
+        return out
 
     def _nllloss(self, skill_batch, init_empty_batch, out_empty_batch):
         """

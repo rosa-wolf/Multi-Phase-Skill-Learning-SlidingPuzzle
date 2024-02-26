@@ -50,7 +50,7 @@ class ForwardModel(nn.Module):
     - nodes through node expansion using successor function
     """
     def __init__(self,
-                 puzzle_size=[2, 3],
+                 puzzle_size=[3, 3],
                  num_skills=14,
                  seed=1024,
                  batch_size=70,

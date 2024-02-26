@@ -127,7 +127,7 @@ else:
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=max_steps,
                 num_skills=args.num_skills,
-                verbose=1,
+                verbose=0,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,
                 sparse_reward=args.sparse,

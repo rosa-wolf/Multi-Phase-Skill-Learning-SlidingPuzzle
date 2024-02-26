@@ -33,7 +33,7 @@ SKILLS = np.array([[[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8]],
 #       [[8, 7]],
 #       [[5, 8]],
 #       [[7, 8]]])
-
+#
 
 NUM_FIELDS = 9
 NUM_SKILLS = 4
@@ -43,6 +43,7 @@ def gather_data_empty(dataset, num_data):
         # gather data
         # sample skill
         num_skills = SKILLS.shape[0]
+        print(f"num_skills = {num_skills}")
         k = np.zeros((num_skills))
         skill = np.random.choice(np.arange(num_skills))
         k[skill] = 1
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     EPOCHS = 500
     print("Epochs = ", EPOCHS)
 
-    num_train_data = 10
+    num_train_data = 16
     num_test_data = 50
 
     test_data = FmReplayMemory(num_test_data, 98765)
@@ -139,8 +140,9 @@ if __name__ == "__main__":
             one_hot_input = one_hot_input[None, :]
             one_hot_skill = one_hot_skill[None, :]
             one_hot_output = one_hot_output[None, :]
-            fm.add_transition(fm.one_hot_to_scalar(one_hot_skill)[0],
-                              fm.one_hot_to_scalar(one_hot_input)[0],
+
+            fm.add_transition(fm.one_hot_to_scalar(one_hot_input)[0],
+                              fm.one_hot_to_scalar(one_hot_skill)[0],
                               fm.one_hot_to_scalar(one_hot_output)[0])
         #print(f"table = \n {fm.table}")
 
