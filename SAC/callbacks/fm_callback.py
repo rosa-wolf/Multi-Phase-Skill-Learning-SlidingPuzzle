@@ -172,7 +172,7 @@ class FmCallback(BaseCallback):
                 num_change = np.where(out[i] > 0.6)[0].shape[0]
             else:
                 # at end look if change happens consistently with high probability
-                num_change = np.where(out[i] > 0.8)[0].shape[0]
+                num_change = np.where(out[i] > 0.9)[0].shape[0]
 
             if num_change < len(self.env.neighborlist[str(i)]):
                     change_reward_scheme = False
