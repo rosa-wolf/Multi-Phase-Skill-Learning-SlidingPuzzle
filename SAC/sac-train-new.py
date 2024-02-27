@@ -16,7 +16,7 @@ mod_dir = os.path.join(dir, "../")
 sys.path.append(mod_dir)
 
 from puzzle_env_all_skill_conditioned import PuzzleEnv
-from Buffer import PriorityReplayBuffer
+from Buffer import PriorityDictReplayBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -136,7 +136,7 @@ env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 puzzlesize=puzzle_size,
                 skills=skills,
-                verbose=1,
+                verbose=0,
                 sparse_reward=args.sparse,
                 reward_on_change=True,
                 neg_dist_reward=args.neg_dist_reward,
@@ -193,7 +193,7 @@ eval_callback = EvalCallback(eval_env,
                              n_eval_episodes=10,
                              deterministic=True, render=False)
 
-callbacks = CallbackList([checkpoint_callback, eval_callback])
+callbacks = CallbackList([checkpoint_callback])#, eval_callback])
 
 
 if args.dict_obs:
@@ -203,14 +203,15 @@ else:
 # initialize SAC
 model = SAC(policy,  # could also use CnnPolicy
             env,        # gym env
-            #replay_buffer_class=PriorityReplayBuffer,
+            replay_buffer_class=PriorityDictReplayBuffer,
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
-            learning_starts=10, # when learning should start to prevent learning on little data
+            learning_starts=1000, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma, # discount factor
             gradient_steps=-1, # do as many gradient steps as steps done in the env
+            train_freq=(1, "episode"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
             target_entropy=-3.,

@@ -148,7 +148,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_possible_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_170000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_possible_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_660000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()
@@ -157,7 +157,7 @@ for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
-    if terminated or truncated or num_steps > 20:
+    if terminated or truncated or num_steps > 50:
         obs, _ = env.reset()
         num_steps = 0
 

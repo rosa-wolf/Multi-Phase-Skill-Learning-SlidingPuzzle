@@ -9,9 +9,7 @@ from gymnasium import spaces
 from stable_baselines3.common.preprocessing import get_action_dim, get_obs_shape
 from stable_baselines3.common.type_aliases import (
     DictReplayBufferSamples,
-    DictRolloutBufferSamples,
     ReplayBufferSamples,
-    RolloutBufferSamples,
 )
 
 from BufferSamples import (
@@ -19,8 +17,7 @@ from BufferSamples import (
     PrioritizedDictReplayBufferSamples,
 )
 
-from stable_baselines3.common.buffers import BaseBuffer, ReplayBuffer
-from stable_baselines3.common.utils import get_device
+from stable_baselines3.common.buffers import BaseBuffer
 from stable_baselines3.common.vec_env import VecNormalize
 
 try:
@@ -180,6 +177,11 @@ class PriorityReplayBuffer(BaseBuffer):
 
     def _calculate_episode_return(self, start_idx: np.int8, end_idx: np.int8):
         total_return = 0
+        # if skill execution is not possible give highly negative weight, as this episode is not as interesting
+        if np.all(self.rewards[start_idx: end_idx] == 0):
+            total_return = -1000.
+            return total_return
+
         if start_idx > end_idx:
             # episode wraps around buffer end
             total_return += np.sum(self.rewards[start_idx:])
@@ -203,6 +205,7 @@ class PriorityReplayBuffer(BaseBuffer):
                 start_idx = self.last_done + 1
 
         episode_return = self._calculate_episode_return(start_idx, end_idx)
+        #print(f"episode_return = {episode_return}")
 
         # add return as weight to all transitions
         if start_idx > end_idx:
@@ -229,7 +232,6 @@ class PriorityReplayBuffer(BaseBuffer):
             to normalize the observations/rewards when sampling
         :return:
         """
-        #print("sampling now")
         # sample 2 batches and take prioritized samples over those two batches
         batches = []
         for _ in range(2):
@@ -248,6 +250,7 @@ class PriorityReplayBuffer(BaseBuffer):
 
         # replace x samples with most recent ones
         recent = self._get_recent_samples(buffer, batch_size, env=env)
+
         #print("Number of trans in buffer = ", recent.weights.shape)
         return recent
 
@@ -274,11 +277,9 @@ class PriorityReplayBuffer(BaseBuffer):
         return PrioritizedReplayBufferSamples(*tuple(map(self.to_torch, data)))
 
     def _get_prior_batch(self, batch1, batch2, batch_size: int):
-        print("getting prior batch")
         # calculate score
         score = batch1.weights @ batch2.weights / (th.norm(batch1.weights) * th.norm(batch2.weights))
-
-        if score > self.zeta:
+        if score > self.zeta and False:
             # take random of the two batches
             if np.random.uniform() >= 0.5:
                 return batch1
@@ -286,13 +287,14 @@ class PriorityReplayBuffer(BaseBuffer):
 
         # delete transitions from batch 2 that are also in batch1
         idx = th.where(th.isin(batch2.enumeration, batch1.enumeration) == False)[0]
-        batch2 = PrioritizedReplayBufferSamples(batch2.observations[idx],
-                                                batch2.actions[idx],
-                                                batch2.next_observations[idx],
-                                                batch2.dones[idx],
-                                                batch2.rewards[idx],
-                                                batch2.weights[idx],
-                                                batch2.enumeration[idx])
+        if idx.shape != (0,):
+            batch2 = PrioritizedReplayBufferSamples(batch2.observations[idx],
+                                                    batch2.actions[idx],
+                                                    batch2.next_observations[idx],
+                                                    batch2.dones[idx],
+                                                    batch2.rewards[idx],
+                                                    batch2.weights[idx],
+                                                    batch2.enumeration[idx])
 
         # get transitions with max weights
         b1_weights = batch1.weights
@@ -326,9 +328,8 @@ class PriorityReplayBuffer(BaseBuffer):
                                               weights,
                                               enumeration)
 
-
-    def _get_recent_samples(self, batch, batch_size, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
-        print("getting recent samples")
+    def _get_recent_samples(self, batch, batch_size, env: Optional[VecNormalize] = None) \
+            -> PrioritizedReplayBufferSamples:
         if self.num_recent > batch_size:
             raise ValueError("The number of recent transitions to take in the batch is higher than the batch size.")
 
@@ -527,7 +528,7 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
             to normalize the observations/rewards when sampling
         :return:
         """
-        return super(PriorityReplayBuffer, self).sample(batch_size=batch_size, env=env)
+        return super().sample(batch_size=batch_size, env=env)
 
     def _get_samples(  # type: ignore[override]
             self,
@@ -565,4 +566,101 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
             weights=self.to_torch(self.weights[batch_inds, env_indices]),
             enumeration=self.to_torch(self.enumeration[batch_inds, env_indices]),
         )
+
+    def _get_prior_batch(self, batch1, batch2, batch_size: int) -> PrioritizedDictReplayBufferSamples:
+        # calculate score
+        score = batch1.weights @ batch2.weights / (th.norm(batch1.weights) * th.norm(batch2.weights))
+        #print(f"score = {score}")
+        if score > self.zeta:
+            #print("taking one batch")
+            # take random of the two batches
+            if np.random.uniform() >= 0.5:
+                return batch1
+            return batch2
+
+        # delete transitions from batch 2 that are also in batch1
+        idx = th.where(th.isin(batch2.enumeration, batch1.enumeration) == False)[0]
+        if idx.shape != (0,):
+            observations = {key: batch2.observations[key][idx] for key in batch2.observations.keys()}
+            next_observations = {key: batch2.next_observations[key][idx] for key in batch2.next_observations.keys()}
+            batch2 = PrioritizedDictReplayBufferSamples(observations,
+                                                        batch2.actions[idx],
+                                                        next_observations,
+                                                        batch2.dones[idx],
+                                                        batch2.rewards[idx],
+                                                        batch2.weights[idx],
+                                                        batch2.enumeration[idx])
+
+        # get transitions with max weights
+        b1_weights = batch1.weights
+        b2_weights = batch2.weights
+
+        tmp = th.concatenate((b1_weights, b2_weights))
+
+        _, max_idx = th.topk(tmp, batch_size)
+        # get which idx was originally from which of the two batches
+        idx_batch1 = max_idx[th.where(max_idx < b1_weights.shape[0])]
+        idx_batch2 = max_idx[th.where(max_idx >= b1_weights.shape[0])]
+        idx_batch2 -= b1_weights.shape[0]
+
+        # print(f"batch_1 =\n {batch1}\n idx_batch1 = {idx_batch1} \n batch_2 = \n {batch2}\nidx_batch2 = {idx_batch2}")
+
+        # new bach contains elements form batch1 at position idx_batch1
+        # and elements from batch2 (where repitions have been removed) at position idx_batch2
+        observations = {
+            key: th.concatenate((batch1.observations[key][idx_batch1], batch2.observations[key][idx_batch2]))
+            for key in batch1.observations.keys()}
+        actions = th.concatenate((batch1.actions[idx_batch1], batch2.actions[idx_batch2]))
+        next_observations = {
+            key: th.concatenate((batch1.next_observations[key][idx_batch1], batch2.next_observations[key][idx_batch2]))
+            for key in batch1.next_observations.keys()}
+        dones = th.concatenate((batch1.dones[idx_batch1], batch2.dones[idx_batch2]))
+        rewards = th.concatenate((batch1.rewards[idx_batch1], batch2.rewards[idx_batch2]))
+        weights = th.concatenate((batch1.weights[idx_batch1], batch2.weights[idx_batch2]))
+        enumeration = th.concatenate((batch1.enumeration[idx_batch1], batch2.enumeration[idx_batch2]))
+
+        return PrioritizedDictReplayBufferSamples(observations,
+                                                  actions,
+                                                  next_observations,
+                                                  dones,
+                                                  rewards,
+                                                  weights,
+                                                  enumeration)
+
+    def _get_recent_samples(self, batch, batch_size, env: Optional[VecNormalize] = None) \
+            -> PrioritizedDictReplayBufferSamples:
+        if self.num_recent > batch_size:
+            raise ValueError("The number of recent transitions to take in the batch is higher than the batch size.")
+
+        # Sample transitions, that should not be replaced
+        idx = np.random.uniform(0, batch_size, size=(batch_size - self.num_recent,))
+
+        # self.pos is in front of last added transition
+        if self.pos < self.num_recent:
+           batch_inds = np.concatenate((np.arange(self.pos),
+                                       np.arange(self.buffer_size - (self.num_recent - self.pos), self.buffer_size)))
+        else:
+            batch_inds = np.arange(self.pos - self.num_recent, self.pos)
+
+        recent_batch = self._get_samples(batch_inds, env=env)
+
+        observations = {
+            key: th.concatenate((batch.observations[key][idx], recent_batch.observations[key]))
+            for key in batch.observations.keys()}
+        actions = th.concatenate((batch.actions[idx], recent_batch.actions))
+        next_observations = {
+            key: th.concatenate((batch.next_observations[key][idx], recent_batch.next_observations[key]))
+            for key in batch.next_observations.keys()}
+        dones = th.concatenate((batch.dones[idx], recent_batch.dones))
+        rewards = th.concatenate((batch.rewards[idx], recent_batch.rewards))
+        weights = th.concatenate((batch.weights[idx], recent_batch.weights))
+        enumeration = th.concatenate((batch.enumeration[idx], recent_batch.enumeration))
+
+        return PrioritizedDictReplayBufferSamples(observations,
+                                                  actions,
+                                                  next_observations,
+                                                  dones,
+                                                  rewards,
+                                                  weights,
+                                                  enumeration)
 

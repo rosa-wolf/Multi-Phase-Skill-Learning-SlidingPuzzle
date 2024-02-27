@@ -166,7 +166,7 @@ class PuzzleEnv(gym.Env):
             if not self.terminated:
                 if (self.scene.sym_state == self.goal_sym_state).all():
                     # only get reward for moving the block, if that was the intention of the skill
-                    reward += 1
+                    reward += 0.5
                     print("Give reward for not changing sym state")
                     self.success = True
 
@@ -184,7 +184,7 @@ class PuzzleEnv(gym.Env):
         Resets the environment (including the agent) to the initial conditions.
         """
         super().reset(seed=seed)
-        self.scene.reset()
+        #self.scene.reset()
         self.terminated = False
         self.truncated = False
         self.env_step_counter = 0
