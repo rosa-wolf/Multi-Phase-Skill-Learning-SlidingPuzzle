@@ -1,14 +1,14 @@
 ** compiled at:     Feb 13 2024 11:40:06
-** execution start: 2024-02-27 13:43:23:320390
+** execution start: 2024-02-28 19:19:45:915169
 graph.cpp:initParameters:1505(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1512(3)  - failed
 graph.cpp:initParameters:1518(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1524(3)  - failed
 util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
 util.cpp:cd_file:1039(3) entering path '../Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
-util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_3x3.g'
+util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_2x3.g'
 util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
 util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
 util.cpp:cd_file:1039(3) entering path '../Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
-util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_3x3.g'
+util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_2x3.g'
 util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'

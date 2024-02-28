@@ -190,6 +190,7 @@ class PuzzleEnv(gym.Env):
 
         max_rewards = None
         max_skill_one_hot = None
+        success = 0.
         if self._termination():
             #print(f"init_sym_state =\n {self.init_sym_state},\n out_sym_state = \n{self.scene.sym_state}")
             #print(f"relabel = {self.relabel}")
@@ -211,6 +212,14 @@ class PuzzleEnv(gym.Env):
                 #print(f"rewards = {max_rewards}")
 
                 #print(f"max_skill = {max_skill}")
+
+            # calculate whether episode was success
+            success = self.fm.calculate_reward(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+                                               self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                               self.skill,
+                                               normalize=False,
+                                               log=False)
+
         else:
             self.env_step_counter += 1
             self.total_num_steps += 1
@@ -220,7 +229,7 @@ class PuzzleEnv(gym.Env):
                 reward,
                 self.terminated,
                 self.truncated,
-                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot})
+                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot, 'is_success': success})
 
     def _get_box(self, k):
         """
@@ -231,7 +240,7 @@ class PuzzleEnv(gym.Env):
         skill = np.zeros((self.num_skills,))
         skill[k] = 1
 
-        empty_out = self.fm.successor(self.fm.sym_state_to_input(self.init_sym_state), skill, sym_output=False)
+        empty_out, _ = self.fm.successor(self.fm.sym_state_to_input(self.init_sym_state), skill, sym_output=False)
         # get the boxes that is currently on the empty_out field
         empty_out = np.where(empty_out == 1)[0]
 
@@ -546,12 +555,12 @@ class PuzzleEnv(gym.Env):
             #print(f"novelty reward = {reward}")
 
         if self._termination():
-            #print("terminating")
+            print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
                 if not self.starting_epis:
                     take_max = np.max(
-                        [-1., 10 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                        [-10., 10 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        k)])
 

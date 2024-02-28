@@ -59,6 +59,7 @@ class FmCallback(BaseCallback):
 
         # initialize empty replay memory for fm
         self.buffer = FmReplayMemory(memory_size, seed)
+        self.change_buffer = FmReplayMemory(100, seed)
         self.verbose = verbose
         self.num_skills = num_skills
         self.train_fm = train_fm

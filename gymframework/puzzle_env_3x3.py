@@ -213,7 +213,7 @@ class PuzzleEnv(gym.Env):
         #sym_obs = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
 
         self.scene.sym_state = sym_obs
-        self.scene.set_to_symbolic_state(hard=True)
+        self.scene.set_to_symbolic_state()
         self.init_sym_state = sym_obs.copy()
 
 

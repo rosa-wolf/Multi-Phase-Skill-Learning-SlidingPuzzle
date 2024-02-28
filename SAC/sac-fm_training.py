@@ -182,11 +182,11 @@ fm_callback = FmCallback(update_freq=1000,
 
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
-                             log_path=log_dir, eval_freq=5000,
-                             n_eval_episodes=10,
+                             log_path=log_dir, eval_freq=500,
+                             n_eval_episodes=3,
                              deterministic=True, render=False)
 
-callback = CallbackList([checkpoint_callback, fm_callback])#, eval_callback])
+callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
 
 # initialize SAC
 model = SAC('MultiInputPolicy',
@@ -198,8 +198,8 @@ model = SAC('MultiInputPolicy',
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
-            gradient_steps=-1, # do as many gradient steps as steps done in the env
-            train_freq=(args.num_episodes, "episode"),
+            gradient_steps=int(args.num_episodes * max_steps/2), # do as many gradient steps as steps done in the env
+            train_freq=(args.num_episodes * max_steps, "step"),
             #action_noise=noise.OrnsteinUhlenbeckActionNoise(),
             ent_coef='auto',
             target_entropy=target_entropy,

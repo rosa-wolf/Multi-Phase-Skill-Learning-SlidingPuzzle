@@ -52,8 +52,8 @@ elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
     puzzle_path = 'Puzzles/slidingPuzzle_2x3.g'
     puzzle_size = [2, 3]
-    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseTrue_relabelingFalse/fm/fm"
-    model_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseTrue_relabelingFalse/model/model_570000_steps"
+    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/new_parallel2x3_num_skills3_sparseFalse_relabelingFalse_priorbufferFalse/fm/fm"
+    model_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/new_parallel2x3_num_skills3_sparseFalse_relabelingFalse_priorbufferFalse/model/model_670000_steps"
 
     # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
     init_state = np.array([[1, 0, 0, 0, 0, 0],
@@ -110,7 +110,7 @@ model = SAC.load(model_path, env=env)
 
 # execute skill
 # do not reset environment after skill execution, but set actor to init z plane above its current position
-_, plan = fm.breadth_first_search(init_state.flatten(), goal_state.flatten())
+_, plan = fm.dijkstra(init_state.flatten(), goal_state.flatten())
 print(f"plan = {plan}")
 print(f"skill = {plan[0]}")
 skill_idx = 0
@@ -118,8 +118,8 @@ obs, _ = env.reset(skill=plan.pop(0), actor_pos=np.array([0., 0.]), sym_state_in
 num_steps = 0
 while True:
     #env.scene.C.view_pose(np.array([0., 0., 2., 0., 0., 0., 0]))
-    env.scene.C.view()
-    env.scene.C.view_savePng('z.vid/')
+    #env.scene.C.view()
+    #env.scene.C.view_savePng('z.vid/')
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
@@ -128,7 +128,7 @@ while True:
             break
         # do not reset environment, but only set actor pos to init z-plane
         # do replanning
-        _, plan = fm.breadth_first_search(env.scene.sym_state.flatten(), goal_state.flatten())
+        #_, plan = fm.dijkstra(env.scene.sym_state.flatten(), goal_state.flatten())
         print(f"plan = {plan}")
         num_steps = 0
         obs = env.execution_reset(skill=plan.pop(0))

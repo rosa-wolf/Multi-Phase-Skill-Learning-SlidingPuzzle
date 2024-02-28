@@ -209,21 +209,21 @@ np.random.seed(args.seed)
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingFalse/model/model_200000_steps", env=env)
 
 # only relabel after change of reward scheme
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel2x2_num_skills5_sparseFalse_relabelingFalse_priorbufferFalse/model/model_2000000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel3x3-less-frequent-update_num_skills4_sparseFalse_relabelingFalse_priorbufferTrue/model/model_430000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x2_puzzle/Parallel-Training/parallel_2x2_num_skills2_relabelingFalse-automated-reward-change_success/model/model_257000_steps", env=env)
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=4)
+obs, _ = env.reset(skill=1)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
     if terminated or truncated or num_steps > 30:
-        obs, _ = env.reset(skill=4)
+        obs, _ = env.reset(skill=1)
         num_steps = 0
 
 del model

@@ -2,6 +2,8 @@ import numpy as np
 import random
 import time
 import math
+import heapq
+from itertools import count
 
 import torch
 import torch.nn as nn
@@ -370,7 +372,7 @@ class ForwardModel(nn.Module):
 
         return new_state.flatten()
 
-    def successor(self, input_empty: np.array, skill: np.array, sym_state=None, sym_output=True) -> np.array:
+    def successor(self, input_empty: np.array, skill: np.array, sym_state=None, sym_output=True) -> (np.array, float):
         """
         Returns successor nodes of a given node
         Args:
@@ -404,7 +406,7 @@ class ForwardModel(nn.Module):
         ######################################################################
         """
         # concatenate state and skill to get input to mlp
-        succ = self.get_prediction(input_empty, skill)
+        succ, prob = self.get_prediction(input_empty, skill)
 
         empty = np.where(succ == 1)[0][0]
 
@@ -414,9 +416,9 @@ class ForwardModel(nn.Module):
         if sym_output:
             if sym_state is None:
                 raise "We need the initial symbolic state to map the output empty field to the ouput symbolic state"
-            return self.pred_to_sym_state(sym_state, empty)
+            return self.pred_to_sym_state(sym_state, empty), prob
 
-        return succ
+        return succ, prob
 
     def valid_state(self, state) -> bool:
         """
@@ -442,8 +444,99 @@ class ForwardModel(nn.Module):
             key = np.array2string(path[-1]).replace('.', '.').replace('\n', '')
             skills.append(skill[key])
             path.append(parent[key])
+            print(path)
 
         return path[::-1], skills[::-1]
+
+    def dijkstra(self, start, goal):
+        """
+        TESTED BY TAKING CORRECT SUCCESSOR INSTEAD BY MODEL PREDICTION: BFS WORKS!!!
+        SOLUTION ALSO COMPARED TO ONLINE SOLVER: IT GIVES THE SAME SOLUTION!!!
+
+        Returns sequence of skills to go from start to goal configuration
+        as predicted by current forward_model
+        Args:
+            :param start: start configuration (symbolic state, fLattened)
+            :param goal: goal configuration (symbolic state, flattened)
+        Returns:
+            state_sequence: sequence of symbolic states the forward model predicts it be visited when executing the predicted skills
+            skill_sequence: sequence of skills to be executed to go from start to goal configuration
+            depth: solution depth
+        """
+        # is start == goal, then stop now
+        # algorithm will fail to
+        if (start == goal).all():
+            return [], []
+
+        visited = []
+        # a global
+        tiebreaker = count()
+        heap = [(0, next(tiebreaker), start)]
+        parent = {}
+        skill = {}
+        cost = {}
+
+
+
+        print(heap)
+        # store parent of start as None to not get key-error
+        key = np.array2string(start).replace('.', '').replace('\n', '')
+        parent[key] = None
+        cost[key] = 0
+
+        while heap:
+            # go through queue
+            print("before pop")
+            weight, _, state = heapq.heappop(heap)
+            print(f"weigtht = {weight}")
+            if len(visited) == 0 or not np.any(np.all(state == visited, axis=1)):
+                visited.append(state)
+
+                # node expansion through applying feasible actions
+                for k in self.skills:
+                    # get one-hot encoding of skill
+                    one_hot = np.zeros((self.num_skills,))
+                    one_hot[k] = 1
+
+                    # find successor state
+                    next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                    #next_state = next_state.cpu().detach().numpy()
+
+                    # only append next_state, if it was not already visited
+                    # (this also includes that the skill does not lead to a change in symbolic state),
+                    if not np.any(np.all(next_state == visited, axis=1)):
+                        # if it is a valid symbolic state
+                        if self.valid_state(next_state.reshape((self.pieces, self.width * self.height))):
+                                new_weight = (weight - torch.log(prob)).item()
+                                #new_weight = new_weight.cpu().detach().numpy()
+                                # record parent
+                                key = np.array2string(next_state).replace('.', '').replace('\n', '')
+
+                                if key in cost.keys():
+                                    if new_weight < cost[key]:
+                                        cost[key] = new_weight
+                                        parent[key] = state.astype(int)
+                                        skill[key] = k
+                                        heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
+                                        print(heap)
+                                else:
+                                    cost[key] = new_weight
+                                    parent[key] = state.astype(int)
+                                    skill[key] = k
+                                    heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
+                                    print(heap)
+
+                                print("after skill")
+
+                                # if successor state is goal: break
+                                if (next_state == goal).all():
+                                    # get the state transitions and skills that lead to the goal
+                                    state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
+                                    return state_sequence, skill_sequence
+                                print("after goal")
+
+        print("Goal Not reachable from start configuration")
+        return None, None
 
     def breadth_first_search(self, start, goal):
         """
@@ -481,6 +574,7 @@ class ForwardModel(nn.Module):
         while queue:
             # go through queue
             state = queue.pop(0)
+            print(f"state = {state}")
             # node expansion through applying feasible actions
             for k in self.skills:
                 # get one-hot encoding of skill
@@ -488,7 +582,7 @@ class ForwardModel(nn.Module):
                 one_hot[k] = 1
 
                 # find successor state
-                next_state = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                next_state, _ = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
                 print(f"skill = {k}, next_state = {next_state}")
                 # next_state = next_state.cpu().detach().numpy()
 
@@ -507,7 +601,9 @@ class ForwardModel(nn.Module):
                         not_visited = True
 
                         if np.any(np.all(next_state == visited, axis=1)):
+                            print("already visited")
                             if not (parent[key] == state.astype(int)).all():
+                                print("parent  is state")
                                 not_visited = False
 
                         if not_visited:
@@ -580,7 +676,7 @@ class ForwardModel(nn.Module):
 
         return y_pred
 
-    def get_prediction(self, state: np.array, skill: np.array) -> np.array:
+    def get_prediction(self, state: np.array, skill: np.array) -> (np.array, float):
         """
         Calculates most likely successor state
 
@@ -608,16 +704,17 @@ class ForwardModel(nn.Module):
         # y_pred = torch.softmax(y_pred, dim=0)
         # calculate successor state
         # block is on that field with the highest probability
+        prob = torch.max(y_pred)
         empty = torch.argmax(y_pred)
 
         succ_state = np.zeros(state.shape)
         succ_state[empty] = 1
 
-        return succ_state
+        return succ_state, prob
 
 
 
-    def calculate_reward(self, start, end, k, normalize=True) -> float:
+    def calculate_reward(self, start, end, k, normalize=True, log=True) -> float:
         """
         Calculate the reward, that the skill-conditioned policy optimization gets when it does a successful transition
         from state start to state end using skill k
@@ -662,7 +759,11 @@ class ForwardModel(nn.Module):
         if normalize:
             return np.log(y_pred[k].item() / sum_of_probs.item()) + np.log(self.num_skills)
 
-        return np.log(y_pred[k].item() / sum_of_probs.item())
+        if log:
+            return np.log(y_pred[k].item() / sum_of_probs.item())
+
+        return y_pred[k].item() / sum_of_probs.item()
+
 
     def novelty_bonus(self, start, end, skill, others_only=True) -> float:
         """

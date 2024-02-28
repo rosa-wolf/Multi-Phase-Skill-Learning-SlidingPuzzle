@@ -128,7 +128,7 @@ else:
 
 
 # use different seed than in training
-seed = 398199
+seed = 98765
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 puzzlesize=puzzle_size,
@@ -148,7 +148,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_possible_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_660000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_possible-prior_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_700000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()

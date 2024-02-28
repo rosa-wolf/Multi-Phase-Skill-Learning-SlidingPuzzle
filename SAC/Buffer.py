@@ -405,7 +405,7 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
             action_space: spaces.Space,
             device: Union[th.device, str] = "auto",
             n_envs: int = 1,
-            zeta: float = 0.5,
+            zeta: float = 0.9,
             recent: int = 10,
             optimize_memory_usage: bool = False,
             handle_timeout_termination: bool = True,
@@ -569,6 +569,14 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
 
     def _get_prior_batch(self, batch1, batch2, batch_size: int) -> PrioritizedDictReplayBufferSamples:
         # calculate score
+        #weight = th.ones((batch_size))
+        #norm = 1
+        #for batch in batches:
+        #    weight *= batch.weights
+        #    norm *= th.norm(batch.weights)
+
+        #score = th.sum(weight) / norm
+
         score = batch1.weights @ batch2.weights / (th.norm(batch1.weights) * th.norm(batch2.weights))
         #print(f"score = {score}")
         if score > self.zeta:

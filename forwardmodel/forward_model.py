@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import heapq
 import time
 import math
 
@@ -278,7 +279,7 @@ class ForwardModel(nn.Module):
 #
     #    return alpha
 
-    def successor(self, state: np.array, skill: np.array) -> np.array:
+    def successor(self, state: np.array, skill: np.array) -> (np.array, float):
         """
         Returns successor nodes of a given node
         Args:
@@ -333,9 +334,10 @@ class ForwardModel(nn.Module):
         # calculate successor state
         # block is on that field with the highest probability
         succ = torch.zeros(y_pred.shape)
-        succ[torch.arange(succ.shape[0]), torch.argmax(y_pred, axis=1)] = 1
+        idx = torch.argmax(y_pred, axis=1)
+        succ[torch.arange(succ.shape[0]), idx] = 1
 
-        return succ.reshape(state.shape)
+        return succ.reshape(state.shape), y_pred[idx]
 
     def valid_state(self, state) -> bool:
         """
@@ -402,7 +404,7 @@ class ForwardModel(nn.Module):
                 one_hot[k] = 1
 
                 # find successor state
-                next_state = self.successor(state, one_hot)
+                next_state, _ = self.successor(state, one_hot)
                 next_state = next_state.cpu().detach().numpy()
 
                 # for devugging visualize every state transition prediction
@@ -420,6 +422,7 @@ class ForwardModel(nn.Module):
                         not_visited = True
 
                         if np.any(np.all(next_state == visited, axis=1)):
+                            print(parent(key))
                             if not (parent[key] == state.astype(int)).all():
                                 not_visited = False
 
