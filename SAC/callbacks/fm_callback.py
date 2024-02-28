@@ -143,6 +143,7 @@ class FmCallback(BaseCallback):
             self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
             self.relabel_buffer["episode_length"].append(((self.locals["infos"][0])["episode"]["l"]))
             self.relabel_buffer["total_num_steps"].append(self.n_calls)
+            print(self.relabel_buffer)
 
         # only start training after buffer is filled a bit
         if self.train_fm:
@@ -218,7 +219,10 @@ class FmCallback(BaseCallback):
 
 
         # number of episodes to relabel
-        num_relabel = self.locals["num_collected_episodes"] + 1
+        #num_relabel = self.locals["num_collected_episodes"] + 1
+        num_relabel = len(self.relabel_buffer["total_num_steps"])
+
+        print(f"==================\nnum_relabel = {num_relabel}")
 
         # for now relabel without caring for skill distribution
         #dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
@@ -233,7 +237,8 @@ class FmCallback(BaseCallback):
             #end_idx = dones[-(num_relabel) + i_episode]
 
             #print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
-
+            print(f"i_episode = {i_episode}")
+            print(f"total_num_steps = {self.relabel_buffer['total_num_steps']}")
             start_idx = self.relabel_buffer["total_num_steps"][i_episode] - self.relabel_buffer["episode_length"][i_episode]
             end_idx = self.relabel_buffer["total_num_steps"][i_episode] - 1
 
