@@ -182,8 +182,8 @@ fm_callback = FmCallback(update_freq=1000,
 
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
-                             log_path=log_dir, eval_freq=500,
-                             n_eval_episodes=3,
+                             log_path=log_dir, eval_freq=5000,
+                             n_eval_episodes=10,
                              deterministic=True, render=False)
 
 callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
