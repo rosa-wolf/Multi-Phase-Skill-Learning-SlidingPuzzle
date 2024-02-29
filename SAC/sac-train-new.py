@@ -118,6 +118,22 @@ elif args.env_name.__contains__("2x3"):
               np.array([[1, 0], [2, 1], [5, 4], [4, 3]]),
               np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
 
+    #skills = [np.array([[1, 0]]),
+    #          np.array([[3, 0]]),
+    #          np.array([[0, 1]]),
+    #          np.array([[2, 1]]),
+    #          np.array([[4, 1]]),
+    #          np.array([[1, 2]]),
+    #          np.array([[5, 2]]),
+    #          np.array([[0, 3]]),
+    #          np.array([[4, 3]]),
+    #          np.array([[1, 4]]),
+    #          np.array([[3, 4]]),
+    #          np.array([[5, 4]]),
+    #          np.array([[2, 5]]),
+    #          np.array([[4, 5]])]
+    #num_skills = args.num_skills
+
 
 
 elif args.env_name.__contains__("3x3"):
@@ -135,6 +151,7 @@ else:
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 puzzlesize=puzzle_size,
+                num_skills=args.num_skills,
                 skills=skills,
                 verbose=0,
                 sparse_reward=args.sparse,
@@ -148,6 +165,7 @@ env = PuzzleEnv(path=puzzle_path,
                 seed=1234567)
 eval_env = PuzzleEnv(path=puzzle_path,
                      max_steps=100,
+                     num_skills=args.num_skills,
                      puzzlesize=puzzle_size,
                      skills=skills,
                      verbose=0,
@@ -196,12 +214,8 @@ eval_callback = EvalCallback(eval_env,
 callbacks = CallbackList([checkpoint_callback])#, eval_callback])
 
 
-if args.dict_obs:
-    policy = "MultiInputPolicy"
-else:
-    policy = "MlpPolicy"
 # initialize SAC
-model = SAC(policy,  # could also use CnnPolicy
+model = SAC('MultiInputPolicy',  # could also use CnnPolicy
             env,        # gym env
             replay_buffer_class=PriorityDictReplayBuffer,
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
@@ -219,6 +233,7 @@ model = SAC(policy,  # could also use CnnPolicy
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             stats_window_size=1,
             tensorboard_log=log_dir,
+            policy_kwargs={'net_arch': [512, 512, 512]},
             device=device,
             verbose=1)
 

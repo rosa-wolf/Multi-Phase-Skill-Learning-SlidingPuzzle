@@ -29,6 +29,7 @@ class PuzzleEnv(gym.Env):
                  path,
                  puzzlesize,
                  skills,
+                 num_skills,
                  seed=12345,
                  snapRatio=4.,
                  max_steps=100,
@@ -57,7 +58,7 @@ class PuzzleEnv(gym.Env):
         # ground truth skills
         # we have only one box, so there is only one skill
         self.skills = skills
-        self.num_skills = len(self.skills)
+        self.num_skills = num_skills
         # each skill has only one effect for now
         self.effect = 0
 

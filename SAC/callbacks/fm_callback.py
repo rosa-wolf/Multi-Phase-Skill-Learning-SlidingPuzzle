@@ -109,8 +109,11 @@ class FmCallback(BaseCallback):
             torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
     def _train_fm(self):
+        num_updates = int(len(self.relabel_buffer["total_num_steps"]) / 6)
+        if num_updates < 1:
+            num_updates = 1
         if len(self.buffer) >= self.sample_size:
-            for _ in range(2):
+            for _ in range(num_updates):
 
                 # put sampling batch(es) from buffer into forward model train function
                 train_loss, train_acc = self.fm.train(self.buffer)
