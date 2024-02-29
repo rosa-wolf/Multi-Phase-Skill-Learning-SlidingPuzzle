@@ -207,6 +207,7 @@ model = SAC('MultiInputPolicy',
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
             tensorboard_log=log_dir,
+            policy_kwargs={'net_arch': [512, 512, 512]},
             device=device,
             verbose=1)
 

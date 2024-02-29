@@ -109,7 +109,7 @@ class FmCallback(BaseCallback):
             torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
     def _train_fm(self):
-        num_updates = int(len(self.relabel_buffer["total_num_steps"]) / 6)
+        num_updates = int(len(self.relabel_buffer["total_num_steps"]) / 5)
         if num_updates < 1:
             num_updates = 1
         if len(self.buffer) >= self.sample_size:
