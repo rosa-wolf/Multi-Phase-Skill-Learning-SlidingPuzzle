@@ -405,7 +405,7 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
             action_space: spaces.Space,
             device: Union[th.device, str] = "auto",
             n_envs: int = 1,
-            zeta: float = 0.9,
+            zeta: float = 0.6,
             recent: int = 10,
             optimize_memory_usage: bool = False,
             handle_timeout_termination: bool = True,
