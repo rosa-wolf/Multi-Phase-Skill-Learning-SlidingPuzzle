@@ -33,6 +33,8 @@ parser.add_argument('--relabeling', action='store_true', default=False,
                     help='Do HER for higher level skills')
 parser.add_argument('--prior_buffer', action='store_true', default=False,
                     help='Whether to use priority buffer')
+parser.add_argument('--second_best', action='store_true', default=False,
+                    help='Whether to do second best normalization in calculation of reward')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
@@ -126,6 +128,7 @@ else:
 
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=max_steps,
+                second_best=args.second_best,
                 num_skills=args.num_skills,
                 verbose=0,
                 fm_path=fm_dir + "/fm",
@@ -141,6 +144,7 @@ env = PuzzleEnv(path=puzzle_path,
 eval_env = PuzzleEnv(path=puzzle_path,
                 max_steps=max_steps,
                 num_skills=args.num_skills,
+                second_best=args.second_best,
                 verbose=0,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,

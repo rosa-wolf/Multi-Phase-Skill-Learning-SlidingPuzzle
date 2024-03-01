@@ -32,6 +32,7 @@ class PuzzleEnv(gym.Env):
                  snapRatio=4.,
                  fm_path=None,
                  train_fm=True,
+                 second_best=True,
                  num_skills=2,
                  skill=0,
                  max_steps=100,
@@ -56,6 +57,8 @@ class PuzzleEnv(gym.Env):
         """
         self.seed(seed)
         self.num_skills = num_skills
+
+        self.second_best = second_best
 
         # which policy are we currently training? (Influences reward)
         self.skill = skill
@@ -549,24 +552,24 @@ class PuzzleEnv(gym.Env):
             # always give novelty bonus when state changes
             print("SYM STATE CHANGED !!!")
             # add novelty bonus (min + 0)
-            reward += min([5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+            reward += min([2 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                k), 10.])
+                                                k), 2.])
             #print(f"novelty reward = {reward}")
 
         if self._termination():
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
-                if not self.starting_epis:
+                if not self.starting_epis or True:
                     take_max = np.max(
-                        [-10., 10 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                        [-2., 2 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                       k)])
+                                                       k, second_best=self.second_best)])
 
-                    end_reward = min([take_max, 10.])
+                    end_reward = min([take_max, 2.])
                     reward += end_reward
-                    #print(f"end reward = {end_reward}")
+                    print(f"end reward = {end_reward}")
 
 
         if not self.sparse_reward:

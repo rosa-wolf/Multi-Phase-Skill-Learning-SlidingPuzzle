@@ -714,7 +714,7 @@ class ForwardModel(nn.Module):
 
 
 
-    def calculate_reward(self, start, end, k, normalize=True, log=True) -> float:
+    def calculate_reward(self, start, end, k, normalize=True, second_best=False, log=True) -> float:
         """
         Calculate the reward, that the skill-conditioned policy optimization gets when it does a successful transition
         from state start to state end using skill k
@@ -755,6 +755,13 @@ class ForwardModel(nn.Module):
         y_pred = y_pred[:, torch.where(end == 1)[0][0]]
 
         sum_of_probs = torch.sum(y_pred)
+
+        not_k = np.delete(np.arange(self.num_skills), k)
+        max_q = torch.max(y_pred[not_k])
+
+        if second_best:
+            return np.log(y_pred[k].item() / sum_of_probs.item()) - np.log(max_q.item() / sum_of_probs.item()) \
+                + np.log(self.num_skills)
 
         if normalize:
             return np.log(y_pred[k].item() / sum_of_probs.item()) + np.log(self.num_skills)
