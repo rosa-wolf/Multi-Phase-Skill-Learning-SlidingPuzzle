@@ -336,12 +336,25 @@ class PriorityReplayBuffer(BaseBuffer):
         # Sample transitions, that should not be replaced
         idx = np.random.uniform(0, batch_size, size=(batch_size - self.num_recent,))
 
-        # self.pos is in front of last added transition
-        if self.pos < self.num_recent:
-           batch_inds = np.concatenate((np.arange(self.pos),
-                                       np.arange(self.buffer_size - (self.num_recent - self.pos), self.buffer_size)))
+        if self.pos < 1000:
+          batch_inds = np.concatenate((np.arange(self.pos),
+                                      np.arange(self.buffer_size - (1000 - self.pos), self.buffer_size)))
         else:
-            batch_inds = np.arange(self.pos - self.num_recent, self.pos)
+           batch_inds = np.arange(self.pos - 1000, self.pos)
+
+        print(batch_inds)
+
+        batch_inds = np.random.choice(batch_inds, self.num_recent)
+        print(f"sampled = {batch_inds}")
+
+
+        # sample num recent transitions from last 1000 transitions
+        # takes always num_recent most recent samples
+        #if self.pos < self.num_recent:
+        #   batch_inds = np.concatenate((np.arange(self.pos),
+        #                               np.arange(self.buffer_size - (self.num_recent - self.pos), self.buffer_size)))
+        #else:
+        #    batch_inds = np.arange(self.pos - self.num_recent, self.pos)
 
         recent_batch = self._get_samples(batch_inds, env=env)
 
@@ -405,7 +418,7 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
             action_space: spaces.Space,
             device: Union[th.device, str] = "auto",
             n_envs: int = 1,
-            zeta: float = 0.6,
+            zeta: float = 0.5,
             recent: int = 10,
             optimize_memory_usage: bool = False,
             handle_timeout_termination: bool = True,
@@ -644,13 +657,18 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
         idx = np.random.uniform(0, batch_size, size=(batch_size - self.num_recent,))
 
         # self.pos is in front of last added transition
-        if self.pos < self.num_recent:
-           batch_inds = np.concatenate((np.arange(self.pos),
-                                       np.arange(self.buffer_size - (self.num_recent - self.pos), self.buffer_size)))
+        if self.pos < 100:
+            batch_inds = np.concatenate((np.arange(self.pos),
+                                         np.arange(self.buffer_size - (100 - self.pos), self.buffer_size)))
         else:
-            batch_inds = np.arange(self.pos - self.num_recent, self.pos)
+            batch_inds = np.arange(self.pos - 100, self.pos)
 
+        print(batch_inds)
+
+        batch_inds = np.random.choice(batch_inds, self.num_recent)
         recent_batch = self._get_samples(batch_inds, env=env)
+
+        print(f"sampled = {batch_inds}")
 
         observations = {
             key: th.concatenate((batch.observations[key][idx], recent_batch.observations[key]))

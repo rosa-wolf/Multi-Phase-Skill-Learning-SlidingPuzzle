@@ -50,7 +50,7 @@ parser.add_argument('--policy', default="Gaussian",
 #                   help='Evaluates a policy a policy every 10 episode (default: True)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
+parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='update coefficient for polyak update (default: 0.1)')
@@ -93,17 +93,17 @@ elif args.env_name.__contains__("2x2"):
     target_entropy = -3.
     puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
     puzzle_size = [2, 2]
-    skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
-              np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
+    #skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
+    #          np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
 
-    #skills = [np.array([[1, 0]]),
-    #          np.array([[2, 0]]),
-    #          np.array([[0, 1]]),
-    #          np.array([[3, 1]]),
-    #          np.array([[0, 2]]),
-    #          np.array([[3, 2]]),
-    #          np.array([[1, 3]]),
-    #          np.array([[2, 3]])]
+    skills = [np.array([[1, 0]]),
+              np.array([[2, 0]]),
+              np.array([[0, 1]]),
+              np.array([[3, 1]]),
+              np.array([[0, 2]]),
+              np.array([[3, 2]]),
+              np.array([[1, 3]]),
+              np.array([[2, 3]])]
 
 
 elif args.env_name.__contains__("2x3"):
@@ -113,6 +113,21 @@ elif args.env_name.__contains__("2x3"):
     skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5]]),
               np.array([[1, 0], [2, 1], [5, 4], [4, 3]]),
               np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
+
+    skills = [np.array([[1, 0]]),
+             np.array([[3, 0]]),
+             np.array([[0, 1]]),
+             np.array([[2, 1]]),
+             np.array([[4, 1]]),
+             np.array([[1, 2]]),
+             np.array([[5, 2]]),
+             np.array([[0, 3]]),
+             np.array([[4, 3]]),
+             np.array([[1, 4]]),
+             np.array([[3, 4]]),
+             np.array([[5, 4]]),
+             np.array([[2, 5]]),
+             np.array([[4, 5]])]
 
 elif args.env_name.__contains__("3x3"):
     from puzzle_env_3x3 import PuzzleEnv
@@ -132,6 +147,7 @@ seed = 98765
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 puzzlesize=puzzle_size,
+                num_skills=args.num_skills,
                 skills=skills,
                 verbose=1,
                 sparse_reward=args.sparse,
@@ -148,7 +164,7 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/3x3_4skills_possible-prior_neg_distTrue_movementFalse_sparseFalse_seed123456/model/model_700000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_predefined_2x2/2x3_14skills-larger-net_neg_distFalse_movementFalse_sparseTrue_seed123456/model/model_300000_steps", env=env)
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
 obs, _ = env.reset()

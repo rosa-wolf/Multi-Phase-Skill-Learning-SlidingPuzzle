@@ -98,41 +98,41 @@ elif args.env_name.__contains__("2x2"):
     target_entropy = -3.
     puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
     puzzle_size = [2, 2]
-    skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
-              np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
-
-    #skills = [np.array([[1, 0]]),
-    #          np.array([[2, 0]]),
-    #          np.array([[0, 1]]),
-    #          np.array([[3, 1]]),
-    #          np.array([[0, 2]]),
-    #          np.array([[3, 2]]),
-    #          np.array([[1, 3]]),
-    #          np.array([[2, 3]])]
+    #skills = [np.array([[0, 1], [1, 0], [2, 3], [3, 2]]),
+    #          np.array([[0, 2], [2, 0], [1, 3], [3, 1]])]
+#
+    skills = [np.array([[1, 0]]),
+              np.array([[2, 0]]),
+              np.array([[0, 1]]),
+              np.array([[3, 1]]),
+              np.array([[0, 2]]),
+              np.array([[3, 2]]),
+              np.array([[1, 3]]),
+              np.array([[2, 3]])]
 
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
     puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
     puzzle_size = [2, 3]
-    skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5]]),
-              np.array([[1, 0], [2, 1], [5, 4], [4, 3]]),
-              np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
-
-    #skills = [np.array([[1, 0]]),
-    #          np.array([[3, 0]]),
-    #          np.array([[0, 1]]),
-    #          np.array([[2, 1]]),
-    #          np.array([[4, 1]]),
-    #          np.array([[1, 2]]),
-    #          np.array([[5, 2]]),
-    #          np.array([[0, 3]]),
-    #          np.array([[4, 3]]),
-    #          np.array([[1, 4]]),
-    #          np.array([[3, 4]]),
-    #          np.array([[5, 4]]),
-    #          np.array([[2, 5]]),
-    #          np.array([[4, 5]])]
-    #num_skills = args.num_skills
+    #skills = [np.array([[0, 1], [1, 2], [3, 4], [4, 5]]),
+    #          np.array([[1, 0], [2, 1], [5, 4], [4, 3]]),
+    #          np.array([[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2]])]
+#
+    skills = [np.array([[1, 0]]),
+              np.array([[3, 0]]),
+              np.array([[0, 1]]),
+              np.array([[2, 1]]),
+              np.array([[4, 1]]),
+              np.array([[1, 2]]),
+              np.array([[5, 2]]),
+              np.array([[0, 3]]),
+              np.array([[4, 3]]),
+              np.array([[1, 4]]),
+              np.array([[3, 4]]),
+              np.array([[5, 4]]),
+              np.array([[2, 5]]),
+              np.array([[4, 5]])]
+    num_skills = args.num_skills
 
 
 
@@ -233,7 +233,7 @@ model = SAC('MultiInputPolicy',  # could also use CnnPolicy
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             stats_window_size=1,
             tensorboard_log=log_dir,
-            policy_kwargs={'net_arch': [512, 512, 512]},
+            policy_kwargs={'net_arch': [256, 256, 256]},
             device=device,
             verbose=1)
 
