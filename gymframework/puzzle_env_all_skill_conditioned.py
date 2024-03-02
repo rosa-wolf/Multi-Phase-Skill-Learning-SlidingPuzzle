@@ -173,7 +173,7 @@ class PuzzleEnv(gym.Env):
         Resets the environment (including the agent) to the initial conditions.
         """
         super().reset(seed=seed)
-        self.scene.reset()
+        #self.scene.reset()
         self.terminated = False
         self.truncated = False
         self.env_step_counter = 0
@@ -206,7 +206,7 @@ class PuzzleEnv(gym.Env):
         #sym_obs = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])
 
         self.scene.sym_state = sym_obs
-        self.scene.set_to_symbolic_state(hard=True)
+        self.scene.set_to_symbolic_state(hard=False)
         self.init_sym_state = sym_obs.copy()
 
         # look which box is in the field we want to push from

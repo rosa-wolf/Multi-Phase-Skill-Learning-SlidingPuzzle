@@ -561,7 +561,7 @@ class PuzzleEnv(gym.Env):
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end:
-                if not self.starting_epis or True:
+                if not self.starting_epis:
                     take_max = np.max(
                         [-2., 2 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
