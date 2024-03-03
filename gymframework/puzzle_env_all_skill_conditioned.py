@@ -352,22 +352,18 @@ class PuzzleEnv(gym.Env):
         Applys the action in the scene
         :param action: desired x-y-z position
         """
-        # do velocity control for 100 steps
-        # set velocity to go in that direction
-        # (vel[0] - velocity in x-direction, vel[1] - velocity in y-direction)
-        # vel[2] - velocity in z-direction (set to zero)
-        # vel[3] - orientation, set to zero
-        action[:3] /= 4
-        #action[2] = action[2] / (2/0.3) - 0.05
-        # if limits are [-.25, .1]
+        # do velocity control for 50 steps
+        action[0] /= 4
+        action[1] /= 4
 
-        for _ in range(100):
+        action[2] = action[2] / 10 - 0.1
+        for _ in range(50):
             # get current position
             act = self.scene.q[:3]
 
             diff = action - act
 
-            self.scene.v = np.array([diff[0], diff[1], diff[2], 0.])
+            self.scene.v = 2 * np.array([diff[0], diff[1], diff[2], 0.])
             self.scene.velocity_control(1)
 
     def _reward(self) -> float:
@@ -417,5 +413,5 @@ class PuzzleEnv(gym.Env):
                     # punish if wrong block was pushed
                     reward -= 1
                     print("WRONG CHANGED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        #print("reward = ", reward)
+        print("reward = ", reward)
         return reward
