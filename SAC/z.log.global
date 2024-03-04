@@ -1,12 +1,16 @@
 ** compiled at:     Feb 13 2024 11:40:06
-** execution start: 2024-03-03 17:27:10:175448
+** execution start: 2024-03-04 11:29:59:205294
 graph.cpp:initParameters:1505(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1512(3)  - failed
 graph.cpp:initParameters:1518(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1524(3)  - failed
 util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
 util.cpp:cd_file:1039(3) entering path '../Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
-util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_2x3.g'
+util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_3x3.g'
 util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
-simulation.cpp:updateDisplayData:664(0) simulation frames changed: #frames: 19 last: camera
+util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
+util.cpp:cd_file:1039(3) entering path '../Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
+util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_3x3.g'
+util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC'
+simulation.cpp:updateDisplayData:664(0) simulation frames changed: #frames: 22 last: camera
 simulation.cpp:~Simulation:149(0) shutting down Simulation

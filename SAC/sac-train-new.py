@@ -84,8 +84,6 @@ if torch.cuda.is_available():
     device = 'cuda'
 else:
     device = 'cpu'
-
-max_steps = args.num_steps
 # Environment
 
 if args.env_name.__contains__("1x2"):
@@ -132,9 +130,6 @@ elif args.env_name.__contains__("2x3"):
               np.array([[5, 4]]),
               np.array([[2, 5]]),
               np.array([[4, 5]])]
-    num_skills = args.num_skills
-
-
 
 elif args.env_name.__contains__("3x3"):
     target_entropy = -4.
@@ -149,11 +144,11 @@ else:
     raise ValueError("You must specify the environment to use")
 
 env = PuzzleEnv(path=puzzle_path,
-                max_steps=100,
+                max_steps=args.num_steps,
                 puzzlesize=puzzle_size,
                 num_skills=args.num_skills,
                 skills=skills,
-                verbose=0,
+                verbose=1,
                 sparse_reward=args.sparse,
                 reward_on_change=True,
                 neg_dist_reward=args.neg_dist_reward,
@@ -164,7 +159,7 @@ env = PuzzleEnv(path=puzzle_path,
                 give_coord=True,
                 seed=1234567)
 eval_env = PuzzleEnv(path=puzzle_path,
-                     max_steps=100,
+                     max_steps=args.num_steps,
                      num_skills=args.num_skills,
                      puzzlesize=puzzle_size,
                      skills=skills,
@@ -217,7 +212,7 @@ callbacks = CallbackList([checkpoint_callback, eval_callback])
 # initialize SAC
 model = SAC('MultiInputPolicy',  # could also use CnnPolicy
             env,        # gym env
-            replay_buffer_class=PriorityDictReplayBuffer,
+            #replay_buffer_class=PriorityDictReplayBuffer,
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=args.replay_size,
             learning_starts=1000, # when learning should start to prevent learning on little data

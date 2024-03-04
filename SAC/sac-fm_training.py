@@ -121,7 +121,7 @@ elif args.env_name.__contains__("3x3"):
     target_entropy = -4.5
     puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
     puzzle_size = [3, 3]
-    max_steps = 150
+    max_steps = 200
 
 else:
     raise ValueError("You must specify the environment to use")
@@ -130,7 +130,7 @@ env = PuzzleEnv(path=puzzle_path,
                 max_steps=max_steps,
                 second_best=args.second_best,
                 num_skills=args.num_skills,
-                verbose=0,
+                verbose=1,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,
                 sparse_reward=args.sparse,

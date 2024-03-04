@@ -10,11 +10,17 @@ bound2(center): { Q:[-.17 0 -.025], shape:ssBox, size:[.05 .3 .05 .01], color:[.
 bound3(center): { Q:[+.17 0 -.025], shape:ssBox, size:[.05 .3 .05 .01], color:[.8]}
 
         
-box0: { X:[.1 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[1 0 0], mass: .1}
-box1: { X:[0. -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 1 0], mass: .1}
-box2: { X:[-.1 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 0 1], mass: .1}
-box3: { X:[.1 .05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[1 1 0], mass: .1}
-box4: { X:[0. .05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 1 1], mass: .1}
+#box0: { X:[.1 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[1 0 0], mass: .1}
+#box1: { X:[0. -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 1 0], mass: .1}
+#box2: { X:[-.1 -.05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 0 1], mass: .1}
+#box3: { X:[.1 .05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[1 1 0], mass: .1}
+#box4: { X:[0. .05 .11], shape:ssBox, size:[.096 .096 .096 .01], color:[0 1 1], mass: .1}
+
+box0: { X:[.1 -.05 .11], shape:ssBox, size:[.092 .092 .092 .01], color:[1 0 0], mass: .1}
+box1: { X:[0. -.05 .11], shape:ssBox, size:[.092 .092 .092 .01], color:[0 1 0], mass: .1}
+box2: { X:[-.1 -.05 .11], shape:ssBox, size:[.092 .092 .092 .01], color:[0 0 1], mass: .1}
+box3: { X:[.1 .05 .11], shape:ssBox, size:[.092 .092 .092 .01], color:[1 1 0], mass: .1}
+box4: { X:[0. .05 .11], shape:ssBox, size:[.092 .092 .092 .01], color:[0 1 1], mass: .1}
 
 
 base: { X: [0, 0, .2], multibody }

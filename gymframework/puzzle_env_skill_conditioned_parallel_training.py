@@ -583,12 +583,12 @@ class PuzzleEnv(gym.Env):
                 reward += 0.5 * min_dist
                 #print(f"neg dist reward to all neighbors = {reward}")
 
-                # only penalize contact with wrong boxes, if we are not in contact with correct ones
-                if min_dist < -0.01:
-                    contact, box = self._contact_with_nonneighbor(empty)
-                    if contact:
-                        reward -= 0.1
-                        #print(f"In contact with box {box}")
+                ## only penalize contact with wrong boxes, if we are not in contact with correct ones
+                #if min_dist < -0.01:
+                #    contact, box = self._contact_with_nonneighbor(empty)
+                #    if contact:
+                #        reward -= 0.1
+                #        #print(f"In contact with box {box}")
 
 
             else:
