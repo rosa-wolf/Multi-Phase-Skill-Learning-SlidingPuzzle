@@ -17,7 +17,7 @@ from BufferSamples import (
     PrioritizedDictReplayBufferSamples,
 )
 
-from stable_baselines3.common.buffers import BaseBuffer
+from stable_baselines3.common.buffers import BaseBuffer, ReplayBuffer, DictReplayBuffer
 from stable_baselines3.common.vec_env import VecNormalize
 
 try:
@@ -689,4 +689,84 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
                                                   rewards,
                                                   weights,
                                                   enumeration)
+class SeadsBuffer(DictReplayBuffer):
+    observation_space: spaces.Dict
+    obs_shape: Dict[str, Tuple[int, ...]]  # type: ignore[assignment]
+    observations: Dict[str, np.ndarray]  # type: ignore[assignment]
+    next_observations: Dict[str, np.ndarray]  # type: ignore[assignment]
+
+    def __init__(
+            self,
+            buffer_size: int,
+            observation_space: spaces.Dict,
+            action_space: spaces.Space,
+            device: Union[th.device, str] = "auto",
+            n_envs: int = 1,
+            optimize_memory_usage: bool = False,
+            handle_timeout_termination: bool = True,
+    ):
+
+        super().__init__(buffer_size,
+                         observation_space,
+                         action_space,
+                         device,
+                         n_envs,
+                         optimize_memory_usage,
+                         handle_timeout_termination)
+
+        self.recent_samples = 25600
+
+    def sample(  # type: ignore[override]
+            self,
+            batch_size: int,
+            env: Optional[VecNormalize] = None,
+    ) -> DictReplayBufferSamples:
+        """
+        Sample elements from the replay buffer.
+        :param batch_size: Number of element to sample
+        :param env: associated gym VecEnv
+            to normalize the observations/rewards when sampling
+        :return:
+        """
+        if not self.full:
+            num_samples = self.recent_samples if self.pos > 256 else self.pos
+        else:
+            num_samples = self.recent_samples
+
+        print(f"num_samples = {num_samples}")
+
+        if not self.optimize_memory_usage:
+            upper_bound = self.buffer_size if self.full else self.pos
+            long_batch_inds = np.random.randint(0, upper_bound, size=num_samples)
+        else:
+            if self.full:
+                long_batch_inds = (np.random.randint(1, self.buffer_size, size=num_sampes) + self.pos) % self.buffer_size
+            else:
+                long_batch_inds = np.random.randint(0, self.pos, size=num_samples)
+
+
+        # get recent samples
+        recent_inds = self._get_recent_inds(num_samples)
+
+        batch_inds = np.concatenate((long_batch_inds, recent_inds))
+
+        return self._get_samples(batch_inds, env)
+
+    def _get_recent_inds(self,
+                         num_samples):
+        """
+        get all most recent samples from buffer
+        """
+
+        # self.pos is in front of last added transition
+        if self.pos < num_samples:
+            inds = np.concatenate((np.arange(self.pos),
+                                         np.arange(self.buffer_size - (num_samples - self.pos), self.buffer_size)))
+        else:
+            inds = np.arange(self.pos - num_samples, self.pos)
+
+        return inds
+
+
+
 
