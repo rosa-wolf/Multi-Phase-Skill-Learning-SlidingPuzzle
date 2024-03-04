@@ -772,7 +772,7 @@ class ForwardModel(nn.Module):
         return y_pred[k].item() / sum_of_probs.item()
 
 
-    def novelty_bonus(self, start, end, skill, others_only=True) -> float:
+    def novelty_bonus(self, start, end, skill, others_only=True, uniform=False) -> float:
         """
         given the transition from start to end, returns
 
@@ -788,6 +788,10 @@ class ForwardModel(nn.Module):
         ####################################################
         # go through all skills and get sum of likelihoods #
         ####################################################
+        if uniform:
+            # assume uniformly distributed probabilities as output
+            return - np.log(1/(self.height * self.width))
+
         # get model prediction of transitioning from z_0 with each skill
         start = torch.from_numpy(start)
         end = torch.from_numpy(end)

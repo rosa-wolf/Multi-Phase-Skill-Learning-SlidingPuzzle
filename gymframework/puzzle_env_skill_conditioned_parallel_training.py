@@ -552,9 +552,10 @@ class PuzzleEnv(gym.Env):
             # always give novelty bonus when state changes
             print("SYM STATE CHANGED !!!")
             # add novelty bonus (min + 0)
+            uniform = True if self.starting_epis else False
             reward += min([2 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                k), 2.])
+                                                k, uniform=uniform), 2.])
             #print(f"novelty reward = {reward}")
 
         if self._termination():
