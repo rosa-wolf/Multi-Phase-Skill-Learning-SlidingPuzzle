@@ -55,6 +55,8 @@ class FmCallback(BaseCallback):
         self.relabel = relabel
         self.relabel_buffer = {"max_rewards": [],
                                 "max_skill": [],
+                               "all_rewards": [],
+                               "applied_skill": [],
                                 "episode_length": [],
                                 "total_num_steps": []}
 
@@ -340,6 +342,8 @@ class FmCallback(BaseCallback):
 
         self.relabel_buffer = {"max_rewards": [],
                                "max_skill": [],
+                               "all_rewards": [],
+                               "applied_skill": [],
                                "episode_length": [],
                                "total_num_steps": []}
 
