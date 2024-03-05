@@ -440,8 +440,9 @@ class ForwardModel(nn.Module):
     def _backtrace(self, start, goal, parent, skill):
         path = [goal]
         skills = []
+        print(skill.keys())
         while not (path[-1] == start).all():
-            key = np.array2string(path[-1]).replace('.', '.').replace('\n', '')
+            key = np.array2string(path[-1]).replace('.', '').replace('\n', '')
             skills.append(skill[key])
             path.append(parent[key])
             print(path)
@@ -476,9 +477,6 @@ class ForwardModel(nn.Module):
         skill = {}
         cost = {}
 
-
-
-        print(heap)
         # store parent of start as None to not get key-error
         key = np.array2string(start).replace('.', '').replace('\n', '')
         parent[key] = None
@@ -486,9 +484,7 @@ class ForwardModel(nn.Module):
 
         while heap:
             # go through queue
-            print("before pop")
             weight, _, state = heapq.heappop(heap)
-            print(f"weigtht = {weight}")
             if len(visited) == 0 or not np.any(np.all(state == visited, axis=1)):
                 visited.append(state)
 
@@ -501,7 +497,6 @@ class ForwardModel(nn.Module):
                     # find successor state
                     next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
                     #next_state = next_state.cpu().detach().numpy()
-
                     # only append next_state, if it was not already visited
                     # (this also includes that the skill does not lead to a change in symbolic state),
                     if not np.any(np.all(next_state == visited, axis=1)):
@@ -518,22 +513,18 @@ class ForwardModel(nn.Module):
                                         parent[key] = state.astype(int)
                                         skill[key] = k
                                         heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
-                                        print(heap)
                                 else:
                                     cost[key] = new_weight
                                     parent[key] = state.astype(int)
                                     skill[key] = k
                                     heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
-                                    print(heap)
 
-                                print("after skill")
 
                                 # if successor state is goal: break
                                 if (next_state == goal).all():
                                     # get the state transitions and skills that lead to the goal
                                     state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
                                     return state_sequence, skill_sequence
-                                print("after goal")
 
         print("Goal Not reachable from start configuration")
         return None, None

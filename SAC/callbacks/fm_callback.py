@@ -59,8 +59,8 @@ class FmCallback(BaseCallback):
                                 "total_num_steps": []}
 
         # initialize empty replay memory for fm
-        self.buffer = FmReplayMemory(memory_size, seed)
-        self.change_buffer = FmReplayMemory(100, seed)
+        self.long_term_buffer = FmReplayMemory(2048, seed)
+        self.recent_buffer = FmReplayMemory(256, seed)
         self.verbose = verbose
         self.num_skills = num_skills
         self.train_fm = train_fm
@@ -150,6 +150,8 @@ class FmCallback(BaseCallback):
         if self.locals["dones"] != 0:
             self.relabel_buffer["max_rewards"].append((self.locals["infos"][0])["max_rewards"])
             self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
+            self.relabel_buffer["all_rewards"].append((self.locals["infos"][0])["all_rewards"])
+            self.relabel_buffer["applied_skill"].append((self.locals["infos"][0])["applied_skill"])
             self.relabel_buffer["episode_length"].append(((self.locals["infos"][0])["episode"]["l"]))
             self.relabel_buffer["total_num_steps"].append(self.n_calls)
             print(self.relabel_buffer)
@@ -324,12 +326,14 @@ class FmCallback(BaseCallback):
 
                 # always relabel fm transition
                 if self.train_fm:
-                    self.buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
+                    self.long_term_buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
+                    self.recent_buffer.push(init_empty.flatten(), new_skill.flatten(), out_empty.flatten())
                     #print(f"init = {init_empty.flatten()}, new_skill = {new_skill.flatten()}, old_skill = {old_skill.flatten()}, out_empty = {out_empty.flatten()}")
 
             else:
                 if self.train_fm:
-                    self.buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
+                    self.long_term_buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
+                    self.recent_buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
 
 
         #print("-------------------------------------------------------")

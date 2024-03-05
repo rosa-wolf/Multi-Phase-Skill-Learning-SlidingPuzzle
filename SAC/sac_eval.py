@@ -152,7 +152,7 @@ match args.env_name:
                         logging=False,
                         verbose=1,
                         train_fm=False,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallelseads_2x2_gradsteps16_num_skills2_sparseFalse_relabelingTrue_priorbufferFalse/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel2x2_num_skills7_sparseTrue_relabelingTrue_priorbufferFalse/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -210,7 +210,7 @@ np.random.seed(args.seed)
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingFalse/model/model_200000_steps", env=env)
 
 # only relabel after change of reward scheme
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallelseads_2x3_gradsteps-1_num_skills3_sparseFalse_relabelingFalse_priorbufferFalse/model/model_350000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel2x2_num_skills7_sparseTrue_relabelingFalse_priorbufferFalse/model/model_80000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_0301/parallel2x3_num_skills3_sparseTrue_relabelingFalse_priorbufferFalse/model/model_350000_steps", env=env)
 
@@ -219,14 +219,14 @@ model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallelsead
 
 
 #print(f"mean_reward = {mean_reward}, std_reward = {std_reward}\n==========================\n=========================")
-obs, _ = env.reset(skill=1)
+obs, _ = env.reset(skill=0)
 num_steps = 0
 for _ in range(5000):
     action, _states = model.predict(obs, deterministic=True)
     obs, reward, terminated, truncated, _ = env.step(action)
     num_steps += 1
-    if terminated or truncated or num_steps > 70:
-        obs, _ = env.reset(skill=1)
+    if terminated or truncated or num_steps > 30:
+        obs, _ = env.reset(skill=0)
         num_steps = 0
 
 del model

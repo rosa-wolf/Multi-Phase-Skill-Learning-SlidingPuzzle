@@ -63,6 +63,8 @@ class PuzzleEnv(gym.Env):
         # which policy are we currently training? (Influences reward)
         self.skill = skill
 
+        self.plan = []
+
         self.num_pieces = puzzlesize[0] * puzzlesize[1] - 1
 
         # parameters to control different versions of observation and reward
@@ -276,26 +278,63 @@ class PuzzleEnv(gym.Env):
         self.env_step_counter = 0
         self.episode += 1
 
+        if sym_state_in is None:
+            # randomly pick the field where no block is initially
+            empty_field = np.random.choice(np.arange(self.scene.pieces + 1))
+            field = np.delete(np.arange(0, self.scene.pieces + 1),
+                              empty_field)
+            # put blocks in random fields, except the one that has to be free
+            order = np.random.permutation(field)
+            sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+            for i in range(self.scene.pieces):
+                sym_obs[i, order[i]] = 1
+        else:
+            sym_obs = sym_state_in
+
+        self.scene.sym_state = sym_obs
+        self.init_sym_state = sym_obs.copy()
+
+
         # sample skill
         if skill is not None:
             self.skill = skill
         else:
-            if not self.end_epis:
+            if self.starting_epis:
                 self.skill = np.random.randint(0, self.num_skills, 1)[0]
             else:
-                # at end do not sample from all skills, but only from those the forward model predicts change for
-                # (for those that are in use)
-                # out is shape empty_fields x num_skill x output array
-                used_skills = set()
-                out = self.fm.get_full_pred()
-                for i in range(out.shape[0]):
-                    out[i, :, i] = 0.
-                    used_skills.update(list(np.where(np.any(out[i] > 0.5, axis=1))[0]))
-                used_skills = np.array(list(used_skills))
-                if used_skills.shape == (0,):
-                    raise ValueError("No skills lead to any change in symbolic state, "
-                                     "reward scheme seems to have been changed to early")
-                self.skill = np.random.choice(np.array(list(used_skills)))
+                # generate goal configuration
+                self.skill = np.random.randint(0, self.num_skills, 1)[0]
+                for i in range(24):
+                    # randomly pick the field where no block is initially
+                    field = np.delete(np.arange(0, self.scene.pieces + 1),
+                                      np.random.choice(np.arange(self.scene.pieces + 1)))
+                    # put blocks in random fields, except the one that has to be free
+                    order = np.random.permutation(field)
+                    goal_sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+                    for i in range(self.scene.pieces):
+                        goal_sym_obs[i, order[i]] = 1
+
+                    _, plan = self.fm.dijkstra(self.init_sym_state.flatten(), goal_sym_obs.flatten())
+                    print(f"skills = {plan}")
+                    if plan is not None and len(plan) > 0:
+                        self.skill = plan[0]
+                        break
+
+
+                ## at end do not sample from all skills, but only from those the forward model predicts change for
+                ## (for those that are in use)
+                ## out is shape empty_fields x num_skill x output array
+                #used_skills = set()
+                #out = self.fm.get_full_pred()
+                #out = out[empty_field]
+                #out[:, empty_field] = 0
+                #used_skills = np.array(list(set(np.where(out > 0.8)[0])))
+                #print(out)
+                #print(used_skills)
+                #if used_skills.shape == (0,):
+                #    raise ValueError("No skills lead to any change in symbolic state, "
+                #                     "reward scheme seems to have been changed to early")
+                #self.skill = np.random.choice(used_skills)
 
         print(f"skill = {self.skill}")
         #print("skill = ", self.skill)
@@ -310,22 +349,7 @@ class PuzzleEnv(gym.Env):
         else:
             self.scene.q = [actor_pos[0], actor_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
-        if sym_state_in is None:
-            # randomly pick the field where no block is initially
-            field = np.delete(np.arange(0, self.scene.pieces + 1),
-                              np.random.choice(np.arange(0, self.scene.pieces + 1)))
-            # put blocks in random fields, except the one that has to be free
-            order = np.random.permutation(field)
-            sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-            for i in range(self.scene.pieces):
-                sym_obs[i, order[i]] = 1
-        else:
-            sym_obs = sym_state_in
-
-        self.scene.sym_state = sym_obs
         self.scene.set_to_symbolic_state()
-        self.init_sym_state = sym_obs.copy()
-
         #print(f"init_sym_obs = {self.init_sym_state}")
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
