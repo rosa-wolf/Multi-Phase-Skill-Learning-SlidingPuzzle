@@ -232,7 +232,7 @@ class PuzzleEnv(gym.Env):
                 reward,
                 self.terminated,
                 self.truncated,
-                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot, 'is_success': success})
+                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot, "all_rewards": self.episode_rewards, "applied_skill": self.skill, 'is_success': success})
 
     def _get_box(self, k):
         """
@@ -552,10 +552,11 @@ class PuzzleEnv(gym.Env):
             # always give novelty bonus when state changes
             print("SYM STATE CHANGED !!!")
             # add novelty bonus (min + 0)
-            uniform = True if self.starting_epis else False
-            reward += min([2 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+            # uniform = True if self.starting_epis else False
+            uniform=False
+            reward += self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                k, uniform=uniform), 2.])
+                                                k, uniform=uniform)
             #print(f"novelty reward = {reward}")
 
         if self._termination():
@@ -564,12 +565,12 @@ class PuzzleEnv(gym.Env):
             if self.reward_on_end:
                 if not self.starting_epis:
                     take_max = np.max(
-                        [-2., 2 * self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                        [-np.log(self.num_skills), self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                        k, second_best=self.second_best)])
 
-                    end_reward = min([take_max, 2.])
-                    reward += end_reward
+                    #end_reward = min([take_max, 2.])
+                    reward += take_max
                     print(f"end reward = {end_reward}")
 
 

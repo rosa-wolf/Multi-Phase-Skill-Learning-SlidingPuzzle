@@ -14,7 +14,7 @@ import torch
 from scipy import optimize
 import logging as lg
 from get_neighbors import get_neighbors
-
+from forwardmodel_simple_input.forward_model import ForwardModel
 class PuzzleEnv(gym.Env):
     """
     Custom environment for the sliding puzzle
@@ -26,20 +26,16 @@ class PuzzleEnv(gym.Env):
 
     def __init__(self,
                  path='slidingPuzzle_2x2.g',
-                 lookup=False,
                  snapRatio=4.,
                  fm_path=None,
-                 train_fm=True,
                  second_best=True,
+                 novelty_reward=True,
+                 train_fm=True,
                  num_skills=2,
-                 skill=0,
                  max_steps=100,
                  puzzlesize = [2, 2],
-                 sparse_reward=False,
-                 reward_on_change=False,
-                 reward_on_end=False,
+                 skill=0,
                  logging=True,
-                 term_on_change=False,
                  relabel=False,
                  seed=12345,
                  verbose=0):
@@ -49,6 +45,7 @@ class PuzzleEnv(gym.Env):
         :param path: path to scene file
         :param max_steps: Maximum number of steps per episode
         :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
+        :param sparse_reward:       whether to only give a reward on change of symbolic observation (default false)
         :param reward_on_change:    whether to give additional reward when boxes is successfully pushed (default false)
         :param term_on_change:      whether to terminate episode on change of symbolic observation (default false)
         :param verbose:      _       whether to render scene (default false)
@@ -57,6 +54,7 @@ class PuzzleEnv(gym.Env):
         self.num_skills = num_skills
 
         self.second_best = second_best
+        self.novelty_reward = novelty_reward
 
         # which policy are we currently training? (Influences reward)
         self.skill = skill
@@ -64,23 +62,11 @@ class PuzzleEnv(gym.Env):
         self.num_pieces = puzzlesize[0] * puzzlesize[1] - 1
 
         # parameters to control different versions of observation and reward
-        self.sparse_reward = sparse_reward
-        self.reward_on_change = reward_on_change
-        self.reward_on_end = reward_on_end
 
         self.neighborlist = self.__get_neighbors(puzzle_size=puzzlesize)
 
-        # if we only give reward on last episode then we should terminate on change of symbolic observation
-        if self.reward_on_end:
-            self.term_on_change = True
-        else:
-            self.term_on_change = term_on_change
-
         # only do relabeling for sparse reward
-        if not self.term_on_change:
-            self.relabel = False
-        else:
-            self.relabel = relabel
+        self.relabel = relabel
 
         # store rewards of all skills for whole episode (for relabeling)
         self.episode_rewards = []
@@ -110,31 +96,20 @@ class PuzzleEnv(gym.Env):
 
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
-        self.lookup = lookup
-        self.train_fm = train_fm
         self.fm_path = fm_path
         self.logging = logging
+        self.train_fm = train_fm
 
-        if self.lookup:
-            from forwardmodel_lookup.forward_model import ForwardModel
-        else:
-            from forwardmodel_simple_input.forward_model import ForwardModel
 
         self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=puzzlesize)
 
         if not self.train_fm:
-            if self.lookup:
-                raise "Loading pretrained model not yet implemented for lookup table"
             if self.fm_path is None:
                 raise ValueError("No path for pretrained forward model given")
             self.fm.model.load_state_dict(torch.load(fm_path))
         else:
-            if self.lookup:
-                print("initial save of fm")
-                self.fm.save(fm_path)
-            else:
-                print("initial save of fm")
-                torch.save(self.fm.model.state_dict(), fm_path)
+            print("initial save of fm")
+            torch.save(self.fm.model.state_dict(), fm_path)
 
     @ staticmethod
     def __get_neighbors(puzzle_size):
@@ -170,7 +145,7 @@ class PuzzleEnv(gym.Env):
         # check if symbolic observation changed
         if not (self._old_sym_obs == self.scene.sym_state).all():
             # for episode termination on change of symbolic observation
-            self.terminated = self.term_on_change
+            self.terminated = True
             if self.logging:
                 lg.info(f"Change with skill {self.skill} after {self.total_num_steps} steps")
 
@@ -186,6 +161,7 @@ class PuzzleEnv(gym.Env):
 
         max_rewards = None
         max_skill_one_hot = None
+        episode_rewards = None
         success = 0.
         if self._termination():
             #print(f"init_sym_state =\n {self.init_sym_state},\n out_sym_state = \n{self.scene.sym_state}")
@@ -225,7 +201,7 @@ class PuzzleEnv(gym.Env):
                 reward,
                 self.terminated,
                 self.truncated,
-                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot, 'is_success': success})
+                {"max_rewards": max_rewards, "max_skill": max_skill_one_hot, "all_rewards": self.episode_rewards, "applied_skill": self.skill ,'is_success': success})
 
     def _get_box(self, k):
         """
@@ -309,11 +285,7 @@ class PuzzleEnv(gym.Env):
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
         if self.train_fm:
-            if self.lookup:
-                self.fm.load(self.fm_path)
-            #print("Reloading fm")
-            else:
-                self.fm.model.load_state_dict(torch.load(self.fm_path))
+            self.fm.model.load_state_dict(torch.load(self.fm_path))
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -528,23 +500,22 @@ class PuzzleEnv(gym.Env):
 
         if not (self.init_sym_state == self.scene.sym_state).all():
             # always give novelty bonus when state changes
-            print("SYM STATE CHANGED !!!")
-            # add novelty bonus (min + 0)
-            reward += min([self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
-                                                self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                k, uniform=False), 2.])
+            if self.novelty_reward:
+                print("SYM STATE CHANGED !!!")
+                # add novelty bonus (min + 0)
+                reward += self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
+                                                    self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                                    k, uniform=False)
             print(f"novelty reward = {reward}")
 
         if self._termination():
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
-            if self.reward_on_end:
-                    reward += np.max(
-                        [-2., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
-                                                       self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                       k, second_best=self.second_best)])
-
-                    print(f"end reward = {reward}")
+            reward += np.max(
+                [-2, self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
+                                               self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
+                                               k, second_best=self.second_best)])
+            print(f"end reward = {reward}")
 
         return reward
 

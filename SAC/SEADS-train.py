@@ -36,6 +36,8 @@ parser.add_argument('--prior_buffer', action='store_true', default=False,
                     help='Whether to use priority buffer')
 parser.add_argument('--second_best', action='store_true', default=False,
                     help='Whether to do second best normalization in calculation of reward')
+parser.add_argument('--novelty_bonus', action='store_true', default=False,
+                    help='Whether to give novelty bonus')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
@@ -124,33 +126,24 @@ else:
 
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=args.num_steps,
+                novelty_reward=args.novelty_bonus,
                 second_best=args.second_best,
                 num_skills=args.num_skills,
                 verbose=1,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,
-                sparse_reward=args.sparse,
-                reward_on_change=True,
-                term_on_change=True,
-                reward_on_end=True,
                 relabel=args.relabeling,
-                seed=args.seed,
-                snapRatio=args.snap_ratio)
+                seed=args.seed)
 
 eval_env = PuzzleEnv(path=puzzle_path,
                 max_steps=args.num_steps,
+                novelty_reward=args.novelty_bonus,
                 num_skills=args.num_skills,
                 second_best=args.second_best,
                 verbose=0,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,
-                sparse_reward=args.sparse,
-                reward_on_change=True,
-                term_on_change=True,
-                reward_on_end=True,
-                relabel=args.relabeling,
-                seed=987654,
-                snapRatio=args.snap_ratio)
+                seed=987654)
 eval_env = Monitor(eval_env)
 
 env.action_space.seed(args.seed)

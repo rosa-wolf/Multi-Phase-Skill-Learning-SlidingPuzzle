@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import logging as lg
 import time
+from scipy import optimize
 
 from gymnasium.wrappers import TransformReward
 
@@ -112,20 +113,25 @@ class FmCallback(BaseCallback):
         num_updates = int(len(self.relabel_buffer["total_num_steps"]) / 5)
         if num_updates < 1:
             num_updates = 1
-        if len(self.buffer) >= self.sample_size:
+        num_updates = 4
+        # make new buffer from recent and sampled long-term episodes
+        # only update fm once 256 episodes have been sampled
+        if len(self.long_term_buffer) >= 256:
+            final_fm_buffer = FmReplayMemory(512, self.seed)
+            recent_state_batch, recent_skill_batch, recent_next_state_batch = self.recent_buffer.sample(256)
+            state_batch, skill_batch, next_state_batch = self.long_term_buffer.sample(256)
+            for i in range(256):
+                final_fm_buffer.push(state_batch[i], skill_batch[i], next_state_batch[i])
+                final_fm_buffer.push(recent_state_batch[i], recent_skill_batch[i], recent_next_state_batch[i])
             for _ in range(num_updates):
-
                 # put sampling batch(es) from buffer into forward model train function
-                train_loss, train_acc = self.fm.train(self.buffer)
-
+                train_loss, train_acc = self.fm.train(final_fm_buffer)
                 if self.verbose > 0:
                     print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
-
-            if self.verbose > 0:
-                print("Saving updated model now")
-            # don't save whole model, but only parameters
-            torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
-
+                if self.verbose > 0:
+                    print("Saving updated model now")
+                # don't save whole model, but only parameters
+                torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
     def _eval_fm(self):
         if len(self.buffer) >= self.sample_size:
             if self.verbose > 0:
@@ -174,10 +180,10 @@ class FmCallback(BaseCallback):
             # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
             if self.env.starting_epis:
                 # in beginning look whether change regularly happens
-                num_change = np.where(out[i] > 0.7)[0].shape[0]
-            else:
-                # at end look if change happens consistently with high probability
-                num_change = np.where(out[i] > 0.95)[0].shape[0]
+                num_change = np.where(out[i] > 0.8)[0].shape[0]
+            #else:
+            #    # at end look if change happens consistently with high probability
+            #    num_change = np.where(out[i] > 0.95)[0].shape[0]
 
             if num_change < len(self.env.neighborlist[str(i)]):
                     change_reward_scheme = False
@@ -229,6 +235,10 @@ class FmCallback(BaseCallback):
 
         # for now relabel without caring for skill distribution
         #dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
+
+        # calculate linear sum assignment problem
+        if self.relabel and not self.env.starting_epis:
+            self._lin_sum_assignment(num_relabel)
 
         for i_episode in range(num_relabel):
             ## get start and end idx of episode to relabel
@@ -328,5 +338,43 @@ class FmCallback(BaseCallback):
                                "max_skill": [],
                                "episode_length": [],
                                "total_num_steps": []}
+
+    def _lin_sum_assignment(self,
+                            num_episodes):
+
+        # count the number of times each skill appears
+        for k in range(self.num_skills):
+            unique, counts = np.unique(self.relabel_buffer["applied_skill"], return_counts=True)
+
+        skill_array = np.zeros(num_episodes)
+        # get array of skills where each skill is repeated by its number of occurance
+        idx = 0
+        for k in range(self.num_skills):
+            skill_array[idx: idx + counts[k]] = k
+            idx += counts[k]
+
+        # go through all episodes i and calculate cost q(k | e_iT, e_i0), for all k
+        # add this to matrix for all c times the skill k appears
+        cost_matrix = np.zeros((num_episodes, num_episodes))
+
+        for i in range(num_episodes):
+            idx = 0
+            for k in range(self.num_skills):
+                cost = self.relabel_buffer["all_rewards"][i][:, k]
+                cost_matrix[i, idx: idx + counts[k]] = np.sum(cost)
+                idx += counts[k]
+
+        # solve the linear sum assignment problem maximization, using scipy
+        _, col_idx = optimize.linear_sum_assignment(cost_matrix, maximize=True)
+        print(col_idx)
+
+        # get new skill and new reward
+        for i in range(num_episodes):
+            # get one-hot encoding of skill
+            skill = np.zeros(self.num_skills)
+            skill[int(skill_array[col_idx[i]])] = 1
+            max_rewards = self.relabel_buffer["all_rewards"][i][:, int(skill_array[col_idx[i]])][:, None]
+            self.relabel_buffer['max_skill'][i] = skill
+            self.relabel_buffer['max_rewards'][i] = max_rewards
 
 

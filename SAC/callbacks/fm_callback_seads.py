@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import logging as lg
 import time
+from scipy import optimize
 
 from gymnasium.wrappers import TransformReward
 
@@ -51,6 +52,8 @@ class FmCallback(BaseCallback):
         self.relabel = relabel
         self.relabel_buffer = {"max_rewards": [],
                                 "max_skill": [],
+                               "all_rewards": [],
+                               "applied_skill": [],
                                 "episode_length": [],
                                 "total_num_steps": []}
 
@@ -128,6 +131,8 @@ class FmCallback(BaseCallback):
         if self.locals["dones"] != 0:
             self.relabel_buffer["max_rewards"].append((self.locals["infos"][0])["max_rewards"])
             self.relabel_buffer["max_skill"].append((self.locals["infos"][0])["max_skill"])
+            self.relabel_buffer["all_rewards"].append((self.locals["infos"][0])["all_rewards"])
+            self.relabel_buffer["applied_skill"].append((self.locals["infos"][0])["applied_skill"])
             self.relabel_buffer["episode_length"].append(((self.locals["infos"][0])["episode"]["l"]))
             self.relabel_buffer["total_num_steps"].append(self.n_calls)
 
@@ -150,17 +155,11 @@ class FmCallback(BaseCallback):
 
         print(f"==================\nnum_relabel = {num_relabel}")
 
-        # for now relabel without caring for skill distribution
-        # dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
+        # calculate linear sum assignment problem
+        if self.relabel:
+            self._lin_sum_assignment(num_relabel)
 
         for i_episode in range(num_relabel):
-            ## get start and end idx of episode to relabel
-            # if dones.shape[0] < (num_relabel + 1) - i_episode:
-            #    start_idx = 0
-            # else:
-            #    start_idx = dones[-(num_relabel + 1) + i_episode] + 1
-
-            # end_idx = dones[-(num_relabel) + i_episode]
 
             # print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
             print(f"i_episode = {i_episode}")
@@ -192,38 +191,8 @@ class FmCallback(BaseCallback):
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
-                        # print("Relabeling RL transitions")
-                        # relabel all transitions in episode
-                        new_rewards = self.relabel_buffer["max_rewards"][i_episode][None, :]
-                        # print(f"episode length = {end_idx + 1 - start_idx}, rewards length = {new_rewards.shape}")
-                        if start_idx > end_idx:
-                            # wrap around
-                            # replace skill and in all transitions and reward in last transition of episode
-                            self.locals["replay_buffer"].observations["skill"][start_idx:] = new_skill
-                            self.locals["replay_buffer"].observations["skill"][: end_idx + 1] = new_skill
-                            # change skill in next state
-                            self.locals["replay_buffer"].next_observations["skill"][start_idx:] = new_skill
-                            self.locals["replay_buffer"].next_observations["skill"][: end_idx + 1] = new_skill
-                            # change rewards
-                            # print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
-                            #                           {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
-                            tmp_idx = self.locals["replay_buffer"].rewards[start_idx:].shape[0]
-                            self.locals["replay_buffer"].rewards[start_idx:] = new_rewards[:, : tmp_idx]
-                            self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards[:, tmp_idx:]
 
-                            # print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
-                            #                          {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
-
-                        else:
-                            # replace skill and in all transitions and reward in last transition of episode
-                            self.locals["replay_buffer"].observations["skill"][start_idx: end_idx + 1] = new_skill
-                            # change skill in next state
-                            self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
-                            # change rewards
-                            # print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
-                            self.locals["replay_buffer"].rewards[start_idx: end_idx + 1] = new_rewards
-
-                            # print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
+                        self._relabel_rl(start_idx, end_idx, i_episode, new_skill)
 
                 # always relabel fm transition
                 if self.train_fm:
@@ -240,7 +209,87 @@ class FmCallback(BaseCallback):
 
         self.relabel_buffer = {"max_rewards": [],
                                "max_skill": [],
+                               "all_rewards": [],
+                               "applied_skill": [],
                                "episode_length": [],
                                "total_num_steps": []}
+
+
+    def _lin_sum_assignment(self,
+                            num_episodes):
+
+        # count the number of times each skill appears
+        for k in range(self.num_skills):
+            unique, counts = np.unique(self.relabel_buffer["applied_skill"], return_counts=True)
+
+        skill_array = np.zeros(num_episodes)
+        # get array of skills where each skill is repeated by its number of occurance
+        idx = 0
+        for k in range(self.num_skills):
+            skill_array[idx: idx + counts[k]] = k
+            idx += counts[k]
+
+        # go through all episodes i and calculate cost q(k | e_iT, e_i0), for all k
+        # add this to matrix for all c times the skill k appears
+        cost_matrix = np.zeros((num_episodes, num_episodes))
+
+        for i in range(num_episodes):
+            idx = 0
+            for k in range(self.num_skills):
+                cost = self.relabel_buffer["all_rewards"][i][:, k]
+                cost_matrix[i, idx: idx + counts[k]] = np.sum(cost)
+                idx += counts[k]
+
+        # solve the linear sum assignment problem maximization, using scipy
+        _, col_idx = optimize.linear_sum_assignment(cost_matrix, maximize=True)
+        print(col_idx)
+
+        # get new skill and new reward
+        for i in range(num_episodes):
+            # get one-hot encoding of skill
+            skill = np.zeros(self.num_skills)
+            skill[int(skill_array[col_idx[i]])] = 1
+            max_rewards = self.relabel_buffer["all_rewards"][i][:, int(skill_array[col_idx[i]])][:, None]
+            self.relabel_buffer['max_skill'][i] = skill
+            self.relabel_buffer['max_rewards'][i] = max_rewards
+
+
+    def _relabel_rl(self, start_idx,
+                        end_idx,
+                        i_episode,
+                        new_skill):
+        print("Relabeling RL transitions")
+        # relabel all transitions in episode
+        new_rewards = self.relabel_buffer["max_rewards"][i_episode][None, :]
+        # print(f"episode length = {end_idx + 1 - start_idx}, rewards length = {new_rewards.shape}")
+        if start_idx > end_idx:
+            # wrap around
+            # replace skill and in all transitions and reward in last transition of episode
+            self.locals["replay_buffer"].observations["skill"][start_idx:] = new_skill
+            self.locals["replay_buffer"].observations["skill"][: end_idx + 1] = new_skill
+            # change skill in next state
+            self.locals["replay_buffer"].next_observations["skill"][start_idx:] = new_skill
+            self.locals["replay_buffer"].next_observations["skill"][: end_idx + 1] = new_skill
+            # change rewards
+            # print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
+            #                           {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
+            tmp_idx = self.locals["replay_buffer"].rewards[start_idx:].shape[0]
+            self.locals["replay_buffer"].rewards[start_idx:] = new_rewards[:, : tmp_idx]
+            self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards[:, tmp_idx:]
+
+            # print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
+            #                          {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
+
+        else:
+            # replace skill and in all transitions and reward in last transition of episode
+            self.locals["replay_buffer"].observations["skill"][start_idx: end_idx + 1] = new_skill
+            # change skill in next state
+            self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
+            # change rewards
+            # print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
+            self.locals["replay_buffer"].rewards[start_idx: end_idx + 1] = new_rewards
+
+            # print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
+
 
 

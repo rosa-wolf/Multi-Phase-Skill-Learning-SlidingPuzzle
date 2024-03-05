@@ -519,7 +519,7 @@ class PuzzleEnv(gym.Env):
                     prob[i, c + idx] = cost
                 idx += count[k]
 
-        # get array of skills where each skill is repeated by its number of occurance
+
         skill_array = np.empty((len(episodes)))
         idx = 0
         for k in range(self.num_skills):

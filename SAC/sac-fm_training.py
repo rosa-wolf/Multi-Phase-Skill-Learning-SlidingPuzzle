@@ -93,7 +93,8 @@ if args.prior_buffer:
     from Buffer import PriorityDictReplayBuffer
     buffer_class = PriorityDictReplayBuffer
 else:
-    buffer_class = None
+    from Buffer import SeadsBuffer
+    buffer_class = SeadsBuffer
 
 log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_relabeling" + str(args.relabeling) + "_priorbuffer" + str(args.prior_buffer)
 os.makedirs(log_dir, exist_ok=True)
@@ -196,9 +197,9 @@ callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
 model = SAC('MultiInputPolicy',
             env,        # gym env
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
-            buffer_size=args.replay_size,
+            buffer_size=2048 * args.num_steps,
             replay_buffer_class=buffer_class,
-            learning_starts=1000, # when learning should start to prevent learning on little data
+            learning_starts=25000, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
