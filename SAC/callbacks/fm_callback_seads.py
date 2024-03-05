@@ -210,7 +210,7 @@ class FmCallback(BaseCallback):
         self.relabel_buffer = {"max_rewards": [],
                                "max_skill": [],
                                "all_rewards": [],
-                               "applied_skill": [],
+                               "applied_skill": [],se
                                "episode_length": [],
                                "total_num_steps": []}
 

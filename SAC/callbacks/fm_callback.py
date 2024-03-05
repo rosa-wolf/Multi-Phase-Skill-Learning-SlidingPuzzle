@@ -61,6 +61,7 @@ class FmCallback(BaseCallback):
                                 "total_num_steps": []}
 
         # initialize empty replay memory for fm
+        self.seed = seed
         self.long_term_buffer = FmReplayMemory(2048, seed)
         self.recent_buffer = FmReplayMemory(256, seed)
         self.verbose = verbose
