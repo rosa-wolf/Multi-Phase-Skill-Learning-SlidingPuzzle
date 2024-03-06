@@ -505,7 +505,7 @@ class PuzzleEnv(gym.Env):
                 # add novelty bonus (min + 0)
                 reward += self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                     self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
-                                                    k, uniform=False)
+                                                    k, uniform=False, others_only=False)
             print(f"novelty reward = {reward}")
 
         if self._termination():

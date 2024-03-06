@@ -299,7 +299,7 @@ class PuzzleEnv(gym.Env):
         if skill is not None:
             self.skill = skill
         else:
-            if self.starting_epis:
+            if not self.end_epis:
                 self.skill = np.random.randint(0, self.num_skills, 1)[0]
             else:
                 # generate goal configuration
@@ -586,8 +586,8 @@ class PuzzleEnv(gym.Env):
         if self._termination():
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
-            if self.reward_on_end:
-                if not self.starting_epis:
+            if self.reward_on_end or True:
+                if not self.starting_epis or True:
                     take_max = np.max(
                         [-np.log(self.num_skills), self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
@@ -595,7 +595,7 @@ class PuzzleEnv(gym.Env):
 
                     #end_reward = min([take_max, 2.])
                     reward += take_max
-                    print(f"end reward = {end_reward}")
+                    print(f"end reward = {reward}")
 
 
         if not self.sparse_reward:
