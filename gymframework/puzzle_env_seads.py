@@ -15,6 +15,7 @@ from scipy import optimize
 import logging as lg
 from get_neighbors import get_neighbors
 from forwardmodel_simple_input.forward_model import ForwardModel
+from generate_goal import generate_goal
 class PuzzleEnv(gym.Env):
     """
     Custom environment for the sliding puzzle
@@ -91,25 +92,12 @@ class PuzzleEnv(gym.Env):
 
         self.init_sym_state = None
 
-        # list of boxes to push for each skill
-        self.boxes = None
-
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
         self.fm_path = fm_path
         self.logging = logging
-        self.train_fm = train_fm
-
 
         self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=puzzlesize)
-
-        if not self.train_fm:
-            if self.fm_path is None:
-                raise ValueError("No path for pretrained forward model given")
-            self.fm.model.load_state_dict(torch.load(fm_path))
-        else:
-            print("initial save of fm")
-            torch.save(self.fm.model.state_dict(), fm_path)
 
     @ staticmethod
     def __get_neighbors(puzzle_size):
@@ -265,14 +253,7 @@ class PuzzleEnv(gym.Env):
             self.scene.q = [actor_pos[0], actor_pos[1], self.scene.q0[2], self.scene.q0[3]]
 
         if sym_state_in is None:
-            # randomly pick the field where no block is initially
-            field = np.delete(np.arange(0, self.scene.pieces + 1),
-                              np.random.choice(np.arange(0, self.scene.pieces + 1)))
-            # put blocks in random fields, except the one that has to be free
-            order = np.random.permutation(field)
-            sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-            for i in range(self.scene.pieces):
-                sym_obs[i, order[i]] = 1
+            sym_obs = self.sample_sym_state()
         else:
             sym_obs = sym_state_in
 
@@ -284,28 +265,36 @@ class PuzzleEnv(gym.Env):
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
-        if self.train_fm:
-            self.fm.model.load_state_dict(torch.load(self.fm_path))
+        self.fm.model.load_state_dict(torch.load(self.fm_path))
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
-        # get boxes forward model predicts we should push for each skill
-        self.boxes = [self._get_box(skill) for skill in np.arange(self.num_skills)]
-
-        #print(f"boxes = {self.boxes}")
-
         return self._get_observation(), {}
 
-    def execution_reset(self, skill):
+    def sample_sym_state(self):
+        # randomly pick the field where no block is initially
+        field = np.delete(np.arange(0, self.scene.pieces + 1),
+                          np.random.choice(np.arange(0, self.scene.pieces + 1)))
+        # put blocks in random fields, except the one that has to be free
+        order = np.random.permutation(field)
+        sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+        for i in range(self.scene.pieces):
+            sym_obs[i, order[i]] = 1
+
+        return sym_obs
+
+    def execution_reset(self, skill, seed: Optional[int] = None,):
         """
         Reset for when we execute a solution path. Here we do not want the puzzle board to reset
         We only set the actor pos to the initial z-plane over its current position, set the new skill, and get an observation
         :return: observation after the reset
         """
+        super().reset(seed=seed)
         self.terminated = False
         self.truncated = False
         self.episode_rewards = []
         self.env_step_counter = 0
+        self.episode += 1
 
         actor_pos = np.array([self.scene.q[0], self.scene.q[1], self.scene.q0[2]])
         self._goto_pos(actor_pos)
@@ -314,7 +303,7 @@ class PuzzleEnv(gym.Env):
 
         self.skill = skill
 
-        return self._get_observation()
+        return self._get_observation(), {}
 
     def _goto_pos(self, goal_pos):
 

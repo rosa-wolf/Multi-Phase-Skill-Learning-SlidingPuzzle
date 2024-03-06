@@ -5,20 +5,24 @@ import numpy as np
 import logging as lg
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 
 from callbacks.fm_callback_seads import FmCallback
+from callbacks.my_eval_callback import EvalCallback
+from forwardmodel_simple_input.forward_model import ForwardModel
+from gymframework.puzzle_env_seads import PuzzleEnv
+from Buffer import SeadsBuffer
 
 import os
 import sys
-dir = os.path.dirname(__file__)
-mod_dir = os.path.join(dir, "../gymframework/")
-sys.path.append(mod_dir)
-mod_dir = os.path.join(dir, "../")
-sys.path.append(mod_dir)
-
-from puzzle_env_seads import PuzzleEnv
-from Buffer import SeadsBuffer
+#dir = os.path.dirname(__file__)
+#mod_dir = os.path.join(dir, "../gymframework/")
+#sys.path.append(mod_dir)
+#mod_dir = os.path.join(dir, "../")
+#sys.path.append(mod_dir)
+#
+#from puzzle_env_seads import PuzzleEnv
+#from Buffer import SeadsBuffer
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -125,6 +129,14 @@ elif args.env_name.__contains__("3x3"):
 else:
     raise ValueError("You must specify the environment to use")
 
+# initialize save for fm
+# Create folder if needed
+# initialize dummy fm
+os.makedirs(fm_dir, exist_ok=True)
+# save fm
+fm = ForwardModel(num_skills=args.num_skills, puzzle_size=puzzle_size)
+torch.save(fm.model.state_dict(), fm_dir + "/fm")
+
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=args.num_steps,
                 novelty_reward=args.novelty_bonus,
@@ -165,8 +177,7 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # callback for updating and training fm
-fm_callback = FmCallback(update_freq=1000,
-                         env=env,
+fm_callback = FmCallback(update_freq=args.num_episodes * args.num_steps,
                          save_path=log_dir + "/fm",
                          size=puzzle_size,
                          num_skills=args.num_skills,
@@ -176,7 +187,7 @@ fm_callback = FmCallback(update_freq=1000,
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
                              log_path=log_dir, eval_freq=5000,
-                             n_eval_episodes=10,
+                             n_eval_episodes=0,
                              deterministic=True, render=False)
 
 callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
@@ -200,7 +211,7 @@ model = SAC('MultiInputPolicy',
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
             tensorboard_log=log_dir,
-            policy_kwargs={'net_arch': [256, 256, 256]},
+            #policy_kwargs={'net_arch': [256, 256, 256]},
             device=device,
             verbose=1)
 

@@ -5,19 +5,14 @@ import numpy as np
 import logging as lg
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 
 from callbacks.fm_callback import FmCallback
+from callbacks.my_eval_callback import EvalCallback
+from gymframework.puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+from forwardmodel_simple_input.forward_model import ForwardModel
 
 import os
-import sys
-dir = os.path.dirname(__file__)
-mod_dir = os.path.join(dir, "../gymframework/")
-sys.path.append(mod_dir)
-mod_dir = os.path.join(dir, "../")
-sys.path.append(mod_dir)
-
-from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 # args for env
@@ -127,6 +122,14 @@ elif args.env_name.__contains__("3x3"):
 else:
     raise ValueError("You must specify the environment to use")
 
+# initialize save for fm
+# Create folder if needed
+# initialize dummy fm
+os.makedirs(fm_dir, exist_ok=True)
+# save fm
+fm = ForwardModel(num_skills=args.num_skills, puzzle_size=puzzle_size)
+torch.save(fm.model.state_dict(), fm_dir + "/fm")
+
 env = PuzzleEnv(path=puzzle_path,
                 max_steps=max_steps,
                 second_best=args.second_best,
@@ -188,7 +191,7 @@ fm_callback = FmCallback(update_freq=1000,
 # Use deterministic actions for evaluation
 eval_callback = EvalCallback(eval_env,
                              log_path=log_dir, eval_freq=5000,
-                             n_eval_episodes=10,
+                             n_eval_episodes=0,
                              deterministic=True, render=False)
 
 callback = CallbackList([checkpoint_callback, fm_callback, eval_callback])
@@ -199,7 +202,7 @@ model = SAC('MultiInputPolicy',
             learning_rate=args.lr,  # same learning rate is used for all networks (can be fct of remaining progress)
             buffer_size=2048 * args.num_steps,
             replay_buffer_class=buffer_class,
-            learning_starts=256, # when learning should start to prevent learning on little data
+            learning_starts=256 * args.num_steps, # when learning should start to prevent learning on little data
             batch_size=args.batch_size,  # mini-batch size for each gradient update
             #tau=args.tau,  # update for polyak update
             gamma=args.gamma,  # learning rate
@@ -212,7 +215,7 @@ model = SAC('MultiInputPolicy',
             #use_sde_at_warmup=True, # use gSDE instead of uniform sampling at warmup
             #stats_window_size=args.batch_size,
             tensorboard_log=log_dir,
-            policy_kwargs={'net_arch': [256, 256, 256]},
+            #policy_kwargs={'net_arch': [256, 256, 256]},
             device=device,
             verbose=1)
 

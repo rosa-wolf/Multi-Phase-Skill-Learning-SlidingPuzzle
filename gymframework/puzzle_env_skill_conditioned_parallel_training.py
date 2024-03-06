@@ -119,7 +119,6 @@ class PuzzleEnv(gym.Env):
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
         self.lookup = lookup
-        self.train_fm = train_fm
         self.fm_path = fm_path
         self.logging = logging
 
@@ -129,21 +128,6 @@ class PuzzleEnv(gym.Env):
             from forwardmodel_simple_input.forward_model import ForwardModel
 
         self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=puzzlesize)
-
-        if not self.train_fm:
-            if self.lookup:
-                raise "Loading pretrained model not yet implemented for lookup table"
-            if self.fm_path is None:
-                raise ValueError("No path for pretrained forward model given")
-            self.fm.model.load_state_dict(torch.load(fm_path))
-            self.starting_epis = False
-        else:
-            if self.lookup:
-                print("initial save of fm")
-                self.fm.save(fm_path)
-            else:
-                print("initial save of fm")
-                torch.save(self.fm.model.state_dict(), fm_path)
 
     @ staticmethod
     def __get_neighbors(puzzle_size):
@@ -279,15 +263,7 @@ class PuzzleEnv(gym.Env):
         self.episode += 1
 
         if sym_state_in is None:
-            # randomly pick the field where no block is initially
-            empty_field = np.random.choice(np.arange(self.scene.pieces + 1))
-            field = np.delete(np.arange(0, self.scene.pieces + 1),
-                              empty_field)
-            # put blocks in random fields, except the one that has to be free
-            order = np.random.permutation(field)
-            sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-            for i in range(self.scene.pieces):
-                sym_obs[i, order[i]] = 1
+            sym_obs = self.sample_sym_state()
         else:
             sym_obs = sym_state_in
 
@@ -354,12 +330,10 @@ class PuzzleEnv(gym.Env):
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
-        if self.train_fm:
-            if self.lookup:
-                self.fm.load(self.fm_path)
-            #print("Reloading fm")
-            else:
-                self.fm.model.load_state_dict(torch.load(self.fm_path))
+        if self.lookup:
+            self.fm.load(self.fm_path)
+        else:
+            self.fm.model.load_state_dict(torch.load(self.fm_path))
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -369,6 +343,18 @@ class PuzzleEnv(gym.Env):
         #print(f"boxes = {self.boxes}")
 
         return self._get_observation(), {}
+
+    def sample_sym_state(self):
+        # randomly pick the field where no block is initially
+        field = np.delete(np.arange(0, self.scene.pieces + 1),
+                          np.random.choice(np.arange(0, self.scene.pieces + 1)))
+        # put blocks in random fields, except the one that has to be free
+        order = np.random.permutation(field)
+        sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+        for i in range(self.scene.pieces):
+            sym_obs[i, order[i]] = 1
+
+        return sym_obs
 
     def execution_reset(self, skill):
         """

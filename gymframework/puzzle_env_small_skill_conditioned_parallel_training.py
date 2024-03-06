@@ -29,7 +29,6 @@ class PuzzleEnv(gym.Env):
                  path='slidingPuzzle_small.g',
                  snapRatio=4.,
                  fm_path=None,
-                 train_fm=True,
                  num_skills=2,
                  skill=0,
                  max_steps=100,
@@ -104,19 +103,7 @@ class PuzzleEnv(gym.Env):
 
         # initially dummy environment (we will not train this, so learning parameters are irrelevant)
         # only used for loading saved fm into
-        self.fm = ForwardModel(num_skills=self.num_skills)
-
-        self.train_fm = train_fm
-        self.fm_path = fm_path
-        if not train_fm:
-            if self.fm_path is None:
-                raise ValueError("Fm path is None, Can't load trained fm model")
-            # load pretrained fm model
-            self.fm.model.load_state_dict(torch.load(fm_path))
-            self.starting_epis = False
-        else:
-            print("initial save of fm")
-            torch.save(self.fm.model.state_dict(), fm_path)
+        self.fm = ForwardModel(num_skills=self.num_skills, puzzle_size=puzzlesize)
 
     def step(self, action: Dict) -> tuple[Dict, float, bool, dict]:
         """
@@ -214,9 +201,7 @@ class PuzzleEnv(gym.Env):
 
         # if we have a path to a forward model given, that means we are training the fm and policy in parallel
         # we have to reload the current forward model
-        if self.train_fm:
-            print("Reloading fm")
-            self.fm.model.load_state_dict(torch.load(self.fm_path))
+        self.fm.model.load_state_dict(torch.load(self.fm_path))
 
         self._old_sym_obs = self.scene.sym_state.copy()
 
@@ -336,6 +321,7 @@ class PuzzleEnv(gym.Env):
             reward += 5 * self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k)
+            print(f"novelty reward = {reward}")
 
         if self._termination():
             print("terminating")
@@ -373,7 +359,6 @@ class PuzzleEnv(gym.Env):
                 # get the boxes that is currently on the empty_out field
                 empty_out = np.where(empty_out == 1)[0][0]
                 box = np.where(self.init_sym_state[:, empty_out] == 1)
-                print(f"init_sym = \n {self.init_sym_state}\n boxes = {box}, skill = {k}, empty_out = {empty_out}")
                 dist, _ = self.scene.C.eval(ry.FS.distance, ["boxes" + str(box), "wedge"])
                 reward += 0.1 * dist
 

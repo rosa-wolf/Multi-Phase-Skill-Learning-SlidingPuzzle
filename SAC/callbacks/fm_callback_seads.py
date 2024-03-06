@@ -34,7 +34,6 @@ class FmCallback(BaseCallback):
 
     def __init__(self, update_freq: int,
                  save_path: str,
-                 env,
                  seed: float, memory_size=500,
                  sample_size=32,
                  size=[1, 2],
@@ -99,9 +98,11 @@ class FmCallback(BaseCallback):
             recent_state_batch, recent_skill_batch, recent_next_state_batch = self.recent_buffer.sample(256)
             state_batch, skill_batch, next_state_batch = self.long_term_buffer.sample(256)
 
-            for i in range(256):
-                final_fm_buffer.push(state_batch[i], skill_batch[i], next_state_batch[i])
-                final_fm_buffer.push(recent_state_batch[i], recent_skill_batch[i], recent_next_state_batch[i])
+            state_batch = np.concatenate((np.array(recent_state_batch), np.array(state_batch)))
+            skill_batch = np.concatenate((np.array(recent_skill_batch), np.array(skill_batch)))
+            next_state_batch = np.concatenate((np.array(recent_next_state_batch), np.array(next_state_batch)))
+
+            final_fm_buffer.buffer = list(zip(state_batch, skill_batch, next_state_batch))
 
             for _ in range(num_updates):
                 # put sampling batch(es) from buffer into forward model train function
@@ -111,7 +112,7 @@ class FmCallback(BaseCallback):
                 if self.verbose > 0:
                     print("Saving updated model now")
                 # don't save whole model, but only parameters
-                torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
+            torch.save(self.fm.model.state_dict(), self.save_path + "/fm")
 
     def _eval_fm(self):
         if len(self.buffer) >= self.sample_size:
@@ -120,7 +121,7 @@ class FmCallback(BaseCallback):
             test_loss, test_acc = self.fm.evaluate(self.buffer)
             self.test_acc.append(test_acc)
             self.test_loss.append(test_loss)
-            np.savez(self.save_path + "log_data", test_acc=test_acc, train_acc=train_acc)
+            np.savez(self.save_path + "log_data", test_acc=test_acc, test_loss_acc=test_loss)
 
             if self.verbose > 0:
                 print(f'\tEval Loss: {test_loss:.3f} | Eval Acc: {test_acc * 100:.2f}%')
@@ -136,14 +137,6 @@ class FmCallback(BaseCallback):
             self.relabel_buffer["episode_length"].append(((self.locals["infos"][0])["episode"]["l"]))
             self.relabel_buffer["total_num_steps"].append(self.n_calls)
 
-        # only start training after buffer is filled a bit
-        if self.train_fm:
-            if self.n_calls % self.update_freq == 0:
-                self._train_fm()
-
-            if self.logging:
-                if self.n_calls % self.eval_freq == 0:
-                    self._eval_fm()
 
     def _on_rollout_end(self) -> bool:
         """
@@ -204,6 +197,13 @@ class FmCallback(BaseCallback):
                 if self.train_fm:
                     self.long_term_buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
                     self.recent_buffer.push(init_empty.flatten(), old_skill.flatten(), out_empty.flatten())
+
+        # update fm
+        # only start training after buffer is filled a bit
+        if self.train_fm:
+            self._train_fm()
+            if self.logging:
+                self._eval_fm()
 
         # print("-------------------------------------------------------")
 
