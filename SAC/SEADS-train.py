@@ -94,7 +94,8 @@ if torch.cuda.is_available():
 else:
     device = 'cpu'
 
-log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_relabeling" + str(args.relabeling) + "_priorbuffer" + str(args.prior_buffer)
+log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_relabeling" + str(args.relabeling)  + \
+          "_novelty" + str(args.novelty_bonus) + "_seconbest" + str(args.second_best) + "_seed" + str(args.seed)
 os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
 os.makedirs(fm_dir, exist_ok=True)
