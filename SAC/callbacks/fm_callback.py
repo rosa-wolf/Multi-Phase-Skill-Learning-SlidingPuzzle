@@ -195,14 +195,12 @@ class FmCallback(BaseCallback):
         #dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]
 
         # calculate linear sum assignment problem
-        if self.relabel and not self.env.starting_epis:
-            self._lin_sum_assignment(num_relabel)
+        #if self.relabel and not self.env.starting_epis:
+        #    self._lin_sum_assignment(num_relabel)
 
         for i_episode in range(num_relabel):
 
             #print(f"steps = {self.relabel_buffer['total_num_steps']}, epi length = {self.relabel_buffer['episode_length']}")
-            print(f"i_episode = {i_episode}")
-            print(f"total_num_steps = {self.relabel_buffer['total_num_steps']}")
             start_idx = self.relabel_buffer["total_num_steps"][i_episode] - self.relabel_buffer["episode_length"][i_episode]
             end_idx = self.relabel_buffer["total_num_steps"][i_episode] - 1
 
@@ -229,7 +227,7 @@ class FmCallback(BaseCallback):
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
                     if np.random.normal() > 0.5:
-                        self._relabel(start_idx, end_idx, i_episode, new_skill)
+                        self._relabel_rl(start_idx, end_idx, i_episode, new_skill)
 
                 # always relabel fm transition
                 if self.train_fm:
@@ -300,48 +298,27 @@ class FmCallback(BaseCallback):
     def _relabel_rl(self,
                     start_idx, end_idx, i_episode, new_skill):
 
+        #print(self.relabel_buffer)
+
+        if start_idx > end_idx:
+            idx = np.concatenate((np.arange(start_idx, self.locals["replay_buffer"].buffer_size), np.arange(end_idx + 1)))
+        else:
+            idx = np.arange(start_idx, end_idx + 1)
+
         # print("Relabeling RL transitions")
         # relabel all transitions in episode
         new_rewards = self.relabel_buffer["max_rewards"][i_episode][None, :]
         # print(f"episode length = {end_idx + 1 - start_idx}, rewards length = {new_rewards.shape}")
-        if start_idx > end_idx:
-            # wrap around
-            # replace skill and in all transitions and reward in last transition of episode
-            self.locals["replay_buffer"].observations["skill"][start_idx:] = new_skill
-            self.locals["replay_buffer"].observations["skill"][: end_idx + 1] = new_skill
-            # change skill in next state
-            self.locals["replay_buffer"].next_observations["skill"][start_idx:] = new_skill
-            self.locals["replay_buffer"].next_observations["skill"][: end_idx + 1] = new_skill
-            # change rewards
-            # print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
-            #                           {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
-            tmp_idx = self.locals["replay_buffer"].rewards[start_idx:].shape[0]
-            self.locals["replay_buffer"].rewards[start_idx:] = new_rewards[:, : tmp_idx]
-            self.locals["replay_buffer"].rewards[: end_idx + 1] = new_rewards[:, tmp_idx:]
 
-            if self.prior_buffer:
-                weight = np.sum(new_rewards)
-                self.locals["replay_buffer"].weights[start_idx:] = weight
-                self.locals["replay_buffer"].weights[: end_idx + 1] = weight
+        # replace skill and in all transitions and reward in last transition of episode
+        self.locals["replay_buffer"].observations["skill"][idx] = new_skill
+        # change skill in next state
+        self.locals["replay_buffer"].next_observations["skill"][idx] = new_skill
+        # change rewards
+        self.locals["replay_buffer"].rewards[idx] = new_rewards
+        if self.prior_buffer:
+            weight = np.sum(new_rewards)
+            self.locals["replay_buffer"].weights[idx] = weight
 
-            # print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx:]}\
-            #                          {self.locals["replay_buffer"].rewards[: end_idx + 1]}')
-
-        else:
-            # replace skill and in all transitions and reward in last transition of episode
-            self.locals["replay_buffer"].observations["skill"][start_idx: end_idx + 1] = new_skill
-            # change skill in next state
-            self.locals["replay_buffer"].next_observations["skill"][start_idx: end_idx + 1] = new_skill
-            # change rewards
-            # print(f'old: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
-            self.locals["replay_buffer"].rewards[start_idx: end_idx + 1] = new_rewards
-
-            if self.prior_buffer:
-                print("relableing weights")
-                weight = np.sum(new_rewards)
-                print(f"weight = {weight}")
-                self.locals["replay_buffer"].weights[start_idx: end_idx + 1] = weight
-
-            # print(f'new: \n {self.locals["replay_buffer"].rewards[start_idx: end_idx + 1]}')
 
 
