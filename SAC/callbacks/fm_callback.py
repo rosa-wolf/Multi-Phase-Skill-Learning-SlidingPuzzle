@@ -170,7 +170,7 @@ class FmCallback(BaseCallback):
             if self.env.starting_epis:
                 self.env.starting_epis = False
                 lg.info("Changing from starting reward scheme after {0} steps".format(self.n_calls))
-            elif not self.env.end_epis:
+            elif self.env.do_refinement_phase and not self.env.end_epis:
                 self.env.end_epis = True
                 lg.info("Changing to final training part after {0} steps".format(self.n_calls))
             return True
@@ -188,8 +188,6 @@ class FmCallback(BaseCallback):
         # number of episodes to relabel
         #num_relabel = self.locals["num_collected_episodes"] + 1
         num_relabel = len(self.relabel_buffer["total_num_steps"])
-
-        print(f"==================\nnum_relabel = {num_relabel}")
 
         # for now relabel without caring for skill distribution
         #dones = np.where((self.locals["replay_buffer"]).dones == 1)[0]

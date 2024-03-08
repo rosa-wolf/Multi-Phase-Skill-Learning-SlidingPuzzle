@@ -32,6 +32,10 @@ parser.add_argument('--second_best', action='store_true', default=False,
                     help='Whether to do second best normalization in calculation of reward')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='Only sparse reward')
+parser.add_argument('--doinit', action='store_true', default=False,
+                    help='Whether to do initial phase')
+parser.add_argument('--dorefinement', action='store_true', default=False,
+                    help='Whether to do refinement phase')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
@@ -134,6 +138,8 @@ env = PuzzleEnv(path=puzzle_path,
                 max_steps=max_steps,
                 second_best=args.second_best,
                 num_skills=args.num_skills,
+                init_phase=args.doinit,
+                refinement_phase=args.dorefinement,
                 verbose=0,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,

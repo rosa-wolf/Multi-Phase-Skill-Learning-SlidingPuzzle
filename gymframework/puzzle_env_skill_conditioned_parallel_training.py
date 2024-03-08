@@ -42,6 +42,8 @@ class PuzzleEnv(gym.Env):
                  reward_on_end=False,
                  logging=True,
                  term_on_change=False,
+                 init_phase=True,
+                 refinement_phase=True,
                  relabel=False,
                  seed=12345,
                  verbose=0):
@@ -110,7 +112,10 @@ class PuzzleEnv(gym.Env):
         self.init_sym_state = None
 
         # if true we are in the starting episodes where the environment may reward differently
-        self.starting_epis = True
+        self.do_init_phase = init_phase
+        self.do_refinement_phase = refinement_phase
+
+        self.starting_epis = True if self.do_init_phase else False
         self.end_epis = False
 
         # list of boxes to push for each skill
@@ -572,7 +577,7 @@ class PuzzleEnv(gym.Env):
             print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             if self.reward_on_end or True:
-                if not self.starting_epis or True:
+                if not self.starting_epis:
                     take_max = np.max(
                         [-np.log(self.num_skills), self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                        self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
