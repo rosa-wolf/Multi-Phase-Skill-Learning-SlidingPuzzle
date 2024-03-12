@@ -740,7 +740,7 @@ class SeadsBuffer(DictReplayBuffer):
             long_batch_inds = np.random.randint(0, upper_bound, size=num_samples)
         else:
             if self.full:
-                long_batch_inds = (np.random.randint(1, self.buffer_size, size=num_sampes) + self.pos) % self.buffer_size
+                long_batch_inds = (np.random.randint(1, self.buffer_size, size=num_samples) + self.pos) % self.buffer_size
             else:
                 long_batch_inds = np.random.randint(0, self.pos, size=num_samples)
 
