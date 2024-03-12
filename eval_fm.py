@@ -5,12 +5,12 @@ import numpy as np
 from forwardmodel_simple_input.forward_model import ForwardModel
 
 # load model
-num_skills = 4
-fm = ForwardModel(num_skills=num_skills, batch_size=10, puzzle_size=[3, 3], learning_rate=0.001)
+num_skills = 10
+fm = ForwardModel(num_skills=num_skills, batch_size=10, puzzle_size=[2, 3], learning_rate=0.001)
 
 # save model
 #fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingTrue/fm/fm"
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel3x3-prior-lr3e-4_num_skills4_sparseFalse_relabelingFalse_priorbufferTrue/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed578907/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
 
 print(fm.get_full_pred())
@@ -21,22 +21,22 @@ print(fm.get_full_pred())
 
 #input_states = [np.array([1, 0, 0, 0]), np.array([0, 1, 0, 0]), np.array([0, 0, 1, 0]), np.array([0, 0, 0, 1])]
 
-input_states = [np.array([1, 0, 0, 0, 0, 0, 0, 0, 0]),
-                np.array([0, 1, 0, 0, 0, 0, 0, 0, 0]),
-                np.array([0, 0, 1, 0, 0, 0, 0, 0, 0]),
-                np.array([0, 0, 0, 1, 0, 0, 0, 0, 0]),
-                np.array([0, 0, 0, 0, 1, 0, 0, 0, 0]),
-                np.array([0, 0, 0, 0, 0, 1, 0, 0, 0]),
-                np.array([0, 0, 0, 0, 0, 0, 1, 0, 0]),
-                np.array([0, 0, 0, 0, 0, 0, 0, 1, 0]),
-                np.array([0, 0, 0, 0, 0, 0, 0, 0, 1])]
+#input_states = [np.array([1, 0, 0, 0, 0, 0, 0, 0, 0]),
+#                np.array([0, 1, 0, 0, 0, 0, 0, 0, 0]),
+#                np.array([0, 0, 1, 0, 0, 0, 0, 0, 0]),
+#                np.array([0, 0, 0, 1, 0, 0, 0, 0, 0]),
+#                np.array([0, 0, 0, 0, 1, 0, 0, 0, 0]),
+#                np.array([0, 0, 0, 0, 0, 1, 0, 0, 0]),
+#                np.array([0, 0, 0, 0, 0, 0, 1, 0, 0]),
+#                np.array([0, 0, 0, 0, 0, 0, 0, 1, 0]),
+#                np.array([0, 0, 0, 0, 0, 0, 0, 0, 1])]
 
-#input_states = [np.array([1, 0, 0, 0, 0, 0]),
-#                np.array([0, 1, 0, 0, 0, 0]),
-#                np.array([0, 0, 1, 0, 0, 0]),
-#                np.array([0, 0, 0, 1, 0, 0]),
-#                np.array([0, 0, 0, 0, 1, 0]),
-#                np.array([0, 0, 0, 0, 0, 1]),]
+input_states = [np.array([1, 0, 0, 0, 0, 0]),
+                np.array([0, 1, 0, 0, 0, 0]),
+                np.array([0, 0, 1, 0, 0, 0]),
+                np.array([0, 0, 0, 1, 0, 0]),
+                np.array([0, 0, 0, 0, 1, 0]),
+                np.array([0, 0, 0, 0, 0, 1]),]
 for k in range(num_skills):
     print(f"====================\nskill = {k}")
     for state in input_states:
