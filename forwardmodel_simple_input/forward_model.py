@@ -406,7 +406,7 @@ class ForwardModel(nn.Module):
         ######################################################################
         """
         # concatenate state and skill to get input to mlp
-        succ, prob = self.get_prediction(input_empty, skill)
+        succ, prob = self.get_prediction(input_empty, skill, exclude_same=True)
 
         empty = np.where(succ == 1)[0][0]
 
@@ -445,6 +445,20 @@ class ForwardModel(nn.Module):
             key = np.array2string(path[-1]).replace('.', '').replace('\n', '')
             skills.append(skill[key])
             path.append(parent[key])
+            print(path)
+
+        return path[::-1], skills[::-1]
+
+
+    def _backtrace_bfs(self, start, goal, parent, skill):
+        path = [goal]
+        skills = []
+        print(skill.keys())
+        while not (path[-1] == start).all():
+            key = np.array2string(path[-1]).replace('.', '').replace('\n', '')
+            skills.append(skill[key][0])
+            path.append(parent[key])
+            print(skills)
             print(path)
 
         return path[::-1], skills[::-1]
@@ -561,8 +575,8 @@ class ForwardModel(nn.Module):
         # store parent of start as None to not get key-error
         key = np.array2string(start).replace('.', '').replace('\n', '')
         parent[key] = None
-
-        while queue:
+        goal_reached = False
+        while queue and not goal_reached:
             # go through queue
             state = queue.pop(0)
             print(f"state = {state}")
@@ -573,8 +587,8 @@ class ForwardModel(nn.Module):
                 one_hot[k] = 1
 
                 # find successor state
-                next_state, _ = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
-                print(f"skill = {k}, next_state = {next_state}")
+                next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                print(f"skill = {k}, next_state = {next_state}, prob = {prob}")
                 # next_state = next_state.cpu().detach().numpy()
 
                 # for devugging visualize every state transition prediction
@@ -594,28 +608,39 @@ class ForwardModel(nn.Module):
                         if np.any(np.all(next_state == visited, axis=1)):
                             print("already visited")
                             if not (parent[key] == state.astype(int)).all():
-                                print("parent  is state")
+                                print("parent  is not state")
                                 not_visited = False
 
                         if not_visited:
                             # record skill used to get to next_state
                             # allow for model to be imperfect/ for multiple skills to lead from
                             # same parent state to same successor state
-                            if key not in skill.keys():
-                                skill[key] = [k]
-                            else:
-                                skill[key].append(k)
-                            # record parent
-                            parent[key] = state.astype(int)
-                            # if successor state is goal: break
-                            if (next_state == goal).all():
-                                # get the state transitions and skills that lead to the goal
-                                state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
-                                return np.array(state_sequence), list(np.array(skill_sequence).flatten())
-                            # append successor to visited and queue
-                            if not np.any(np.all(next_state == visited, axis=1)):
-                                visited.append(next_state)
-                                queue.append(next_state)
+
+                            # take this skill instead if it reaches the successor state with a higher probability
+                            if key not in skill.keys() or prob > skill[key][1]:
+                                print("consider skill")
+                                if key in skill.keys():
+                                    print(f"old prob = {skill[key][1]}, new_prob = {prob}")
+                                skill[key] = [k, prob]
+                                print(skill)
+                                # record parent
+                                parent[key] = state.astype(int)
+                                # if successor state is goal: break
+                                # append successor to visited and queue
+                                if not np.any(np.all(next_state == visited, axis=1)):
+                                    visited.append(next_state)
+                                    queue.append(next_state)
+
+                                if (next_state == goal).all():
+                                    print("goal is reached")
+                                    goal_reached = True
+                            print("-----------------")
+
+        if goal_reached:
+            time.sleep(10)
+            # get the state transitions and skills that lead to the goal
+            state_sequence, skill_sequence = self._backtrace_bfs(start, goal, parent, skill)
+            return np.array(state_sequence), list(np.array(skill_sequence).flatten())
 
         print("Goal Not reachable from start configuration")
         return None, None
@@ -667,12 +692,13 @@ class ForwardModel(nn.Module):
 
         return y_pred
 
-    def get_prediction(self, state: np.array, skill: np.array) -> (np.array, float):
+    def get_prediction(self, state: np.array, skill: np.array, exclude_same=False) -> (np.array, float):
         """
         Calculates most likely successor state
 
         @param state: One-hot encoding of empty field
         @param skill: One-hot encoding of skill
+        @param exclude_same: wether we want the most likely successor state, that is different from the input state
 
         returns:
         One-hot encoding of most likely successor empty field
@@ -695,6 +721,10 @@ class ForwardModel(nn.Module):
         # y_pred = torch.softmax(y_pred, dim=0)
         # calculate successor state
         # block is on that field with the highest probability
+        if exclude_same:
+            empty_in = np.where(state == 1)[0][0]
+            y_pred[empty_in] = 0
+
         prob = torch.max(y_pred)
         empty = torch.argmax(y_pred)
 

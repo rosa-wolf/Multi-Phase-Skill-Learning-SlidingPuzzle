@@ -169,7 +169,7 @@ match args.env_name:
                         logging=False,
                         train_fm=False,
                         verbose=1,
-                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallelseads_2x3-nosecondbest_num_skills3_sparseFalse_relabelingFalse_priorbufferFalse/fm/fm",
+                        fm_path="/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed105399/fm/fm",
                         sparse_reward=True,
                         reward_on_change=True,
                         term_on_change=True,
@@ -210,7 +210,7 @@ np.random.seed(args.seed)
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingFalse/model/model_200000_steps", env=env)
 
 # only relabel after change of reward scheme
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallelseads_3x3-bigger-boxes_num_skills4_relabelingFalse_noveltyTrue_seconbestTrue_seed123456/model/model_230000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed105399/model/model_700000_steps", env=env)
 
 #model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_0301/parallel2x3_num_skills3_sparseTrue_relabelingFalse_priorbufferFalse/model/model_350000_steps", env=env)
 

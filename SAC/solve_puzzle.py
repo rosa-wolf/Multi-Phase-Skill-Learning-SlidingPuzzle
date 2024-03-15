@@ -1,15 +1,22 @@
-import numpy as np
-import torch as th
-import argparse
-import time
-import robotic as ry
-#from robotic import ry
-import matplotlib.pyplot as plt
-
 from stable_baselines3 import SAC
+import argparse
+import numpy as np
 
-from forwardmodel_simple_input.forward_model import ForwardModel
 from gymframework.puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+from forwardmodel_simple_input.forward_model import ForwardModel
+#import os
+#import sys
+#dir = os.path.dirname(__file__)
+#mod_dir = os.path.join(dir, "../gymframework/")
+#mod_dir = os.path.join(dir, "../forwardmodel_simple_input/")
+#sys.path.append(mod_dir)
+#mod_dir = os.path.join(dir, "../")
+#sys.path.append(mod_dir)
+#
+#print(sys_path)
+#
+#from puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
+#from forward_model import ForwardModel
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 parser.add_argument('--env_name', type=str, default="skill_conditioned_2x2",
@@ -30,12 +37,12 @@ os.system('mkdir -p z.vid')
 
 if args.env_name.__contains__("1x2"):
     target_entropy = -2.5
-    puzzle_path = 'Puzzles/slidingPuzzle_1x2.g'
+    puzzle_path = '../Puzzles/slidingPuzzle_1x2.g'
     puzzle_size = [1, 2]
 
 elif args.env_name.__contains__("2x2"):
     target_entropy = -3.
-    puzzle_path = 'Puzzles/slidingPuzzle_2x2.g'
+    puzzle_path = '../Puzzles/slidingPuzzle_2x2.g'
     puzzle_size = [2, 2]
     fm_path = "/home/rosa/Documents/Uni/Masterarbeit/parallel2x2-new-penalty_num_skills2_sparseTrue_relabelingFalse/fm/fm"
     model_path = "/home/rosa/Documents/Uni/Masterarbeit/parallel2x2-new-penalty_num_skills2_sparseTrue_relabelingFalse/model/model_330000_steps"
@@ -50,19 +57,19 @@ elif args.env_name.__contains__("2x2"):
 
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
-    puzzle_path = 'Puzzles/slidingPuzzle_2x3.g'
+    puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
     puzzle_size = [2, 3]
-    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/new_parallel2x3_num_skills3_sparseFalse_relabelingFalse_priorbufferFalse/fm/fm"
-    model_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/new_parallel2x3_num_skills3_sparseFalse_relabelingFalse_priorbufferFalse/model/model_670000_steps"
+    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed105399/fm/fm"
+    model_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed105399/model/model_700000_steps"
 
     # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
     init_state = np.array([[1, 0, 0, 0, 0, 0],
                            [0, 1, 0, 0, 0, 0],
                            [0, 0, 1, 0, 0, 0],
                            [0, 0, 0, 1, 0, 0],
-                           [0, 0, 0, 0, 1, 0]])
+                           [0, 0, 0, 0, 0, 1]])
 
-    goal_state = np.array([[0, 0, 0, 1, 0, 0],
+    goal_state = np.array([[1, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 1, 0],
                            [1, 0, 0, 0, 0, 0],
                            [0, 1, 0, 0, 0, 0],
@@ -77,7 +84,7 @@ elif args.env_name.__contains__("2x3"):
 
 elif args.env_name.__contains__("3x3"):
     target_entropy = -4.
-    puzzle_path = 'Puzzles/slidingPuzzle_3x3.g'
+    puzzle_path = '../Puzzles/slidingPuzzle_3x3.g'
     puzzle_size = [3, 3]
     max_steps = 200
 

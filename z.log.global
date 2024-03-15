@@ -1,11 +1,16 @@
 ** compiled at:     Feb 13 2024 11:40:06
-** execution start: 2024-03-06 12:02:49:105234
+** execution start: 2024-03-15 12:46:25:295207
 graph.cpp:initParameters:1505(3) opening config file 'rai.cfg'
 graph.cpp:initParameters:1512(3)  - failed
 graph.cpp:initParameters:1518(3) opening base config file '/root/local/rai/../local.cfg'
 graph.cpp:initParameters:1524(3)  - failed
-** execution stop: 2024-03-06 12:02:49:195402
-** real time: 0.0902417sec
-** CPU time: 2.51422
+util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
+util.cpp:cd_file:1039(3) entering path 'Puzzles' from '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
+util.cpp:getIs:1068(3) opening input file 'slidingPuzzle_2x3.g'
+util.cpp:cd_start:1031(3) entering path '/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle'
+simulation.cpp:~Simulation:149(0) shutting down Simulation
+** execution stop: 2024-03-15 12:46:39:319642
+** real time: 14.0245sec
+** CPU time: 20.6491
 
 ** set+queried params:

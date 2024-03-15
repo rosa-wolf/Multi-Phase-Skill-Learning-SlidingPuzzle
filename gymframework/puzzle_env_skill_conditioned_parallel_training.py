@@ -295,7 +295,7 @@ class PuzzleEnv(gym.Env):
                     for i in range(self.scene.pieces):
                         goal_sym_obs[i, order[i]] = 1
 
-                    _, plan = self.fm.dijkstra(self.init_sym_state.flatten(), goal_sym_obs.flatten())
+                    _, plan = self.fm.breadth_first_search(self.init_sym_state.flatten(), goal_sym_obs.flatten())
                     print(f"skills = {plan}")
                     if plan is not None and len(plan) > 0:
                         self.skill = plan[0]

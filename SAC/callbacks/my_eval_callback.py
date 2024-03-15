@@ -251,7 +251,7 @@ class EvalCallback(EventCallback):
 
                 # execute skill
                 # do not reset environment after skill execution, but set actor to init z plane above its current position
-                _, plan = self.gym_env.fm.dijkstra(init_sym_state.flatten(), goal_sym_state.flatten())
+                _, plan = self.gym_env.fm.breadth_first_search(init_sym_state.flatten(), goal_sym_state.flatten())
 
                 # the puzzle is solvable, thus if the fm returns that it is not this is a failure
                 if plan is None:

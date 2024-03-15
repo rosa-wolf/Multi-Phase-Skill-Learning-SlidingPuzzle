@@ -12,7 +12,8 @@ from stable_baselines3.common.type_aliases import (
     ReplayBufferSamples,
 )
 
-from BufferSamples import (
+
+from SAC.BufferSamples import (
     PrioritizedReplayBufferSamples,
     PrioritizedDictReplayBufferSamples,
 )

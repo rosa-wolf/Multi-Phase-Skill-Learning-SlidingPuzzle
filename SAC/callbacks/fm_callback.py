@@ -155,13 +155,21 @@ class FmCallback(BaseCallback):
             # set probabilities to not change empty field to zero, as we are only looking at transitions where change happens
             out[i, :, i] = 0
 
+            #print(out[i])
+            #print(np.where(out[i] > 0.17))
+            #print(np.unique(np.where(out[i] > 0.17)[1]).shape[0])
+
             # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
             if self.env.starting_epis:
                 # in beginning look whether change regularly happens
                 num_change = np.where(out[i] > 0.3)[0].shape[0]
             else:
                 # at end look if change happens consistently with high probability
-                num_change = np.where(out[i] > 0.5)[0].shape[0]
+                #num_change = np.where(out[i] > 0.5)[0].shape[0]
+
+                # get unique changes
+                num_change = np.unique(np.where(out[i] > 0.3)[1]).shape[0]
+
 
             if num_change < len(self.env.neighborlist[str(i)]):
                     change_reward_scheme = False
