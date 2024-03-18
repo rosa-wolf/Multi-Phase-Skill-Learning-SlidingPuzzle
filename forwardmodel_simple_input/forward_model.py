@@ -686,7 +686,7 @@ class ForwardModel(nn.Module):
 
         print(y_pred)
         print(y_pred.shape)
-        return y_pred
+        return y_pred.cpu().detach().numpy()
 
 
     def get_p_matrix(self, state: np.array, skill: np.array) -> np.array:
