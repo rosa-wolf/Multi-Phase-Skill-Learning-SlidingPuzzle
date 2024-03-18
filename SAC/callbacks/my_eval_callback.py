@@ -167,7 +167,7 @@ class EvalCallback(EventCallback):
 
             # get average success for puzzle soling
             average_success = self._solve_puzzles()
-            print("left game evaluation method")
+            #print("left game evaluation method")
 
             if self.log_path is not None:
                 assert isinstance(episode_rewards, list)
@@ -239,7 +239,7 @@ class EvalCallback(EventCallback):
             self.callback.update_locals(locals_)
 
     def _solve_puzzles(self):
-        print(f"fm pred = {self.gym_env.fm.get_full_pred()}")
+        #print(f"fm pred = {self.gym_env.fm.get_full_pred()}")
         successes = []
         solution_depth = [1]
         for depth in solution_depth:

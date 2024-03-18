@@ -440,12 +440,12 @@ class ForwardModel(nn.Module):
     def _backtrace(self, start, goal, parent, skill):
         path = [goal]
         skills = []
-        print(skill.keys())
+        #print(skill.keys())
         while not (path[-1] == start).all():
             key = np.array2string(path[-1]).replace('.', '').replace('\n', '')
             skills.append(skill[key])
             path.append(parent[key])
-            print(path)
+            #print(path)
 
         return path[::-1], skills[::-1]
 
@@ -453,13 +453,13 @@ class ForwardModel(nn.Module):
     def _backtrace_bfs(self, start, goal, parent, skill):
         path = [goal]
         skills = []
-        print(skill.keys())
+        #print(skill.keys())
         while not (path[-1] == start).all():
             key = np.array2string(path[-1]).replace('.', '').replace('\n', '')
             skills.append(skill[key][0])
             path.append(parent[key])
-            print(skills)
-            print(path)
+            #print(skills)
+            #print(path)
 
         return path[::-1], skills[::-1]
 
