@@ -678,6 +678,7 @@ class ForwardModel(nn.Module):
 
         input = np.concatenate((state, skill), axis=1)
 
+        input = torch.from_numpy(input)
         input = self._process_input(input)
 
         with torch.no_grad():
