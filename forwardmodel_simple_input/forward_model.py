@@ -672,7 +672,6 @@ class ForwardModel(nn.Module):
         """
         skill = torch.eye(self.num_skills)
         state = state[None, :]
-        print(f"state ={state}")
 
         state = np.repeat(state, self.num_skills, axis=0)
 
@@ -684,8 +683,6 @@ class ForwardModel(nn.Module):
         with torch.no_grad():
             y_pred = self.model(input)
 
-        print(y_pred)
-        print(y_pred.shape)
         return y_pred.cpu().detach().numpy()
 
 
