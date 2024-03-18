@@ -579,7 +579,7 @@ class ForwardModel(nn.Module):
         while queue and not goal_reached:
             # go through queue
             state = queue.pop(0)
-            print(f"state = {state}")
+            #print(f"state = {state}")
             # node expansion through applying feasible actions
             for k in self.skills:
                 # get one-hot encoding of skill
@@ -588,7 +588,7 @@ class ForwardModel(nn.Module):
 
                 # find successor state
                 next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
-                print(f"skill = {k}, next_state = {next_state}, prob = {prob}")
+                #print(f"skill = {k}, next_state = {next_state}, prob = {prob}")
                 # next_state = next_state.cpu().detach().numpy()
 
                 # for devugging visualize every state transition prediction
@@ -606,9 +606,9 @@ class ForwardModel(nn.Module):
                         not_visited = True
 
                         if np.any(np.all(next_state == visited, axis=1)):
-                            print("already visited")
+                            #print("already visited")
                             if not (parent[key] == state.astype(int)).all():
-                                print("parent  is not state")
+                                #print("parent  is not state")
                                 not_visited = False
 
                         if not_visited:
@@ -618,11 +618,9 @@ class ForwardModel(nn.Module):
 
                             # take this skill instead if it reaches the successor state with a higher probability
                             if key not in skill.keys() or prob > skill[key][1]:
-                                print("consider skill")
-                                if key in skill.keys():
-                                    print(f"old prob = {skill[key][1]}, new_prob = {prob}")
+                                #print("consider skill")
                                 skill[key] = [k, prob]
-                                print(skill)
+                                #print(skill)
                                 # record parent
                                 parent[key] = state.astype(int)
                                 # if successor state is goal: break
@@ -632,9 +630,9 @@ class ForwardModel(nn.Module):
                                     queue.append(next_state)
 
                                 if (next_state == goal).all():
-                                    print("goal is reached")
+                                    #print("goal is reached")
                                     goal_reached = True
-                            print("-----------------")
+                            #print("-----------------")
 
         if goal_reached:
             time.sleep(10)

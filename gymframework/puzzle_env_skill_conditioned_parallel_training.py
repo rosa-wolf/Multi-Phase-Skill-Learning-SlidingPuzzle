@@ -241,10 +241,10 @@ class PuzzleEnv(gym.Env):
         box = np.where(self.init_sym_state[:, empty_out[0]] == 1)[0]
         if box.shape == (0,):
             box = -1
-            print("no box should be pushed")
+            #print("no box should be pushed")
         else:
             box = box[0]
-            print(f"box {box} should be pushed")
+            #print(f"box {box} should be pushed")
 
         return box
 
@@ -277,6 +277,7 @@ class PuzzleEnv(gym.Env):
 
 
         # sample skill
+        print("starting skill sampling")
         if skill is not None:
             self.skill = skill
         else:
@@ -296,10 +297,11 @@ class PuzzleEnv(gym.Env):
                         goal_sym_obs[i, order[i]] = 1
 
                     _, plan = self.fm.breadth_first_search(self.init_sym_state.flatten(), goal_sym_obs.flatten())
-                    print(f"skills = {plan}")
                     if plan is not None and len(plan) > 0:
+                        print(f"iteration {i}: takin skill from plan")
                         self.skill = plan[0]
                         break
+        print("ending skill sampling")
 
 
                 ## at end do not sample from all skills, but only from those the forward model predicts change for
@@ -649,7 +651,7 @@ class PuzzleEnv(gym.Env):
                     max_reward = reward
                     skill = k
 
-        print(f"max skill = {skill}, max_reward = {max_reward}\n-----------------------------------------")
+        #print(f"max skill = {skill}, max_reward = {max_reward}\n-----------------------------------------")
 
         one_hot_skill = np.zeros(shape=self.num_skills, dtype=np.int8)
         one_hot_skill[skill] = 1

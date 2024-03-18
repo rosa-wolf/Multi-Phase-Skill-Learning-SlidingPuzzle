@@ -289,7 +289,7 @@ class FmCallback(BaseCallback):
 
         # solve the linear sum assignment problem maximization, using scipy
         _, col_idx = optimize.linear_sum_assignment(cost_matrix, maximize=True)
-        print(col_idx)
+        #print(col_idx)
 
         # get new skill and new reward
         for i in range(num_episodes):

@@ -343,10 +343,10 @@ class PriorityReplayBuffer(BaseBuffer):
         else:
            batch_inds = np.arange(self.pos - 1000, self.pos)
 
-        print(batch_inds)
+        #print(batch_inds)
 
         batch_inds = np.random.choice(batch_inds, self.num_recent)
-        print(f"sampled = {batch_inds}")
+        #print(f"sampled = {batch_inds}")
 
 
         # sample num recent transitions from last 1000 transitions
@@ -664,12 +664,12 @@ class PriorityDictReplayBuffer(PriorityReplayBuffer):
         else:
             batch_inds = np.arange(self.pos - 100, self.pos)
 
-        print(batch_inds)
+        #print(batch_inds)
 
         batch_inds = np.random.choice(batch_inds, self.num_recent)
         recent_batch = self._get_samples(batch_inds, env=env)
 
-        print(f"sampled = {batch_inds}")
+        #print(f"sampled = {batch_inds}")
 
         observations = {
             key: th.concatenate((batch.observations[key][idx], recent_batch.observations[key]))
@@ -734,7 +734,7 @@ class SeadsBuffer(DictReplayBuffer):
         else:
             num_samples = self.recent_samples
 
-        print(f"num_samples = {num_samples}")
+        #print(f"num_samples = {num_samples}")
 
         if not self.optimize_memory_usage:
             upper_bound = self.buffer_size if self.full else self.pos
