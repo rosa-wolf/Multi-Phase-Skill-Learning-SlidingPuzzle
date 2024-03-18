@@ -284,23 +284,27 @@ class PuzzleEnv(gym.Env):
             if not self.end_epis:
                 self.skill = np.random.randint(0, self.num_skills, 1)[0]
             else:
+                # take any skill where the probability to go from the sampled sym state to a different sym state
+                # is bigger than 0.1
+                pred = self.fm.get_pred_for_all_skills(self.fm.sym_state_to_input(self.init_sym_state.flatten()))
+                print(pred)
                 # generate goal configuration
-                self.skill = np.random.randint(0, self.num_skills, 1)[0]
-                for i in range(24):
-                    # randomly pick the field where no block is initially
-                    field = np.delete(np.arange(0, self.scene.pieces + 1),
-                                      np.random.choice(np.arange(self.scene.pieces + 1)))
-                    # put blocks in random fields, except the one that has to be free
-                    order = np.random.permutation(field)
-                    goal_sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
-                    for i in range(self.scene.pieces):
-                        goal_sym_obs[i, order[i]] = 1
+                #self.skill = np.random.randint(0, self.num_skills, 1)[0]
+                #for i in range(24):
+                #    # randomly pick the field where no block is initially
+                #    field = np.delete(np.arange(0, self.scene.pieces + 1),
+                #                      np.random.choice(np.arange(self.scene.pieces + 1)))
+                #    # put blocks in random fields, except the one that has to be free
+                #    order = np.random.permutation(field)
+                #    goal_sym_obs = np.zeros((self.scene.pieces, self.scene.pieces + 1))
+                #    for i in range(self.scene.pieces):
+                #        goal_sym_obs[i, order[i]] = 1
 
-                    _, plan = self.fm.breadth_first_search(self.init_sym_state.flatten(), goal_sym_obs.flatten())
-                    if plan is not None and len(plan) > 0:
-                        print(f"iteration {i}: takin skill from plan")
-                        self.skill = plan[0]
-                        break
+                #    _, plan = self.fm.breadth_first_search(self.init_sym_state.flatten(), goal_sym_obs.flatten())
+                #    if plan is not None and len(plan) > 0:
+                #        print(f"iteration {i}: takin skill from plan")
+                #        self.skill = plan[0]
+                #        break
         print("ending skill sampling")
 
 

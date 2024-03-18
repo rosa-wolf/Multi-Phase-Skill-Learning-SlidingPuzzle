@@ -664,6 +664,30 @@ class ForwardModel(nn.Module):
 
         return y_pred.cpu().detach().numpy()
 
+    def get_pred_for_all_skills(self, state:np.array) -> np.array:
+        """
+        Get the ouput for all skills with the given input state
+
+        :param state: input state as one-hot encoding of empty field
+        """
+        skill = torch.eye(self.num_skills)
+        state = state[None, :]
+        print(f"state ={state}")
+
+        state = np.repeat(state, self.num_skills, axis=0)
+
+        input = np.concatenate((state, skill), axis=1)
+
+        input = self._process_input(input)
+
+        with torch.no_grad():
+            y_pred = self.model(input)
+
+        print(y_pred)
+        print(y_pred.shape)
+        return y_pred
+
+
     def get_p_matrix(self, state: np.array, skill: np.array) -> np.array:
         """
         Given an input to the forward model, it calculates the probabilities over the successor state
