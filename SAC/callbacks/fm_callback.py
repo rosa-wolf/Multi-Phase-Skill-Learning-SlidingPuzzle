@@ -168,7 +168,7 @@ class FmCallback(BaseCallback):
                 #num_change = np.where(out[i] > 0.5)[0].shape[0]
 
                 # get unique changes
-                num_change = np.unique(np.where(out[i] > 0.3)[1]).shape[0]
+                num_change = np.unique(np.where(out[i] > 0.0)[1]).shape[0]
 
 
             if num_change < len(self.env.neighborlist[str(i)]):

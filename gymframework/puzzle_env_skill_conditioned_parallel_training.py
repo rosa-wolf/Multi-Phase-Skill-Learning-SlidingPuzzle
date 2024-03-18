@@ -288,6 +288,18 @@ class PuzzleEnv(gym.Env):
                 # is bigger than 0.1
                 pred = self.fm.get_pred_for_all_skills(self.fm.sym_state_to_input(self.init_sym_state.flatten()))
                 print(pred)
+                empty_field = np.where(np.sum(self.init_sym_state, axis=0) == 0)[0][0]
+                print(f"sym state = {self.init_sym_state}")
+                print(f"empty field = {empty_field}")
+                pred[:, empty_field] = 0.
+                print(f"pred = {pred}")
+
+                poss_skills = np.where(pred > 0.1)[0]
+                print(f"poss skills ={poss_skills}")
+
+                self.skill = np.choice(poss_skills)
+
+
                 # generate goal configuration
                 #self.skill = np.random.randint(0, self.num_skills, 1)[0]
                 #for i in range(24):

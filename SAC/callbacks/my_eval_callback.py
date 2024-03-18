@@ -243,7 +243,7 @@ class EvalCallback(EventCallback):
         successes = []
         solution_depth = [1]
         for depth in solution_depth:
-            for _ in range(100):
+            for _ in range(10):
                 # sample initial sym state
                 init_sym_state = self.gym_env.sample_sym_state()
 
@@ -269,6 +269,6 @@ class EvalCallback(EventCallback):
                     else:
                         successes.append(False)
 
-        return np.sum(np.array(successes)) / 100.
+        return np.sum(np.array(successes)) / 10.
 
 
