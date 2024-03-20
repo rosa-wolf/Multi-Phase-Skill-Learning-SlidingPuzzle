@@ -293,7 +293,7 @@ class PuzzleEnv(gym.Env):
 
                 # sample goal empty field, and take that skill that is most likely to reach it
                 # only consider those goal empty fields, where any skill has at least some probability to reach it
-                goal_field = np.random.choice(np.where(np.sum(pred, axis=0) > 0.05)[0])
+                goal_field = np.random.choice(np.where(np.sum(pred, axis=0) > 0.08)[0])
 
 
                 self.skill = np.argmax(pred[:, goal_field])
