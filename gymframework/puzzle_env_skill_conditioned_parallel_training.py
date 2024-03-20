@@ -283,16 +283,20 @@ class PuzzleEnv(gym.Env):
         else:
             if not self.end_epis:
                 self.skill = np.random.randint(0, self.num_skills, 1)[0]
-            else:
+            else :
                 # take any skill where the probability to go from the sampled sym state to a different sym state
                 # is bigger than 0.1
                 pred = self.fm.get_pred_for_all_skills(self.fm.sym_state_to_input(self.init_sym_state.flatten()))
+
                 empty_field = np.where(np.sum(self.init_sym_state, axis=0) == 0)[0][0]
                 pred[:, empty_field] = 0.
 
-                poss_skills = np.where(pred > 0.1)[0]
+                # sample goal empty field, and take that skill that is most likely to reach it
+                # only consider those goal empty fields, where any skill has at least some probability to reach it
+                goal_field = np.random.choice(np.where(np.sum(pred, axis=0) > 0.05)[0])
 
-                self.skill = np.random.choice(poss_skills)
+
+                self.skill = np.argmax(pred[:, goal_field])
 
 
                 # generate goal configuration
