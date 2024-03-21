@@ -48,6 +48,7 @@ class FmCallback(BaseCallback):
 
         super().__init__(verbose)
         self.update_freq = update_freq
+        self.first_change = np.inf
         self.save_path = save_path
         self.env = env  # this is not a copy of the env, but a reference to it
         self.sample_size = sample_size
@@ -162,13 +163,13 @@ class FmCallback(BaseCallback):
             # we want for each init empty field at least min_neighbors transitions to other (adjacent) fields being probable
             if self.env.starting_epis:
                 # in beginning look whether change regularly happens
-                num_change = np.where(out[i] > 0.5)[0].shape[0]
+                num_change = np.where(out[i] > 0.7)[0].shape[0]
             else:
                 # at end look if change happens consistently with high probability
                 #num_change = np.where(out[i] > 0.5)[0].shape[0]
 
                 # get unique changes
-                num_change = np.unique(np.where(out[i] > 0.1)[1]).shape[0]
+                num_change = np.unique(np.where(out[i] > 0.05)[1]).shape[0]
 
 
             if num_change < len(self.env.neighborlist[str(i)]):
@@ -177,10 +178,15 @@ class FmCallback(BaseCallback):
         if change_reward_scheme:
             if self.env.starting_epis:
                 self.env.starting_epis = False
+                self.first_change = self.n_calls
                 lg.info("Changing from starting reward scheme after {0} steps".format(self.n_calls))
             elif self.env.do_refinement_phase and not self.env.end_epis:
                 self.env.end_epis = True
                 lg.info("Changing to final training part after {0} steps".format(self.n_calls))
+        elif self.env.do_refinement_phase and not self.env.end_epis:
+            if self.n_calls > self.first_change + 300000:
+                self.env_end_epis = True
+                lg.info("Changing to final training part after {0} steps, because max steps exceeded".format(self.n_calls))
             return True
 
         return False

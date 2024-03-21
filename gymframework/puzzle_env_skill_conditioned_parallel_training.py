@@ -277,11 +277,10 @@ class PuzzleEnv(gym.Env):
 
 
         # sample skill
-        print("starting skill sampling")
         if skill is not None:
             self.skill = skill
         else:
-            if not self.end_epis:
+            if not self.end_epis and False:
                 self.skill = np.random.randint(0, self.num_skills, 1)[0]
             else :
                 # take any skill where the probability to go from the sampled sym state to a different sym state
@@ -293,9 +292,9 @@ class PuzzleEnv(gym.Env):
 
                 # sample goal empty field, and take that skill that is most likely to reach it
                 # only consider those goal empty fields, where any skill has at least some probability to reach it
-                goal_field = np.random.choice(np.where(np.sum(pred, axis=0) > 0.08)[0])
+                #goal_field = np.random.choice(np.where(np.sum(pred, axis=0) > 0.08)[0])
 
-
+                goal_field = np.random.choice(np.delete(np.arange(self.num_pieces + 1), empty_field))
                 self.skill = np.argmax(pred[:, goal_field])
 
 
@@ -316,7 +315,6 @@ class PuzzleEnv(gym.Env):
                 #        print(f"iteration {i}: takin skill from plan")
                 #        self.skill = plan[0]
                 #        break
-        print("ending skill sampling")
 
 
                 ## at end do not sample from all skills, but only from those the forward model predicts change for
