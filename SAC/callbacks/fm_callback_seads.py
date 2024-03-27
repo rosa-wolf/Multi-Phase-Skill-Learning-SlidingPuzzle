@@ -183,7 +183,7 @@ class FmCallback(BaseCallback):
                 # never relabel policy transitions
                 if not (new_skill == old_skill).all():
                     # relabel policy transitions with 50% probability
-                    if np.random.normal() > 0.5 and False:
+                    if np.random.normal() > 0.5:
 
                         self._relabel_rl(start_idx, end_idx, i_episode, new_skill)
 

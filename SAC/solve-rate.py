@@ -119,7 +119,7 @@ elif args.env_name.__contains__("2x2"):
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
     puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
-    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed195738/fm/fm"
+    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed123456/fm/fm"
     puzzle_size = [2, 3]
 
     # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
@@ -167,7 +167,7 @@ fm = ForwardModel(num_skills=args.num_skills, puzzle_size=puzzle_size)
 fm.model.load_state_dict(th.load(fm_path, weights_only=True))
 fm.model.eval()
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed195738/model/model_1000000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed123456/model/model_1000000_steps", env=env)
 
 env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)

@@ -181,9 +181,10 @@ class FmCallback(BaseCallback):
                 lg.info("Changing from starting reward scheme after {0} steps".format(self.n_calls))
                 return True
             elif self.env.do_refinement_phase and not self.env.end_epis:
-                self.env.end_epis = True
-                lg.info("Changing to final training part after {0} steps".format(self.n_calls))
-                return True
+                if self.n_calls > 30000:
+                    self.env.end_epis = True
+                    lg.info("Changing to final training part after {0} steps".format(self.n_calls))
+                    return True
         elif self.env.do_refinement_phase and not self.env.end_epis:
             if self.n_calls > self.first_change + 300000:
                 self.env.end_epis = True
