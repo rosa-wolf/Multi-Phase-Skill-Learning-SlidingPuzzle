@@ -170,6 +170,9 @@ class PuzzleScene:
             new_state = self.update_symbolic_state()
             # stop movement if symbolic state has changed
             if new_state:
+                for _ in range(10):
+                    self.S.step(self.v, self.tau, ry.ControlMode.velocity)
+                self.update_symbolic_state()
                 # set new symbolic state in simulation
                 self.set_to_symbolic_state()
                 self.v = np.zeros(len(self.q0))

@@ -480,6 +480,7 @@ class ForwardModel(nn.Module):
         """
         # is start == goal, then stop now
         # algorithm will fail to
+        goal_reached = False
         if (start == goal).all():
             return [], []
 
@@ -496,49 +497,60 @@ class ForwardModel(nn.Module):
         parent[key] = None
         cost[key] = 0
 
-        while heap:
+        while heap and not goal_reached:
             # go through queue
             weight, _, state = heapq.heappop(heap)
+            empty_field = np.where(self.sym_state_to_input(state) == 1)[0][0]
             if len(visited) == 0 or not np.any(np.all(state == visited, axis=1)):
                 visited.append(state)
 
                 # node expansion through applying feasible actions
                 for k in self.skills:
+                    #print(f"k = {k}")
                     # get one-hot encoding of skill
                     one_hot = np.zeros((self.num_skills,))
                     one_hot[k] = 1
 
                     # find successor state
-                    next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                    #next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
                     #next_state = next_state.cpu().detach().numpy()
+                    succ_prob = self.get_p_matrix(self.sym_state_to_input(state), one_hot)
+                    succ_prob[empty_field] = 0
                     # only append next_state, if it was not already visited
                     # (this also includes that the skill does not lead to a change in symbolic state),
-                    if not np.any(np.all(next_state == visited, axis=1)):
-                        # if it is a valid symbolic state
-                        if self.valid_state(next_state.reshape((self.pieces, self.width * self.height))):
-                                new_weight = (weight - torch.log(prob)).item()
-                                #new_weight = new_weight.cpu().detach().numpy()
-                                # record parent
-                                key = np.array2string(next_state).replace('.', '').replace('\n', '')
+                    for idx in range(succ_prob.shape[0]):
+                        prob = succ_prob[idx]
+                        # print(f"state, idx = {state, idx}")
+                        next_state = self.pred_to_sym_state(state, idx)
+                        if not np.any(np.all(next_state == visited, axis=1)):
+                            # if it is a valid symbolic state
+                            if self.valid_state(next_state.reshape((self.pieces, self.width * self.height))):
+                                    new_weight = (weight - torch.log(prob)).item()
+                                    #new_weight = new_weight.cpu().detach().numpy()
+                                    # record parent
+                                    key = np.array2string(next_state).replace('.', '').replace('\n', '')
 
-                                if key in cost.keys():
-                                    if new_weight < cost[key]:
+                                    if key in cost.keys():
+                                        #print(f"key = {key}, new_weight = {new_weight}, old_weight = {cost[key]}")
+                                        if new_weight < cost[key]:
+                                            cost[key] = new_weight
+                                            parent[key] = state.astype(int)
+                                            skill[key] = k
+                                            heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
+                                    else:
                                         cost[key] = new_weight
                                         parent[key] = state.astype(int)
                                         skill[key] = k
                                         heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
-                                else:
-                                    cost[key] = new_weight
-                                    parent[key] = state.astype(int)
-                                    skill[key] = k
-                                    heapq.heappush(heap, (new_weight, next(tiebreaker), next_state))
 
 
-                                # if successor state is goal: break
-                                if (next_state == goal).all():
-                                    # get the state transitions and skills that lead to the goal
-                                    state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
-                                    return state_sequence, skill_sequence
+                                    # if successor state is goal: break
+                                    if (next_state == goal).all():
+                                        goal_reached = True
+        if goal_reached:
+            # get the state transitions and skills that lead to the goal
+            state_sequence, skill_sequence = self._backtrace(start, goal, parent, skill)
+            return np.array(state_sequence), list(np.array(skill_sequence).flatten())
 
         print("Goal Not reachable from start configuration")
         return None, None
@@ -579,15 +591,19 @@ class ForwardModel(nn.Module):
         while queue and not goal_reached:
             # go through queue
             state = queue.pop(0)
+            print(f"============================\nstate = {state}")
             #print(f"state = {state}")
             # node expansion through applying feasible actions
             for k in self.skills:
+                print(f"- --- --- --- -- -- --\nskill = {k}:")
                 # get one-hot encoding of skill
                 one_hot = np.zeros((self.num_skills,))
                 one_hot[k] = 1
 
                 # find successor state
                 next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                print(f"prob = {prob}")
+                print(f"next_state = {next_state}")
                 #print(f"skill = {k}, next_state = {next_state}, prob = {prob}")
                 # next_state = next_state.cpu().detach().numpy()
 
@@ -618,6 +634,8 @@ class ForwardModel(nn.Module):
 
                             # take this skill instead if it reaches the successor state with a higher probability
                             if key not in skill.keys() or prob > skill[key][1]:
+                                if key in skill.keys():
+                                    print(f" old = {skill[key]}, new = {k, prob}")
                                 #print("consider skill")
                                 skill[key] = [k, prob]
                                 #print(skill)
@@ -635,7 +653,120 @@ class ForwardModel(nn.Module):
                             #print("-----------------")
 
         if goal_reached:
-            time.sleep(10)
+            # get the state transitions and skills that lead to the goal
+            state_sequence, skill_sequence = self._backtrace_bfs(start, goal, parent, skill)
+            return np.array(state_sequence), list(np.array(skill_sequence).flatten())
+
+        print("Goal Not reachable from start configuration")
+        return None, None
+
+
+    def breadth_first_search_planner(self, start, goal):
+        """
+        TESTED BY TAKING CORRECT SUCCESSOR INSTEAD BY MODEL PREDICTION: BFS WORKS!!!
+        SOLUTION ALSO COMPARED TO ONLINE SOLVER: IT GIVES THE SAME SOLUTION!!!
+
+        Returns sequence of skills to go from start to goal configuration
+        as predicted by current forward_model
+        Args:
+            :param start: start configuration (symbolic state, fLattened)
+            :param goal: goal configuration (symbolic state, flattened)
+        Returns:
+            state_sequence: sequence of symbolic states the forward model predicts it be visited when executing the predicted skills
+            skill_sequence: sequence of skills to be executed to go from start to goal configuration
+            depth: solution depth
+        """
+        # is start == goal, then stop now
+        # algorithm will fail to
+        if (start == goal).all():
+            return [], []
+
+        visited = []
+        queue = []
+        parent = {}
+        skill = {}
+
+        # start search from start configuration
+        visited.append(start)
+        queue.append(start)
+
+        # store parent of start as None to not get key-error
+        key = np.array2string(start).replace('.', '').replace('\n', '')
+        parent[key] = None
+        goal_reached = False
+        while queue and not goal_reached:
+            # go through queue
+            state = queue.pop(0)
+            empty_field = np.where(self.sym_state_to_input(state) == 1)[0][0]
+            #print(f"============================\nstate = {state}")
+            #print(f"state = {state}")
+            # node expansion through applying feasible actions
+            for k in self.skills:
+                #print(f"- --- --- --- -- -- --\nskill = {k}:")
+                # get one-hot encoding of skill
+                one_hot = np.zeros((self.num_skills,))
+                one_hot[k] = 1
+
+                # find successor state
+                #next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                succ_prob = self.get_p_matrix(self.sym_state_to_input(state), one_hot)
+                succ_prob[empty_field] = 0
+                #print(f"succ_prob = {succ_prob}")
+
+                poss_succ = torch.where(succ_prob >= 0.1)[0]
+
+                for idx in poss_succ:
+                    idx = idx.item()
+                    prob = succ_prob[idx]
+                    #print(f"state, idx = {state, idx}")
+                    next_state = self.pred_to_sym_state(state, idx)
+                    #print(f"prob = {prob}")
+                    #print(f"next_state = {next_state}")
+
+
+                    # only append next_state if it is not the same as current state
+                    if not (state == next_state).all():
+                        # look wether next state is a valid symbolic observation
+                        if self.valid_state(next_state.reshape((self.pieces, self.width*self.height))):
+                            # save transition (state, action -> next_state) tuple
+                            # make next state to string to get key for dictionaries
+                            key = np.array2string(next_state).replace('.', '').replace('\n', '')
+
+                            # look if successor was already visited when transitioning from A DIFFERENT state
+                            not_visited = True
+
+                            if np.any(np.all(next_state == visited, axis=1)):
+                                #print("already visited")
+                                if not (parent[key] == state.astype(int)).all():
+                                    #print("parent  is not state")
+                                    not_visited = False
+
+                            if not_visited:
+                                # record skill used to get to next_state
+                                # allow for model to be imperfect/ for multiple skills to lead from
+                                # same parent state to same successor state
+
+                                # take this skill instead if it reaches the successor state with a higher probability
+                                if key not in skill.keys() or prob > skill[key][1]:
+                                    #if key in skill.keys():
+                                        #print(f" old = {skill[key]}, new = {k, prob}")
+                                    #print("consider skill")
+                                    skill[key] = [k, prob]
+                                    #print(skill)
+                                    # record parent
+                                    parent[key] = state.astype(int)
+                                    # if successor state is goal: break
+                                    # append successor to visited and queue
+                                    if not np.any(np.all(next_state == visited, axis=1)):
+                                        visited.append(next_state)
+                                        queue.append(next_state)
+
+                                    if (next_state == goal).all():
+                                        #print("goal is reached")
+                                        goal_reached = True
+                                #print("-----------------")
+
+        if goal_reached:
             # get the state transitions and skills that lead to the goal
             state_sequence, skill_sequence = self._backtrace_bfs(start, goal, parent, skill)
             return np.array(state_sequence), list(np.array(skill_sequence).flatten())

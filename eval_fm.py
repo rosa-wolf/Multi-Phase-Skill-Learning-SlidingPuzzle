@@ -10,7 +10,7 @@ fm = ForwardModel(num_skills=num_skills, batch_size=10, puzzle_size=[2, 3], lear
 
 # save model
 #fm_path = "/home/rosa/Documents/Uni/Masterarbeit/SEADS_SlidingPuzzle/SAC/checkpoints/2x3_puzzle/Parallel_Training/parallel2x3-new-penalty_num_skills3_sparseFalse_relabelingTrue/fm/fm"
-fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints/parallel2x3-maxsampling-05-01_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed105399/fm/fm"
+fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/15-skills/parallelseads_2x3-15skills_num_skills15_relabelingFalse_noveltyTrue_seconbestTrue_seed123456/fm/fm"
 fm.model.load_state_dict(torch.load(fm_path))
 
 print(fm.get_full_pred())

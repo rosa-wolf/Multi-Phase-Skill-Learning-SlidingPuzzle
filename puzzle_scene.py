@@ -159,6 +159,9 @@ class PuzzleScene:
             new_state = self.update_symbolic_state()
             # stop movement if symbolic state has changed
             if new_state:
+                for _ in range(5):
+                    self.S.step(self.v, self.tau, ry.ControlMode.velocity)
+                self.update_symbolic_state()
                 # set new symbolic state in simulation
                 self.set_to_symbolic_state()
                 self.v = np.zeros(len(self.q0))
@@ -332,13 +335,22 @@ class PuzzleScene:
             old_state = np.where(self.sym_state[i] == 1)[0]
             # go through all states but except old one and look if puzzle piece is near enough to invoke change of
             # symbolic state
+            print(f"piece = {i}")
             for j in range(self.pieces + 1):
+                print(f"field = {j}")
                 if j != old_state:
                     if np.linalg.norm(positions[i] - self.discrete_pos[j]) <= self.snapRad:
+                        print(f"change with piece {i} to field {j}")
                         # symbolic state changes
                         changed = True
+                        prev_box = np.where(self.sym_state[:, j] == 1)[0]
+                        print(f"prev box = {prev_box}")
+                        print(prev_box)
                         self.sym_state[i, old_state] = 0
                         self.sym_state[i, j] = 1
+                        # check if there is another box already on that field
+
+            print("new sym state = ")
 
         return changed
     

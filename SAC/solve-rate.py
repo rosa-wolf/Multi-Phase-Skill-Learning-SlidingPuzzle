@@ -14,6 +14,8 @@ from callbacks.my_eval_callback import EvalCallback
 from gymframework.puzzle_env_skill_conditioned_parallel_training import PuzzleEnv
 from forwardmodel_simple_input.forward_model import ForwardModel
 
+from generate_goal import generate_goal
+
 import os
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
@@ -117,7 +119,7 @@ elif args.env_name.__contains__("2x2"):
 elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
     puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
-    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed105399/fm/fm"
+    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed195738/fm/fm"
     puzzle_size = [2, 3]
 
     # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
@@ -148,7 +150,7 @@ env = PuzzleEnv(path=puzzle_path,
                 num_skills=args.num_skills,
                 init_phase=args.doinit,
                 refinement_phase=args.dorefinement,
-                verbose=1,
+                verbose=0,
                 fm_path=fm_path,
                 puzzlesize=puzzle_size,
                 sparse_reward=args.sparse,
@@ -159,12 +161,13 @@ env = PuzzleEnv(path=puzzle_path,
                 seed=args.seed,
                 snapRatio=args.snap_ratio)
 
+
 # load fm
 fm = ForwardModel(num_skills=args.num_skills, puzzle_size=puzzle_size)
 fm.model.load_state_dict(th.load(fm_path, weights_only=True))
 fm.model.eval()
 
-model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed105399/model/model_1000000_steps", env=env)
+model = SAC.load("/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed195738/model/model_1000000_steps", env=env)
 
 env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
@@ -173,31 +176,73 @@ np.random.seed(args.seed)
 
 print(fm.get_full_pred())
 
-# execute skill
-# do not reset environment after skill execution, but set actor to init z plane above its current position
-_, plan = fm.dijkstra(init_state.flatten(), goal_state.flatten())
+solution_depth = [1, 2, 3, 4, 5]
+successes = {'1': [[], 0, []],
+             '2': [[], 0, []],
+             '3': [[], 0, []],
+             '4': [[], 0, []],
+             '5': [[], 0, []]}
 
-print(f"plan = {plan}")
-print(f"skill = {plan[0]}")
-skill_idx = 0
-obs, _ = env.reset(skill=plan.pop(0), actor_pos=np.array([0., 0.]), sym_state_in=init_state)
-num_steps = 0
-while True:
-    #env.scene.C.view_pose(np.array([0., 0., 2., 0., 0., 0., 0]))
-    #env.scene.C.view()
-    #env.scene.C.view_savePng('z.vid/')
-    action, _states = model.predict(obs, deterministic=True)
-    obs, reward, terminated, truncated, _ = env.step(action)
-    num_steps += 1
-    if terminated or num_steps > 100:
-        if len(plan) == 0:
-            break
-        # do not reset environment, but only set actor pos to init z-plane
-        # do replanning
-        #_, plan = fm.dijkstra(env.scene.sym_state.flatten(), goal_state.flatten())
+for depth in solution_depth:
+    for _ in range(50):
+        # sample initial sym state
+        init_sym_state = env.sample_sym_state()
+        goal_sym_state = generate_goal(init_sym_state, depth=depth, puzzle_size=env.scene.puzzlesize)
+
+        print(f"init_sym_state =\n {init_sym_state}")
+        print(f"goal_sym_state =\n {goal_sym_state}")
+
+        # execute skill
+        # do not reset environment after skill execution, but set actor to init z plane above its current position
+        _, plan = fm.dijkstra(init_sym_state.flatten(), goal_sym_state.flatten())
+        #_, plan = fm.breadth_first_search(init_sym_state.flatten(), goal_sym_state.flatten())
+        #_, plan = fm.breadth_first_search_planner(init_sym_state.flatten(), goal_sym_state.flatten())
+        two_ago_plan = None
+        one_ago_plan = plan.copy()
+        repititions = 0
+
         print(f"plan = {plan}")
-        num_steps = 0
-        obs = env.execution_reset(skill=plan.pop(0))
+        print(f"skill = {plan[0]}")
+
+        # the puzzle is solvable, thus if the fm returns that it is not this is a failure
+        if plan is None:
+            successes[str(depth)][0].append(0)
+            successes[str(depth)][1] = float(np.sum(np.array((successes[str(depth)][0]))))/float(len(successes[str(depth)][0]))
+            successes[str(depth)][2].append(None)
+        else:
+            successes[str(depth)][2].append(len(plan))
+            obs, _ = env.reset(skill=plan.pop(0), actor_pos=np.array([0., 0.]), sym_state_in=init_sym_state)
+            num_steps = 0
+            while True:
+                action, _states = model.predict(obs, deterministic=True)
+                obs, reward, terminated, truncated, _ = env.step(action)
+                num_steps += 1
+                if terminated or num_steps > 100:
+                    # do replanning
+                    #_, plan = fm.breadth_first_search_planner(env.scene.sym_state.flatten(), goal_sym_state.flatten())
+                    #_, plan = fm.dijkstra(env.scene.sym_state.flatten(), goal_sym_state.flatten())
+                    if len(plan) == 0:
+                        break
+                    #print(f"plan = {plan}")
+                    #if plan == two_ago_plan:
+                    #    print("Plan is equal to two previous plans")
+                    #    break
+                    two_ago_plan = one_ago_plan
+                    one_ago_plan = plan.copy()
+                    num_steps = 0
+
+                    obs = env.execution_reset(skill=plan.pop(0))
+
+            if np.all(env.scene.sym_state == goal_sym_state):
+                successes[str(depth)][0].append(1)
+                successes[str(depth)][1] = float(np.sum(np.array((successes[str(depth)][0])))) / float(
+                    len(successes[str(depth)][0]))
+            else:
+                successes[str(depth)][0].append(0)
+                successes[str(depth)][1] = float(np.sum(np.array((successes[str(depth)][0])))) / float(
+                    len(successes[str(depth)][0]))
+        print(f"successes = {successes}")
+
 
 time.sleep(10.)
 
@@ -205,6 +250,7 @@ time.sleep(10.)
 
 del model
 env.close()
+
 
 
 

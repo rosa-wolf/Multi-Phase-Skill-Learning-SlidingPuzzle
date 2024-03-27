@@ -644,7 +644,7 @@ class PuzzleEnv(gym.Env):
        #                    [-1., self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
        #                                                   self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
        #                                                   k)])
-        #print("reward = ", reward)
+        print("reward = ", reward)
 
         return reward
 
