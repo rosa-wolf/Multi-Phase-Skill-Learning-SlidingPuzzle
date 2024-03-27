@@ -71,6 +71,7 @@ class PuzzleEnv(gym.Env):
 
         # parameters to control different versions of observation and reward
         self.sparse_reward = sparse_reward
+        print(f"sparse = {self.sparse_reward}")
         self.reward_on_change = reward_on_change
         self.reward_on_end = reward_on_end
 
@@ -280,9 +281,9 @@ class PuzzleEnv(gym.Env):
         if skill is not None:
             self.skill = skill
         else:
-            if not self.end_epis and False:
+            if not self.end_epis:
                 self.skill = np.random.randint(0, self.num_skills, 1)[0]
-            else :
+            else:
                 # take any skill where the probability to go from the sampled sym state to a different sym state
                 # is bigger than 0.1
                 pred = self.fm.get_pred_for_all_skills(self.fm.sym_state_to_input(self.init_sym_state.flatten()))
@@ -577,12 +578,12 @@ class PuzzleEnv(gym.Env):
         reward = 0.
         if k is None:
             k = self.skill
-
+        print(f"starting epis = {self.starting_epis}")
+        print(f"end epis = {self.end_epis}")
         if not (self.init_sym_state == self.scene.sym_state).all():
             # always give novelty bonus when state changes
             print("SYM STATE CHANGED !!!")
             # add novelty bonus (min + 0)
-            # uniform = True if self.starting_epis else False
             reward += self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                 self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                 k, others_only=self.starting_epis)
