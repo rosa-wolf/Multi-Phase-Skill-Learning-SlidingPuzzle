@@ -41,3 +41,7 @@ checkpoints_predefined_2x2/
 exploration.py
 nohup.out
 *.log
+file_convert.py
+fm_artificial-training.py
+fm_artificial-training_1x2.py
+fm_artificial-training_lookup.py
