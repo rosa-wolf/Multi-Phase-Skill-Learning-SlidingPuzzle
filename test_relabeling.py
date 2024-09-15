@@ -101,14 +101,5 @@ if __name__ == '__main__':
                       f" {fm.calculate_reward(state, succ_state, k, normalize=False)}")
             print("===================================================================================================")
 
-    # make artificial input episode
-    # (trans1, trans2, ..., transn, fm-trans)
-    # transitions are tuples and have from: (state: 8D np.array, action: 3D np.array, reward: float, next_state: 8D np.array, mask: 1 or zero)
-    # fm:trans has form: (empy-field: 2D np.array, skill: 2D np.array, next emtpy-field: 2D np.array)
-    # important: last two entry of state are one-hot encoding of skill: those and the reward are the only numbers that should be changed in transitions
-    # in fm-trans also only one-hot encoding of skill should be changed
-    # make sure that nothing else is changed in tests
-    # make sure that reward only changed if skill changes
-
 
     unittest.main()

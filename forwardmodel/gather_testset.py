@@ -42,20 +42,3 @@ if __name__ == '__main__':
                         goal_state = init_state.copy()
 
                         writer.writerow(np.concatenate([init_state.flatten(), one_hot, goal_state.flatten()]))
-
-            ## put all possible transitions into training data where initially empty field is the one we want to push from
-            #fields_imposs = np.delete(fields, SKILLS[skill, 0])
-            #perms = permutations(fields_imposs)
-            #for order in perms:
-            #    # set board in env to initial state
-            #    init_state = np.zeros((5, 6))
-            #    for i in range(5):
-            #        init_state[i, order[i]] = 1
-            #    # goal state similar to initial state
-            #    # write to file
-            #    writer.writerow(np.concatenate([init_state.flatten(), one_hot, init_state.flatten()]))
-
-
-
-
-

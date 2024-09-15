@@ -14,73 +14,42 @@ from forwardmodel_simple_input.forward_model import ForwardModel
 
 import os
 
-parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
+parser = argparse.ArgumentParser(description=' Environment and PyTorch Soft Actor-Critic Args')
 # args for env
-parser.add_argument('--env_name', default="HalfCheetah-v2",
-                    help='Mujoco Gym environment (default: HalfCheetah-v2)')
-parser.add_argument('--num_skills', default=2, type=int,
-                    help='Enumeration of the skill to train')
-parser.add_argument('--num_episodes', default=1, type=int,
-                    help='Number of episode to collect in each rollout')
-parser.add_argument('--vel_steps', default=1, type=int,
-                    help='Number of times to apply velocity control in one step of the agent')
+parser.add_argument('--env_name', default="2x3",
+                    help='Simulation Environment, must include puzzle size "axb"')
+parser.add_argument('--num_skills', default=3, type=int,
+                    help='Enumeration of the skill to train (default 3)')
+parser.add_argument('--num_episodes', default=20, type=int,
+                    help='Number of episode to collect in each rollout (default 20)')
 parser.add_argument('--relabeling', action='store_true', default=False,
-                    help='Do HER for higher level skills')
+                    help='Do HER for higher level skills (default False)')
 parser.add_argument('--prior_buffer', action='store_true', default=False,
-                    help='Whether to use priority buffer')
+                    help='Whether to use priority buffer (defualt False)')
 parser.add_argument('--second_best', action='store_true', default=False,
-                    help='Whether to do second best normalization in calculation of reward')
+                    help='Whether to do second best normalization in calculation of reward (default False)')
 parser.add_argument('--sparse', action='store_true', default=False,
-                    help='Only sparse reward')
+                    help='Only sparse reward (defualt False)')
 parser.add_argument('--doinit', action='store_true', default=False,
-                    help='Whether to do initial phase')
+                    help='Whether to do initial phase (default False)')
 parser.add_argument('--dorefinement', action='store_true', default=False,
-                    help='Whether to do refinement phase')
+                    help='Whether to do refinement phase (default False)')
 parser.add_argument('--seed', type=int, default=123456, metavar='N',
                     help='random seed (default: 123456)')
 parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='maximum number of steps (default: 100)')
-parser.add_argument('--reward_on_change', action='store_true', default=False,
-                    help='Whether to give additional reward when boxes is pushed')
-parser.add_argument('--term_on_change', action='store_true', default=False,
-                    help='Terminate on change of symbolic state')
-parser.add_argument('--random_init_board', action='store_true', default=False,
-                    help='If true, it is not ensured that the skill execution is possible in the initial board configuration')
-parser.add_argument('--reward_on_end', action='store_true', default=False,
-                    help='Always give a reward on the terminating episode')
 parser.add_argument('--snap_ratio', default=4., type=int,
-                    help='1/Ratio of when symbolic state changes, if boxes is pushed')
+                    help='1/Ratio of when symbolic state changes, if boxes is pushed (default 4)')
 
 # args for SAC
-parser.add_argument('--policy', default="Gaussian",
-                    help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
-#parser.add_argument('--eval', type=bool, default=True,
-#                   help='Evaluates a policy a policy every 10 episode (default: True)')
 parser.add_argument('--gamma', type=float, default=0.95, metavar='G',
-                    help='discount factor for reward (default: 0.99)')
-parser.add_argument('--tau', type=float, default=0.1, metavar='G',
-                    help='update coefficient for polyak update (default: 0.1)')
+                    help='discount factor for reward (default: 0.95)')
 parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
-parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
-                    help='Temperature parameter α determines the relative importance of the entropy\
-                            term against the reward (default: 0.2)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
-                    help='Automaically adjust α (default: False)')
 parser.add_argument('--batch_size', type=int, default=128, metavar='N', # default=256
-                    help='batch size (default: 256)')
+                    help='batch size (default: 128)')
 parser.add_argument('--num_epochs', type=int, default=200000, metavar='N',
                     help='number of training epochs (default: 200000)')
-parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
-                    help='hidden size (default: 256)')
-parser.add_argument('--updates_per_episode', type=int, default=50, metavar='N',
-                    help='model updates per episode (default: 50)')
-parser.add_argument('--start_steps', type=int, default=1000, metavar='N',
-                    help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
-                    help='Value target update per no. of updates per step (default: 1)')
-parser.add_argument('--replay_size', type=int, default=10000, metavar='N',
-                    help='size of replay buffer (default: 10000000)')
 args = parser.parse_args()
 
 if torch.cuda.is_available():
@@ -95,7 +64,7 @@ else:
     from Buffer import SeadsBuffer
     buffer_class = SeadsBuffer
 
-log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_relabeling" + str(args.relabeling) + "_priorbuffer" + str(args.prior_buffer) + "_seed" + str(args.seed)
+log_dir = "checkpoints/" + "parallel" + args.env_name + "_num_skills" + str(args.num_skills) + "_sparse" + str(args.sparse) + "_seed" + str(args.seed)
 os.makedirs(log_dir, exist_ok=True)
 fm_dir = log_dir + "/fm"
 os.makedirs(fm_dir, exist_ok=True)
@@ -144,9 +113,6 @@ env = PuzzleEnv(path=puzzle_path,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,
                 sparse_reward=args.sparse,
-                reward_on_change=True,
-                term_on_change=True,
-                reward_on_end=True,
                 relabel=args.relabeling,
                 seed=args.seed,
                 snapRatio=args.snap_ratio)
@@ -159,9 +125,6 @@ eval_env = PuzzleEnv(path=puzzle_path,
                 fm_path=fm_dir + "/fm",
                 puzzlesize=puzzle_size,
                 sparse_reward=args.sparse,
-                reward_on_change=True,
-                term_on_change=True,
-                reward_on_end=True,
                 relabel=args.relabeling,
                 seed=987654,
                 snapRatio=args.snap_ratio)
@@ -185,7 +148,7 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # callback for updating and training fm
-fm_callback = FmCallback(update_freq=1000,
+fm_callback = FmCallback(update_freq=args.num_episodes * args.num_steps,
                          env=env,
                          save_path=log_dir + "/fm",
                          size=puzzle_size,

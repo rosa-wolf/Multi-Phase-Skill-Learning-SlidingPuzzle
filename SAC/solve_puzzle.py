@@ -59,21 +59,21 @@ elif args.env_name.__contains__("2x3"):
     target_entropy = -3.5
     puzzle_path = '../Puzzles/slidingPuzzle_2x3.g'
     puzzle_size = [2, 3]
-    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed105399/fm/fm"
-    model_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/SEADS/2x3/10-skills/parallelseads_2x3-10skills_num_skills10_relabelingFalse_noveltyTrue_seconbestTrue_seed105399/model/model_700000_steps"
+    fm_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed285910/fm/fm"
+    model_path = "/home/rosa/Documents/Uni/Masterarbeit/checkpoints_many-skills/mine/2x3/15-skills/new_refinement/max-sampling/change-03-005/parallel2x3-maxsampling-03-005_num_skills15_sparseTrue_relabelingFalse_priorbufferFalse_seed285910/model/model_1000000_steps"
 
     # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
-    init_state = np.array([[1, 0, 0, 0, 0, 0],
+    init_state = np.array([[0, 0, 0, 1, 0, 0],
+                           [1, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0],
+                           [0, 1, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 1, 0]])
+
+    goal_state = np.array([[1, 0, 0, 0, 0, 0],
                            [0, 1, 0, 0, 0, 0],
                            [0, 0, 1, 0, 0, 0],
                            [0, 0, 0, 1, 0, 0],
-                           [0, 0, 0, 0, 0, 1]])
-
-    goal_state = np.array([[1, 0, 0, 0, 0, 0],
-                           [0, 0, 0, 0, 1, 0],
-                           [1, 0, 0, 0, 0, 0],
-                           [0, 1, 0, 0, 0, 0],
-                           [0, 0, 1, 0, 0, 0]])
+                           [0, 0, 0, 0, 1, 0]])
 
     #goal_state = np.array([[0, 1, 0, 0, 0, 0],
     #                       [1, 0, 0, 0, 0, 0],
@@ -101,7 +101,7 @@ env = PuzzleEnv(path=puzzle_path,
                 max_steps=100,
                 num_skills=args.num_skills,
                 logging=False,
-                verbose=1,
+                verbose=0,
                 fm_path=fm_path,
                 train_fm=False,
                 sparse_reward=True,
@@ -117,7 +117,8 @@ model = SAC.load(model_path, env=env)
 
 # execute skill
 # do not reset environment after skill execution, but set actor to init z plane above its current position
-_, plan = fm.dijkstra(init_state.flatten(), goal_state.flatten())
+#_, plan = fm.dijkstra(init_state.flatten(), goal_state.flatten())
+_, plan = fm.breadth_first_search_planner(env.scene.sym_state.flatten(), goal_state.flatten())
 print(f"plan = {plan}")
 print(f"skill = {plan[0]}")
 skill_idx = 0
@@ -135,6 +136,7 @@ while True:
             break
         # do not reset environment, but only set actor pos to init z-plane
         # do replanning
+        _, plan = fm.breadth_first_search_planner(env.scene.sym_state.flatten(), goal_state.flatten())
         #_, plan = fm.dijkstra(env.scene.sym_state.flatten(), goal_state.flatten())
         print(f"plan = {plan}")
         num_steps = 0

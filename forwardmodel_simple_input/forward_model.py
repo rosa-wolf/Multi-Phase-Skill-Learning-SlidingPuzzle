@@ -133,19 +133,6 @@ class ForwardModel(nn.Module):
         epoch_loss = 0
         epoch_acc = 0
 
-        #num_batches = math.ceil(data.shape[0]/self.batch_size)
-        ## go through all batches
-        #for i in range(num_batches):
-        #    if i == num_batches - 1:
-        #        # if we are in last batch take rest of data
-        #        x = data[i * self.batch_size: , : self.input_size]
-        #        y = data[i * self.batch_size: , self.input_size:]
-        #    else:
-        #        # take one batch of data
-        #        x = data[i * self.batch_size: (i + 1) * self.batch_size, : self.input_size]
-        #        y = data[i * self.batch_size: (i + 1) * self.batch_size, self.input_size:]
-
-
         self.model.train()
 
         x = self._process_input(x)
@@ -160,17 +147,7 @@ class ForwardModel(nn.Module):
         # get y_pred (multiclass classification)
         y_pred = self.model(x)
 
-        # get alpha (probability of state being 1) from y_pred
-        #alpha = self.calculate_alpha(x, y_pred)
-        #loss, max_loss, max_ep = self.criterion(y_pred, y)
         loss = self.criterion(y_pred, y)
-
-        #print("loss = ", loss)
-        #print("=========================================")
-        #print("transition with max loss : ", max_loss)
-        #visualize_transition(x[max_ep, :30], x[max_ep, 30:], y[max_ep])
-        #print("prediction ", y_pred[max_ep].reshape((5, 6)))
-        #print("=========================================")
 
         if torch.isnan(loss).any():
             print("loss is nan")
@@ -190,7 +167,6 @@ class ForwardModel(nn.Module):
             if torch.isnan(p).any():
                 print('weights contain nan values, ', p)
 
-        #return epoch_loss / num_batches, epoch_acc / num_batches
         return epoch_loss, epoch_acc
 
     def evaluate(self, data, num_epis=5):
@@ -257,28 +233,6 @@ class ForwardModel(nn.Module):
         elapsed_mins = int(elapsed_time / 60)
         elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
         return elapsed_mins, elapsed_secs
-
-    #def calculate_alpha(self, x, y_pred):
-    #    """
-    #    Calculates the probabiliy of a value in the symbolic observation to be one given the input and output of the
-    #    mlp
-    #    Args:
-    #        :param x: input to the mlp (symbolic_observation (flattened), one_hot encoding of skill)
-    #        :param y_pred: output of the mlp (shape of flattened symbolic observation)
-    #    Returns:
-    #        alpha: probability of value of each symbolic observation to be 1
-#
-    #    """
-    #    # get alpha (probability of state being 1) from y_pred
-    #    alpha = (1 - x[:, :self.sym_obs_size]) * y_pred + x[:, :self.sym_obs_size] * (1 - y_pred)
-    #    # make this into probabilities using softmax
-    #    # (for each boxes probabilities of being in one field should sum up to 1)
-    #    old_shape = alpha.shape
-    #    alpha = alpha.reshape((alpha.shape[0], self.width * self.height - 1, self.width * self.height))
-    #    alpha = torch.softmax(alpha, dim=2)
-    #    alpha = alpha.reshape(old_shape)
-#
-    #    return alpha
 
 
     def sym_state_to_input(self, state, one_hot=True):
@@ -372,7 +326,7 @@ class ForwardModel(nn.Module):
 
         return new_state.flatten()
 
-    def successor(self, input_empty: np.array, skill: np.array, sym_state=None, sym_output=True) -> (np.array, float):
+    def successor(self, input_empty: np.array, skill: np.array, sym_state=None, sym_output=True, others_only=True) -> (np.array, float):
         """
         Returns successor nodes of a given node
         Args:
@@ -406,7 +360,7 @@ class ForwardModel(nn.Module):
         ######################################################################
         """
         # concatenate state and skill to get input to mlp
-        succ, prob = self.get_prediction(input_empty, skill, exclude_same=True)
+        succ, prob = self.get_prediction(input_empty, skill, exclude_same=others_only)
 
         empty = np.where(succ == 1)[0][0]
 
@@ -591,24 +545,14 @@ class ForwardModel(nn.Module):
         while queue and not goal_reached:
             # go through queue
             state = queue.pop(0)
-            print(f"============================\nstate = {state}")
-            #print(f"state = {state}")
             # node expansion through applying feasible actions
             for k in self.skills:
-                print(f"- --- --- --- -- -- --\nskill = {k}:")
                 # get one-hot encoding of skill
                 one_hot = np.zeros((self.num_skills,))
                 one_hot[k] = 1
 
                 # find successor state
                 next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
-                print(f"prob = {prob}")
-                print(f"next_state = {next_state}")
-                #print(f"skill = {k}, next_state = {next_state}, prob = {prob}")
-                # next_state = next_state.cpu().detach().numpy()
-
-                # for devugging visualize every state transition prediction
-                # visualize_transition(state, one_hot, next_state)
 
                 # only append next_state if it is not the same as current state
                 if not (state == next_state).all():
@@ -636,9 +580,7 @@ class ForwardModel(nn.Module):
                             if key not in skill.keys() or prob > skill[key][1]:
                                 if key in skill.keys():
                                     print(f" old = {skill[key]}, new = {k, prob}")
-                                #print("consider skill")
                                 skill[key] = [k, prob]
-                                #print(skill)
                                 # record parent
                                 parent[key] = state.astype(int)
                                 # if successor state is goal: break
@@ -648,9 +590,7 @@ class ForwardModel(nn.Module):
                                     queue.append(next_state)
 
                                 if (next_state == goal).all():
-                                    #print("goal is reached")
                                     goal_reached = True
-                            #print("-----------------")
 
         if goal_reached:
             # get the state transitions and skills that lead to the goal
@@ -660,8 +600,7 @@ class ForwardModel(nn.Module):
         print("Goal Not reachable from start configuration")
         return None, None
 
-
-    def breadth_first_search_planner(self, start, goal):
+    def max_breadth_first_search(self, start, goal):
         """
         TESTED BY TAKING CORRECT SUCCESSOR INSTEAD BY MODEL PREDICTION: BFS WORKS!!!
         SOLUTION ALSO COMPARED TO ONLINE SOLVER: IT GIVES THE SAME SOLUTION!!!
@@ -697,32 +636,109 @@ class ForwardModel(nn.Module):
         while queue and not goal_reached:
             # go through queue
             state = queue.pop(0)
-            empty_field = np.where(self.sym_state_to_input(state) == 1)[0][0]
-            #print(f"============================\nstate = {state}")
-            #print(f"state = {state}")
             # node expansion through applying feasible actions
             for k in self.skills:
-                #print(f"- --- --- --- -- -- --\nskill = {k}:")
                 # get one-hot encoding of skill
                 one_hot = np.zeros((self.num_skills,))
                 one_hot[k] = 1
 
                 # find successor state
-                #next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state)
+                next_state, prob = self.successor(self.sym_state_to_input(state), one_hot, sym_state=state, others_only=False)
+
+                # only append next_state if it is not the same as current state
+                if not (state == next_state).all():
+                    # look wether next state is a valid symbolic observation
+                    if self.valid_state(next_state.reshape((self.pieces, self.width*self.height))):
+                        # save transition (state, action -> next_state) tuple
+                        # make next state to string to get key for dictionaries
+                        key = np.array2string(next_state).replace('.', '').replace('\n', '')
+
+                        # look if successor was already visited when transitioning from A DIFFERENT state
+                        not_visited = True
+
+                        if np.any(np.all(next_state == visited, axis=1)):
+                            if not (parent[key] == state.astype(int)).all():
+                                not_visited = False
+
+                        if not_visited:
+                            # record skill used to get to next_state
+                            # allow for model to be imperfect/ for multiple skills to lead from
+                            # same parent state to same successor state
+
+                            # take this skill instead if it reaches the successor state with a higher probability
+                            if key not in skill.keys() or prob > skill[key][1]:
+                                skill[key] = [k, prob]
+                                # record parent
+                                parent[key] = state.astype(int)
+                                # if successor state is goal: break
+                                # append successor to visited and queue
+                                if not np.any(np.all(next_state == visited, axis=1)):
+                                    visited.append(next_state)
+                                    queue.append(next_state)
+
+                                if (next_state == goal).all():
+                                    goal_reached = True
+
+        if goal_reached:
+            # get the state transitions and skills that lead to the goal
+            state_sequence, skill_sequence = self._backtrace_bfs(start, goal, parent, skill)
+            return np.array(state_sequence), list(np.array(skill_sequence).flatten())
+
+        print("Goal Not reachable from start configuration")
+        return None, None
+
+    def breadth_first_search_planner(self, start, goal):
+        """
+        TESTED BY TAKING CORRECT SUCCESSOR INSTEAD BY MODEL PREDICTION: BFS WORKS!!!
+        SOLUTION ALSO COMPARED TO ONLINE SOLVER: IT GIVES THE SAME SOLUTION!!!
+
+        Returns sequence of skills to go from start to goal configuration
+        as predicted by current forward_model
+        Args:
+            :param start: start configuration (symbolic state, fLattened)
+            :param goal: goal configuration (symbolic state, flattened)
+        Returns:
+            state_sequence: sequence of symbolic states the forward model predicts it be visited when executing the predicted skills
+            skill_sequence: sequence of skills to be executed to go from start to goal configuration
+            depth: solution depth
+        """
+        # algorithm will fail to
+        if (start == goal).all():
+            return [], []
+
+        visited = []
+        queue = []
+        parent = {}
+        skill = {}
+
+        # start search from start configuration
+        visited.append(start)
+        queue.append(start)
+
+        # store parent of start as None to not get key-error
+        key = np.array2string(start).replace('.', '').replace('\n', '')
+        parent[key] = None
+        goal_reached = False
+        while queue and not goal_reached:
+            # go through queue
+            state = queue.pop(0)
+            empty_field = np.where(self.sym_state_to_input(state) == 1)[0][0]
+            # node expansion through applying feasible actions
+            for k in self.skills:
+                # get one-hot encoding of skill
+                one_hot = np.zeros((self.num_skills,))
+                one_hot[k] = 1
+
+                # find successor state
                 succ_prob = self.get_p_matrix(self.sym_state_to_input(state), one_hot)
                 succ_prob[empty_field] = 0
-                #print(f"succ_prob = {succ_prob}")
 
                 poss_succ = torch.where(succ_prob >= 0.1)[0]
 
                 for idx in poss_succ:
                     idx = idx.item()
                     prob = succ_prob[idx]
-                    #print(f"state, idx = {state, idx}")
                     next_state = self.pred_to_sym_state(state, idx)
-                    #print(f"prob = {prob}")
-                    #print(f"next_state = {next_state}")
-
 
                     # only append next_state if it is not the same as current state
                     if not (state == next_state).all():
@@ -736,9 +752,7 @@ class ForwardModel(nn.Module):
                             not_visited = True
 
                             if np.any(np.all(next_state == visited, axis=1)):
-                                #print("already visited")
                                 if not (parent[key] == state.astype(int)).all():
-                                    #print("parent  is not state")
                                     not_visited = False
 
                             if not_visited:
@@ -748,11 +762,7 @@ class ForwardModel(nn.Module):
 
                                 # take this skill instead if it reaches the successor state with a higher probability
                                 if key not in skill.keys() or prob > skill[key][1]:
-                                    #if key in skill.keys():
-                                        #print(f" old = {skill[key]}, new = {k, prob}")
-                                    #print("consider skill")
                                     skill[key] = [k, prob]
-                                    #print(skill)
                                     # record parent
                                     parent[key] = state.astype(int)
                                     # if successor state is goal: break
@@ -762,9 +772,7 @@ class ForwardModel(nn.Module):
                                         queue.append(next_state)
 
                                     if (next_state == goal).all():
-                                        #print("goal is reached")
                                         goal_reached = True
-                                #print("-----------------")
 
         if goal_reached:
             # get the state transitions and skills that lead to the goal
@@ -837,9 +845,6 @@ class ForwardModel(nn.Module):
             y_pred = self.model(input)
 
         y_pred = y_pred.reshape((self.pieces + 1,))
-
-        # softmax is already taken in forward call
-        #y_pred = torch.softmax(y_pred, dim=0)
 
         return y_pred
 
@@ -992,5 +997,3 @@ class ForwardModel(nn.Module):
         # additional bonus if for all other skills fm believes transition to be unlikely
         bonus = - torch.max(torch.log(y_pred))
         return bonus.cpu().detach().numpy()
-
-

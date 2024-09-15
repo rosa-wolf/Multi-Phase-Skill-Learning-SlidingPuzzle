@@ -141,5 +141,3 @@ ax.set_zlabel('z')
 plt.title("Sampled Actions of untrained agent")
 plt.show()
 plt.savefig("Exploration.png")
-
-# after 140 epis actor learned skill-conditioned with reward shaping when skill execution is always possible

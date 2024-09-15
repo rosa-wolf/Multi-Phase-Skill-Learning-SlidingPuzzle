@@ -1,20 +1,23 @@
-from robotic import ry
+#from robotic import ry
+import robotic as ry
 import numpy as np
 import time
 
+import os
 
 class PuzzleScene:
     def __init__(self,
                  filename: str,
-                 puzzlesize=None,
+                 puzzlesize=[2, 3],
+                 lim=np.array([0.25, 0.25, 0.25]),
                  snapRatio = 4,
                  verbose=0):
         """
 
         field with discrete places
         _____________
-        | 3 | 4 | 5 |
         | 0 | 1 | 2 |
+        | 3 | 4 | 5 |
         ------------
         Initially box0 is on place 0, box1 on place 1 etc. and place 5 is empty
         Thus, the initial symbolic observation is:
@@ -34,23 +37,8 @@ class PuzzleScene:
         """
         ry.params_add({'physx/motorKp': 1000., 'physx/motorKd': 100., 'physx/defaultFriction': 0.05})  # 1000 & 100 & 0.05
 
-        #initialize configuration
-        if puzzlesize is None:
-            puzzlesize = [2, 3]
-        self.puzzlesize = puzzlesize
-        self.pieces = self.puzzlesize[0] * self.puzzlesize[1] - 1
-
         self.C = ry.Config()
         self.C.addFile(filename)
-
-        # TODO: don't hardcode joint limits
-        # joint limits (x, y, z) limits
-        self.q_lim = np.array([[-.25, .25], [-.25, .25], [-.25, .25]])
-        # set limits farther outside, such that it is more likely to explore on edge of puzzle board
-        #self.q_lim = np.array([[-.3, .3], [-.3, .3], [-.25, .0]])
-        #self.X0 = self.C.getFrameState()
-        #self.C.setFrameState(self.X0)  # why do we need this? Setting feature with same values it already has?
-
         # store initial configuration
         self._X0 = self.C.getFrameState()
         self.C.setFrameState(self.X0)
@@ -58,6 +46,12 @@ class PuzzleScene:
         # initialize simulation
         self.verbose = verbose
         self.S = ry.Simulation(self.C, ry.SimulationEngine.physx, self.verbose)
+
+        self.puzzlesize = puzzlesize
+        self.pieces = self.puzzlesize[0] * self.puzzlesize[1] - 1
+
+        # joint limits (x, y, z) limits
+        self.q_lim = np.array([[-lim[0], lim[0]], [-lim[1], lim[1]], [-lim[2], lim[2]]])
 
         # delta t
         self.tau = .01
@@ -72,19 +66,16 @@ class PuzzleScene:
         self._sym_state = np.zeros((self.pieces, self.pieces + 1), dtype=int)
 
         for i in range(self.pieces):
-            name = "boxes" + str(i)
+            name = "box" + str(i)
             self.discrete_pos[i] = self.C.getFrame(name).getPosition()
             self._sym_state[i, i] = 1
 
-        # TODO: change discrete position of initially empty field for new boxes order
-        # TODO: just change to + 0.1 for old ordering of puzzle fields
         # beware: doesn't fit for the trained policies of the 1x2 puzzle
         # determine position of place which is initially empty
         # !!! Assumption: Always field with highest index is initially empty
         # and center of all fields have distance of 0.1 in all dimensions !!!
-        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] + 0.1
+        self.discrete_pos[-1, 0] = self.discrete_pos[-2, 0] - 0.1
         self.discrete_pos[-1, 1:] = self.discrete_pos[-2, 1:]
-
 
         # store intial symbolic state
         self.sym_state0 = self.sym_state.copy()
@@ -159,7 +150,7 @@ class PuzzleScene:
             new_state = self.update_symbolic_state()
             # stop movement if symbolic state has changed
             if new_state:
-                for _ in range(5):
+                for _ in range(15):
                     self.S.step(self.v, self.tau, ry.ControlMode.velocity)
                 self.update_symbolic_state()
                 # set new symbolic state in simulation
@@ -168,7 +159,6 @@ class PuzzleScene:
                 return new_state
         # set v to zero when movement is finished
         self.v = np.zeros(len(self.q0))
-
         return new_state
 
     def reset(self) -> None:
@@ -184,22 +174,6 @@ class PuzzleScene:
         self.C.setFrameState(self.X0)
         del self.S
         self.S = ry.Simulation(self.C, ry.SimulationEngine.physx, self.verbose)
-
-        # read out state to get shape of it
-        #_, vels = self.S.getState()
-
-        # push configuration to simulator and set velocitys to zero
-        # TODO: try setting velocity of objects to zero
-        # TODO: is this viewed as a movement? Are collisions simulated
-        # TODO: does push-state function has arguments for e.g the velocity
-        # TODO: give nx2x3 array of zeros, where n is number of frames
-        # I can get number of frames via get-state
-        #print("push simulation now")
-        #self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape), np.zeros(self.q0.shape[0]))
-        #print("finished updating simulation")
-        # set blocks back to original positions
-        #self.S.step([], self.tau,  ry.ControlMode.none)
-        #self.set_to_symbolic_state()
 
     def check_limits(self) -> bool:
         """
@@ -236,11 +210,8 @@ class PuzzleScene:
 
         if not in_limit:
             self.q = new_q
-
             print("q after setback = ", self.q)
 
-        #if ((self._q[:3] >= self.q_lim[:, 0]) & (self._q[:3] <= self.q_lim[:, 1])).all():
-        #    return True
         return in_limit
 
     def set_board_state(self, state) -> None:
@@ -259,7 +230,7 @@ class PuzzleScene:
 
         pos = []
         for i in range(self.pieces):
-            name = "boxes" + str(i)
+            name = "box" + str(i)
             pos.append(self.C.getFrame(name).getPosition())
 
         return np.array(pos)
@@ -277,22 +248,14 @@ class PuzzleScene:
 
         # set all pieces to their current symbolic state positions
         for i in range(self.pieces):
-            name = "boxes" + str(i)
+            name = "box" + str(i)
             # get position of boxes in current symbolic state
             idx = np.where(self._sym_state[i] == 1)[0]
             pos = self.discrete_pos[idx]
             # set position and orientation of boxes in Config
             self.C.getFrame(name).setQuaternion(self.quat0)
             self.C.getFrame(name).setPosition(pos)
-            #new_pos = self.C.getFrame(name).getPosition()
 
-        # read out state to get shape of it
-        #_, vels = self.S.getState()
-        ## pass state on to simulation
-        #if zero_vel:
-        #    self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape), np.zeros(self.q0.shape[0]))
-        #else:
-        #    self.S.pushConfigurationToSimulator(np.zeros(shape=vels.shape))
         if hard:
             # reinitialize simulation
             del self.S
@@ -333,24 +296,15 @@ class PuzzleScene:
         for i in range(self.pieces):
             # check whether old symbolic state changes
             old_state = np.where(self.sym_state[i] == 1)[0]
-            # go through all states but except old one and look if puzzle piece is near enough to invoke change of
+            # go through all states except old one and look if puzzle piece is near enough to invoke change of
             # symbolic state
-            print(f"piece = {i}")
             for j in range(self.pieces + 1):
-                print(f"field = {j}")
                 if j != old_state:
                     if np.linalg.norm(positions[i] - self.discrete_pos[j]) <= self.snapRad:
-                        print(f"change with piece {i} to field {j}")
                         # symbolic state changes
                         changed = True
-                        prev_box = np.where(self.sym_state[:, j] == 1)[0]
-                        print(f"prev box = {prev_box}")
-                        print(prev_box)
                         self.sym_state[i, old_state] = 0
                         self.sym_state[i, j] = 1
-                        # check if there is another box already on that field
-
-            print("new sym state = ")
 
         return changed
     

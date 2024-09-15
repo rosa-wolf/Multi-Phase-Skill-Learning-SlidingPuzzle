@@ -23,6 +23,7 @@ var/
 
 #Project specific
 checkpoints/
+
 models/
 skills/
 runs/
@@ -30,3 +31,13 @@ SAC/checkpoints*
 fm_eval/
 Plots/
 z.vid/
+*.npz
+/.ipynb_checkpoints
+*.csv
+z.*
+fm/
+Plots/
+checkpoints_predefined_2x2/
+exploration.py
+nohup.out
+*.log

@@ -7,7 +7,7 @@ from gymnasium.core import ObsType, ActType
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary
 from gymnasium.utils import seeding
 
-from puzzle_scene_new_ordering import PuzzleScene
+from puzzle_scene import PuzzleScene
 #from robotic import ry
 import robotic as ry
 import torch
@@ -239,8 +239,6 @@ class PuzzleEnv(gym.Env):
         else:
             self.skill = np.random.randint(0, self.num_skills, 1)[0]
 
-        print(f"skill = {self.skill}")
-        #print("skill = ", self.skill)
         # orientation of end-effector is always same
         self.scene.q0[3] = np.pi / 2.
 
@@ -495,16 +493,13 @@ class PuzzleEnv(gym.Env):
                 reward += self.fm.novelty_bonus(self.fm.sym_state_to_input(self.init_sym_state.flatten()),
                                                     self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                     k, uniform=False, others_only=False)
-            print(f"novelty reward = {reward}")
 
         if self._termination():
-            print("terminating")
             # if we want to always give a reward on the last episode, even if the symbolic observation did not change
             reward += np.max(
                 [-2, self.fm.calculate_reward(self.fm.sym_state_to_input(self._old_sym_obs.flatten()),
                                                self.fm.sym_state_to_input(self.scene.sym_state.flatten()),
                                                k, second_best=self.second_best)])
-            print(f"end reward = {reward}")
 
         return reward
 

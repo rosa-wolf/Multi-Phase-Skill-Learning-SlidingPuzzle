@@ -123,17 +123,17 @@ elif args.env_name.__contains__("2x3"):
     puzzle_size = [2, 3]
 
     # goal state for 2x2 puzzle cannot be random, because then for most initial configs the goal would not be reachable
-    init_state = np.array([[1, 0, 0, 0, 0, 0],
+    init_sym_state = np.array([[0, 0, 0, 1, 0, 0],
+                           [1, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0],
+                           [0, 1, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 1, 0]])
+
+    goal_sym_state = np.array([[1, 0, 0, 0, 0, 0],
                            [0, 1, 0, 0, 0, 0],
                            [0, 0, 1, 0, 0, 0],
                            [0, 0, 0, 1, 0, 0],
                            [0, 0, 0, 0, 1, 0]])
-
-    goal_state = np.array([[1, 0, 0, 0, 0, 0],
-                           [0, 1, 0, 0, 0, 0],
-                           [0, 0, 1, 0, 0, 0],
-                           [0, 0, 0, 0, 1, 0],
-                           [0, 0, 0, 0, 0, 1]])
 
 elif args.env_name.__contains__("3x3"):
     target_entropy = -4.5
@@ -150,13 +150,10 @@ env = PuzzleEnv(path=puzzle_path,
                 num_skills=args.num_skills,
                 init_phase=args.doinit,
                 refinement_phase=args.dorefinement,
-                verbose=0,
+                verbose=1,
                 fm_path=fm_path,
                 puzzlesize=puzzle_size,
                 sparse_reward=args.sparse,
-                reward_on_change=True,
-                term_on_change=True,
-                reward_on_end=True,
                 relabel=args.relabeling,
                 seed=args.seed,
                 snapRatio=args.snap_ratio)
@@ -173,36 +170,33 @@ env.action_space.seed(args.seed)
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
+solution_depth = [7]
+successes = {'1': [[], 0, [], []],
+             '2': [[], 0, [], []],
+             '3': [[], 0, [], []],
+             '4': [[], 0, [], []],
+             '5': [[], 0, [], []],
+             '7': [[], 0, [], []]}
 
-print(fm.get_full_pred())
-
-solution_depth = [1, 2, 3, 4, 5]
-successes = {'1': [[], 0, []],
-             '2': [[], 0, []],
-             '3': [[], 0, []],
-             '4': [[], 0, []],
-             '5': [[], 0, []]}
+os.system('mkdir -p z.vid')
 
 for depth in solution_depth:
-    for _ in range(50):
+    for _ in range(1):
         # sample initial sym state
-        init_sym_state = env.sample_sym_state()
-        goal_sym_state = generate_goal(init_sym_state, depth=depth, puzzle_size=env.scene.puzzlesize)
+        #init_sym_state = env.sample_sym_state()
+        #goal_sym_state = generate_goal(init_sym_state, depth=depth, puzzle_size=env.scene.puzzlesize)
 
         print(f"init_sym_state =\n {init_sym_state}")
         print(f"goal_sym_state =\n {goal_sym_state}")
 
         # execute skill
         # do not reset environment after skill execution, but set actor to init z plane above its current position
-        _, plan = fm.dijkstra(init_sym_state.flatten(), goal_sym_state.flatten())
-        #_, plan = fm.breadth_first_search(init_sym_state.flatten(), goal_sym_state.flatten())
-        #_, plan = fm.breadth_first_search_planner(init_sym_state.flatten(), goal_sym_state.flatten())
-        two_ago_plan = None
-        one_ago_plan = plan.copy()
+        #_, plan = fm.dijkstra(init_sym_state.flatten(), goal_sym_state.flatten())
+        #_, plan = fm.max_breadth_first_search(init_sym_state.flatten(), goal_sym_state.flatten())
+        _, plan = fm.breadth_first_search_planner(init_sym_state.flatten(), goal_sym_state.flatten())
         repititions = 0
 
         print(f"plan = {plan}")
-        print(f"skill = {plan[0]}")
 
         # the puzzle is solvable, thus if the fm returns that it is not this is a failure
         if plan is None:
@@ -210,43 +204,56 @@ for depth in solution_depth:
             successes[str(depth)][1] = float(np.sum(np.array((successes[str(depth)][0]))))/float(len(successes[str(depth)][0]))
             successes[str(depth)][2].append(None)
         else:
+            two_ago_plan = None
+            one_ago_plan = plan.copy()
             successes[str(depth)][2].append(len(plan))
             obs, _ = env.reset(skill=plan.pop(0), actor_pos=np.array([0., 0.]), sym_state_in=init_sym_state)
+
+            num_skills = 1
             num_steps = 0
             while True:
                 action, _states = model.predict(obs, deterministic=True)
                 obs, reward, terminated, truncated, _ = env.step(action)
+
                 num_steps += 1
                 if terminated or num_steps > 100:
                     # do replanning
-                    #_, plan = fm.breadth_first_search_planner(env.scene.sym_state.flatten(), goal_sym_state.flatten())
+                    _, plan = fm.breadth_first_search_planner(env.scene.sym_state.flatten(), goal_sym_state.flatten())
                     #_, plan = fm.dijkstra(env.scene.sym_state.flatten(), goal_sym_state.flatten())
+                    #_, plan = fm.max_breadth_first_search(init_sym_state.flatten(), goal_sym_state.flatten())
                     if len(plan) == 0:
                         break
-                    #print(f"plan = {plan}")
-                    #if plan == two_ago_plan:
-                    #    print("Plan is equal to two previous plans")
-                    #    break
+                    print(f"plan = {plan}")
+                    if plan == two_ago_plan:
+                        print("Plan is equal to two previous plans")
+                        break
                     two_ago_plan = one_ago_plan
                     one_ago_plan = plan.copy()
                     num_steps = 0
 
                     obs = env.execution_reset(skill=plan.pop(0))
+                    num_skills += 1
 
+            successes[str(depth)][3].append(num_skills)
             if np.all(env.scene.sym_state == goal_sym_state):
+                print("Reached goal sym state!")
+
+                np.savez("../configuration.npz",
+                         q=env.store_q,
+                         box_position=env.store_box_position,
+                         box_orientation=env.store_box_orientation,
+                         sym_state=env.store_sym_state,
+                         skill=env.store_skill)
+
                 successes[str(depth)][0].append(1)
                 successes[str(depth)][1] = float(np.sum(np.array((successes[str(depth)][0])))) / float(
                     len(successes[str(depth)][0]))
+                break
             else:
                 successes[str(depth)][0].append(0)
                 successes[str(depth)][1] = float(np.sum(np.array((successes[str(depth)][0])))) / float(
                     len(successes[str(depth)][0]))
         print(f"successes = {successes}")
-
-
-time.sleep(10.)
-
-
 
 del model
 env.close()
